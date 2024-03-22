@@ -1,0 +1,5 @@
+.\pyomo_env
+__pycache__
+.\OneDrive\Thesis\Gurobi
+*.cfg
+*.pth
