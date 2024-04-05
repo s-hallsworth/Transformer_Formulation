@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 N = 3 # number of functions
-T = 10
+T = 100
 cols = ['time', 'u', 'x']
 x = np.zeros((N,T))
 u = np.zeros((N,T))
