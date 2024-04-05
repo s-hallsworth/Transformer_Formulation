@@ -18,10 +18,10 @@ def func_1(t):
     return u,x
     
 def func_2(t):
-    # u = 1/t
-    # x = t - (1/t)
-    u = t
-    x = t + (t**3)/3
+    u = 1/t
+    x = t - (1/t)
+    # u = t
+    # x = t + (t**3)/3
     return u,x
     
 def func_3(t):
@@ -41,6 +41,8 @@ for t in range(T):
     #u[3,t], x[3,t] = func_4(time[t])
     
 x[:,0] = 1 #set intial condition   
+u[:,0] = 0
+
 for t in range(T):    
     x_prime_diff[:,t-1] = (x[:,t]-x[:,t-1])/(time[t]-time[t-1]) #dx/dt
 x_prime_u = 1 + u**2
@@ -69,7 +71,7 @@ for i in range(N):
     plt.plot(time, x_prime_diff[i, :] - x_prime_u[i, :], markers[i], label=f'dx/dt - 1+u^2 from Func {i+1}')
     #plt.plot(time, x_prime_u[i, :], markers[i], linestyle='dashed', label=f'1+u^2 from Func {i+1}')
 
-plt.title('Calculating dx/dt via x and u '+str(N)+' Functions')
+plt.title('Calculating dx/dt via x and u (for '+str(N)+' Functions)')
 plt.xlabel('Time')
 plt.ylabel('Magnitude')
 plt.legend()

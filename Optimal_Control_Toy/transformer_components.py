@@ -111,9 +111,10 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe.unsqueeze(0))
         
     def forward(self, x):
-        #print('x', x.shape, x.size)
-        #print('pe full',self.pe)
-        #print('pe to add',self.pe[:, :, :x.size(2)])
+        # print('x', x.shape, x.size)
+        # print('pe',self.pe.shape)
+        # print('pe full',self.pe)
+        # print('pe to add',self.pe[:, :, :x.size(2)])
         return x + self.pe[:, :, :x.size(2)]
     
 ################################################################
