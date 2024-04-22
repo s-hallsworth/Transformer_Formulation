@@ -38,6 +38,9 @@ class MultiHeadAttention(nn.Module):
         # Calculate attention scores
         attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.d_k)
         
+        # print('Q',Q.shape)
+        # print('attent_Score',attn_scores.shape)
+        # print('mask',mask.shape)
         # Apply mask if provided (useful for preventing attention to certain parts like padding)
         if mask is not None:
             attn_scores = attn_scores.masked_fill(mask == 0, -1e9)
@@ -61,8 +64,8 @@ class MultiHeadAttention(nn.Module):
         
     def forward(self, Q, K, V, mask=None):
         # Apply linear transformations and split heads
-        #print('Q',Q.shape, Q)
-        #print('WQ', self.W_q(Q).shape, self.W_q(Q) )
+        # print('Q',Q.shape, Q)
+        # print('WQ', self.W_q(Q).shape, self.W_q(Q) )
         #print(self.split_heads(self.W_q(Q)))
         
         Q = self.split_heads(self.W_q(Q))
@@ -98,24 +101,26 @@ class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_seq_length, setups):
         super(PositionalEncoding, self).__init__()
         
-        pe = torch.zeros( max_seq_length, d_model)
+        if d_model % 2 < 1:
+            pe = torch.zeros( max_seq_length, d_model)
+        else:
+            pe = torch.zeros( max_seq_length, d_model+1)
         position = torch.arange(0, max_seq_length, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * -(math.log(10000.0) / d_model))
-        # print('pos',position)
-        
+    
         pe[ :, 0::2] = torch.sin(position * div_term)
         pe[ :, 1::2] = torch.cos(position * div_term)
-        
 
         pe=pe.transpose(0,1)
         self.register_buffer('pe', pe.unsqueeze(0))
         
     def forward(self, x):
-        # print('x', x.shape, x.size)
+        # print('x', x.shape, x)
         # print('pe',self.pe.shape)
-        # print('pe full',self.pe)
-        # print('pe to add',self.pe[:, :, :x.size(2)])
-        return x + self.pe[:, :, :x.size(2)]
+        #print('pe full',self.pe)
+        # print('pe to add',self.pe[:, :x.size(1), :x.size(2)])
+        #print(x + self.pe[:, :x.size(1), :x.size(2)])
+        return x + self.pe[:, :x.size(1), :x.size(2)]
     
 ################################################################
 # ENCODER LAYER - standard for encoder decoder architecture
@@ -173,17 +178,25 @@ class OnlyDecoderLayer(nn.Module):
         
     def forward(self, x, tgt_mask):
         # print('x', x.shape, x)
-        #print('mask', tgt_mask.shape, tgt_mask)
-        attn_output = self.self_attn(x.transpose(1,2), x.transpose(1,2), x.transpose(1,2), tgt_mask)
+        # print('mask', tgt_mask.shape, tgt_mask)
+        x = x.transpose(1,2)
+        #x_atten = x.transpose(1,2)
+        #tgt_mask = tgt_mask.transpose(1,2)
         
+        attn_output = self.self_attn(x, x, x, tgt_mask)
+        #attn_output = attn_output.transpose(1,2)
+        
+        # print('x', x.shape, x )
         # print('atten',attn_output.shape, attn_output)
-        x = self.norm1(x.transpose(1,2) + self.dropout(attn_output))
+        # print( 'drop out', self.dropout(attn_output))
+        x = self.norm1(x + self.dropout(attn_output))
         
         # print('x',x.shape)
         ff_output = self.feed_forward(x)
         
         # print('ff', ff_output.shape, ff_output)
         x = self.norm3(x + self.dropout(ff_output))
+        # print('x ouput', x.shape, x)
         return x
 
 ################################################################
