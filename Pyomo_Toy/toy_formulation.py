@@ -42,37 +42,39 @@ class transformer:
                 M.embed_constraints.add(M.x_embed[t,1] == M.x[t])
         #else:
         
-    def add_layer_norm(self, M): #non-linear
+    def add_layer_norm(self, M, var, layer_norm_var_name): #non-linear
         """
         Normalization over the feature dimensions of input
         """  
         if not hasattr(M, 'layer_norm_constraints'):
             M.layer_norm_constraints = pyo.ConstraintList()
         
-        # Initialize variables outside the loop
+        # Initialize variables 
         M.x_sum = pyo.Var(M.time, initialize=0)
-        M.x_layer_norm = pyo.Var(M.time, M.model_dims, initialize=0)
+        
+        setattr(M, layer_norm_var_name, pyo.Var(M.time, M.model_dims, initialize=0))
+        layer_norm_var = getattr(M, layer_norm_var_name)
 
         # Add constraints for layer norm
         if self.d_model == 1:
             return  
         
         for t in M.time:
-            # Constraint for summing x_embed over model_dims
-            M.layer_norm_constraints.add(expr= M.x_sum[t] == sum(M.x_embed[t, d] for d in M.model_dims))
+            # Constraint for summing var over model_dims
+            M.layer_norm_constraints.add(expr= M.x_sum[t] == sum(M.var[t, d] for d in M.model_dims))
 
             # Constraints for each dimension
             for d in M.model_dims:
                 mean_d = M.x_sum[t] / self.d_model  # Mean
-                variance = sum((M.x_embed[t, d_prime] - mean_d)**2 for d_prime in M.model_dims) / self.d_model
+                variance = sum((M.var[t, d_prime] - mean_d)**2 for d_prime in M.model_dims) / self.d_model
                 std_dev = (variance + self.epsilon)**0.5  # epsilon to avoid div 0
 
                 # Calculate layer normalization
-                x_mean = M.x_embed[t, d] - mean_d
+                x_mean = M.var[t, d] - mean_d
                 layer_norm = (self.lambd * (x_mean / std_dev)) - self.beta
 
                 # Add constraint for layer normalized output
-                M.layer_norm_constraints.add(expr = M.x_layer_norm[t, d] == layer_norm)
+                M.layer_norm_constraints.add(expr = layer_norm_var[t, d] == layer_norm)
     
     def add_attention(self, M):
         """
