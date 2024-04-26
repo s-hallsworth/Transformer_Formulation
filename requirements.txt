@@ -11,3 +11,4 @@ pyscipopt==5.0.0
 google==3.0.0
 gurobi-machinelearning==1.5.0
 tensorflow==2.16.1
+ruff==0.4.1

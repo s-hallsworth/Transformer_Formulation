@@ -5,78 +5,111 @@
 #   Problem Information
 # ----------------------------------------------------------
 Problem: 
-- Name: x1
-  Lower bound: 1.1328071499999999
-  Upper bound: 1.1328071499999999
+- Lower bound: -inf
+  Upper bound: inf
   Number of objectives: 1
-  Number of constraints: 22
-  Number of variables: 22
-  Number of binary variables: 0
-  Number of integer variables: 0
-  Number of continuous variables: 22
-  Number of nonzeros: 22
-  Sense: minimize
+  Number of constraints: 64
+  Number of variables: 64
+  Sense: unknown
 # ----------------------------------------------------------
 #   Solver Information
 # ----------------------------------------------------------
 Solver: 
 - Status: ok
-  Return code: 0
-  Message: Model was solved to optimality (subject to tolerances), and an optimal solution is available.
+  Message: Ipopt 3.12.13\x3a Optimal Solution Found
   Termination condition: optimal
-  Termination message: Model was solved to optimality (subject to tolerances), and an optimal solution is available.
-  Wall time: 0.0009999275207519531
+  Id: 0
   Error rc: 0
-  Time: 0.12900042533874512
+  Time: 0.023001909255981445
 # ----------------------------------------------------------
 #   Solution Information
 # ----------------------------------------------------------
 Solution: 
 - number of solutions: 1
   number of solutions displayed: 1
-- Gap: 0.0
+- Gap: None
   Status: optimal
-  Message: Model was solved to optimality (subject to tolerances), and an optimal solution is available.
+  Message: Ipopt 3.12.13\x3a Optimal Solution Found
   Objective:
     obj:
-      Value: 1.13280715
+      Value: 0.9291666666666667
   Variable:
-    u[0.1]:
-      Value: 0.26315789
-    u[0.2]:
-      Value: 0.27777778
-    u[0.30000000000000004]:
-      Value: 0.29411765
-    u[0.4]:
-      Value: 0.3125
-    u[0.5]:
-      Value: 0.33333333
-    u[0.6000000000000001]:
-      Value: 0.35714286
-    u[0.7000000000000001]:
-      Value: 0.38461538
-    u[0.8]:
-      Value: 0.41666667
-    u[0.9]:
-      Value: 0.45454545
+    K[1,0.0,1]:
+      Value: 1
+    K[1,0.3333333333333333,1]:
+      Value: 1.35833333
+    K[1,0.6666666666666666,1]:
+      Value: 1.72916667
+    V[1,0.0,1]:
+      Value: 1
+    V[1,0.3333333333333333,1]:
+      Value: 1.35833333
+    V[1,0.6666666666666666,1]:
+      Value: 1.72916667
+    attention_output[0.0,1]:
+      Value: 1.0218749999999999
+    attention_output[0.3333333333333333,1]:
+      Value: 1.0218749999999999
+    attention_output[0.6666666666666666,1]:
+      Value: 1.0218749999999999
+    attention_output[1.0,1]:
+      Value: 1.0218749999999999
+    attention_score[1,0.0,1]:
+      Value: 1.0218749999999999
+    attention_score[1,0.3333333333333333,1]:
+      Value: 1.0218749999999999
+    attention_score[1,0.6666666666666666,1]:
+      Value: 1.0218749999999999
+    attention_score[1,1.0,1]:
+      Value: 1.0218749999999999
+    attention_weight[1,0.0,0.0]:
+      Value: 0.25
+    attention_weight[1,0.0,0.3333333333333333]:
+      Value: 0.25
+    attention_weight[1,0.0,0.6666666666666666]:
+      Value: 0.25
+    attention_weight[1,0.0,1.0]:
+      Value: 0.25
+    attention_weight[1,0.3333333333333333,0.0]:
+      Value: 0.25
+    attention_weight[1,0.3333333333333333,0.3333333333333333]:
+      Value: 0.25
+    attention_weight[1,0.3333333333333333,0.6666666666666666]:
+      Value: 0.25
+    attention_weight[1,0.3333333333333333,1.0]:
+      Value: 0.25
+    attention_weight[1,0.6666666666666666,0.0]:
+      Value: 0.25
+    attention_weight[1,0.6666666666666666,0.3333333333333333]:
+      Value: 0.25
+    attention_weight[1,0.6666666666666666,0.6666666666666666]:
+      Value: 0.25
+    attention_weight[1,0.6666666666666666,1.0]:
+      Value: 0.25
+    attention_weight[1,1.0,0.0]:
+      Value: 0.25
+    attention_weight[1,1.0,0.3333333333333333]:
+      Value: 0.25
+    attention_weight[1,1.0,0.6666666666666666]:
+      Value: 0.25
+    attention_weight[1,1.0,1.0]:
+      Value: 0.25
+    u[0.0]:
+      Value: 0.25
+    u[0.3333333333333333]:
+      Value: 0.3
+    u[0.6666666666666666]:
+      Value: 0.375
     x[0.0]:
       Value: 1
-    x[0.1]:
-      Value: 1.10657895
-    x[0.2]:
-      Value: 1.21388889
-    x[0.30000000000000004]:
-      Value: 1.32205882
-    x[0.4]:
-      Value: 1.43125
-    x[0.5]:
-      Value: 1.54166667
-    x[0.6000000000000001]:
-      Value: 1.65357143
-    x[0.7000000000000001]:
-      Value: 1.76730769
-    x[0.8]:
-      Value: 1.88333333
-    x[0.9]:
-      Value: 2.00227273
+    x[0.3333333333333333]:
+      Value: 1.35833333
+    x[0.6666666666666666]:
+      Value: 1.72916667
+    x_embed[0.0,1]:
+      Value: 1
+    x_embed[0.3333333333333333,1]:
+      Value: 1.35833333
+    x_embed[0.6666666666666666,1]:
+      Value: 1.72916667
   Constraint: No values
