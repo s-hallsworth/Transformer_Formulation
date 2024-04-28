@@ -8,8 +8,8 @@ Problem:
 - Lower bound: -inf
   Upper bound: inf
   Number of objectives: 1
-  Number of constraints: 64
-  Number of variables: 64
+  Number of constraints: 106
+  Number of variables: 108
   Sense: unknown
 # ----------------------------------------------------------
 #   Solver Information
@@ -20,7 +20,7 @@ Solver:
   Termination condition: optimal
   Id: 0
   Error rc: 0
-  Time: 0.023001909255981445
+  Time: 0.02601313591003418
 # ----------------------------------------------------------
 #   Solution Information
 # ----------------------------------------------------------
@@ -32,36 +32,48 @@ Solution:
   Message: Ipopt 3.12.13\x3a Optimal Solution Found
   Objective:
     obj:
-      Value: 0.9291666666666667
+      Value: -0.7375000000000003
   Variable:
-    K[1,0.0,1]:
-      Value: 1
-    K[1,0.3333333333333333,1]:
-      Value: 1.35833333
     K[1,0.6666666666666666,1]:
-      Value: 1.72916667
-    V[1,0.0,1]:
-      Value: 1
-    V[1,0.3333333333333333,1]:
-      Value: 1.35833333
+      Value: 8.881784197001255e-11
+    K[1,1.0,1]:
+      Value: 5.329069465440444e-10
     V[1,0.6666666666666666,1]:
-      Value: 1.72916667
-    attention_output[0.0,1]:
-      Value: 1.0218749999999999
-    attention_output[0.3333333333333333,1]:
-      Value: 1.0218749999999999
-    attention_output[0.6666666666666666,1]:
-      Value: 1.0218749999999999
-    attention_output[1.0,1]:
-      Value: 1.0218749999999999
+      Value: 8.881784197001255e-11
+    V[1,1.0,1]:
+      Value: 5.329069465440444e-10
+    attention_output[0.0,'0']:
+      Value: 1.5543119712851423e-10
+    attention_output[0.0,'1']:
+      Value: 1.5543119712851423e-10
+    attention_output[0.0,'2']:
+      Value: 1.5543119712851423e-10
+    attention_output[0.3333333333333333,'0']:
+      Value: 1.5543119712851423e-10
+    attention_output[0.3333333333333333,'1']:
+      Value: 1.5543119712851423e-10
+    attention_output[0.3333333333333333,'2']:
+      Value: 1.5543119712851423e-10
+    attention_output[0.6666666666666666,'0']:
+      Value: 1.5543119712851423e-10
+    attention_output[0.6666666666666666,'1']:
+      Value: 1.5543119712851423e-10
+    attention_output[0.6666666666666666,'2']:
+      Value: 1.5543119712851423e-10
+    attention_output[1.0,'0']:
+      Value: 1.5543119712851423e-10
+    attention_output[1.0,'1']:
+      Value: 1.5543119712851423e-10
+    attention_output[1.0,'2']:
+      Value: 1.5543119712851423e-10
     attention_score[1,0.0,1]:
-      Value: 1.0218749999999999
+      Value: 1.5543119712851423e-10
     attention_score[1,0.3333333333333333,1]:
-      Value: 1.0218749999999999
+      Value: 1.5543119712851423e-10
     attention_score[1,0.6666666666666666,1]:
-      Value: 1.0218749999999999
+      Value: 1.5543119712851423e-10
     attention_score[1,1.0,1]:
-      Value: 1.0218749999999999
+      Value: 1.5543119712851423e-10
     attention_weight[1,0.0,0.0]:
       Value: 0.25
     attention_weight[1,0.0,0.3333333333333333]:
@@ -94,22 +106,86 @@ Solution:
       Value: 0.25
     attention_weight[1,1.0,1.0]:
       Value: 0.25
-    u[0.0]:
+    input_embed[0.0,'0']:
+      Value: 1.25
+    input_embed[0.0,'1']:
+      Value: 1.25
+    input_embed[0.0,'2']:
+      Value: 1.25
+    input_embed[0.3333333333333333,'0']:
+      Value: 1.65833333
+    input_embed[0.3333333333333333,'1']:
+      Value: 1.65833333
+    input_embed[0.3333333333333333,'2']:
+      Value: 1.65833333
+    input_embed[0.6666666666666666,'0']:
+      Value: 2.1041666699999997
+    input_embed[0.6666666666666666,'1']:
+      Value: 2.1041666699999997
+    input_embed[0.6666666666666666,'2']:
+      Value: 2.1041666699999997
+    input_embed[1.0,'0']:
+      Value: 10.000000077100525
+    input_embed[1.0,'1']:
+      Value: 10.000000077100525
+    input_embed[1.0,'2']:
+      Value: 10.000000077100525
+    input_var[0.0,'0']:
+      Value: 1
+    input_var[0.0,'1']:
       Value: 0.25
-    u[0.3333333333333333]:
+    input_var[0.3333333333333333,'0']:
+      Value: 1.35833333
+    input_var[0.3333333333333333,'1']:
       Value: 0.3
-    u[0.6666666666666666]:
+    input_var[0.6666666666666666,'0']:
+      Value: 1.72916667
+    input_var[0.6666666666666666,'1']:
       Value: 0.375
-    x[0.0]:
-      Value: 1
-    x[0.3333333333333333]:
-      Value: 1.35833333
-    x[0.6666666666666666]:
-      Value: 1.72916667
-    x_embed[0.0,1]:
-      Value: 1
-    x_embed[0.3333333333333333,1]:
-      Value: 1.35833333
-    x_embed[0.6666666666666666,1]:
-      Value: 1.72916667
+    input_var[1.0,'1']:
+      Value: 10
+    layer_norm[0.6666666666666666,'0']:
+      Value: 2.9605947323337516e-11
+    layer_norm[0.6666666666666666,'1']:
+      Value: 2.9605947323337516e-11
+    layer_norm[0.6666666666666666,'2']:
+      Value: 2.9605947323337516e-11
+    layer_norm[1.0,'0']:
+      Value: 1.776356293865858e-10
+    layer_norm[1.0,'1']:
+      Value: 1.776356293865858e-10
+    layer_norm[1.0,'2']:
+      Value: 1.7763568777087277e-10
+    mha_residual[0.0,'0']:
+      Value: 1.25
+    mha_residual[0.0,'1']:
+      Value: 1.25
+    mha_residual[0.0,'2']:
+      Value: 1.25
+    mha_residual[0.3333333333333333,'0']:
+      Value: 1.65833333
+    mha_residual[0.3333333333333333,'1']:
+      Value: 1.65833333
+    mha_residual[0.3333333333333333,'2']:
+      Value: 1.65833333
+    mha_residual[0.6666666666666666,'0']:
+      Value: 2.1041666700296062
+    mha_residual[0.6666666666666666,'1']:
+      Value: 2.1041666700296062
+    mha_residual[0.6666666666666666,'2']:
+      Value: 2.1041666700296062
+    mha_residual[1.0,'0']:
+      Value: 10.00000007727816
+    mha_residual[1.0,'1']:
+      Value: 10.00000007727816
+    mha_residual[1.0,'2']:
+      Value: 10.00000007727816
+    x_sum[0.0]:
+      Value: 3.75
+    x_sum[0.3333333333333333]:
+      Value: 4.974999990000001
+    x_sum[0.6666666666666666]:
+      Value: 6.31250001
+    x_sum[1.0]:
+      Value: 30.000000231301573
   Constraint: No values
