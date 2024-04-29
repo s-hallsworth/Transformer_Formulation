@@ -2,7 +2,7 @@ import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
 import toy_transformer as toy_transformer
-import extract_weights
+import Pyomo_Toy.extract_from_pretrained as extract_from_pretrained
 
 # instantiate pyomo model component
 model = pyo.ConcreteModel(name="(TOY)")
@@ -32,20 +32,21 @@ model.input_var = pyo.Var(model.time, model.variables, bounds=(0, 10))
 
 # define transformer vars, params
 model.time_input = dae.ContinuousSet(initialize=time[:-1])
-dict_gamma1 = {(t): val for t,val in zip(model.time_input, extract_weights.gamma1)}
-dict_beta1 = {(t): val for t,val in zip(model.time_input, extract_weights.beta1)}
+layer_names, parameters = extract_from_pretrained.get_learned_parameters("model_weights.json")
+dict_gamma1 = {(t): val for t,val in zip(model.time_input, parameters['layer_normalization_130','gamma'])}
+dict_beta1 = {(t): val for t,val in zip(model.time_input,  parameters['layer_normalization_130','beta'])}
 model.gamma1 = pyo.Param(model.time_input, initialize = dict_gamma1)
 model.beta1 = pyo.Param(model.time_input, initialize = dict_beta1)
 
-W_q = extract_weights.dict_transformer_params['multi_head_attention_65','W_q']
-W_k = extract_weights.dict_transformer_params['multi_head_attention_65','W_k']
-W_v = extract_weights.dict_transformer_params['multi_head_attention_65','W_v']
-W_o = extract_weights.dict_transformer_params['multi_head_attention_65','W_o']
+W_q = parameters['multi_head_attention_65','W_q']
+W_k = parameters['multi_head_attention_65','W_k']
+W_v = parameters['multi_head_attention_65','W_v']
+W_o = parameters['multi_head_attention_65','W_o']
 
-b_q = extract_weights.dict_transformer_params['multi_head_attention_65','b_q']
-b_k = extract_weights.dict_transformer_params['multi_head_attention_65','b_k']
-b_v = extract_weights.dict_transformer_params['multi_head_attention_65','b_v']
-b_o = extract_weights.dict_transformer_params['multi_head_attention_65','b_o']
+b_q = parameters['multi_head_attention_65','b_q']
+b_k = parameters['multi_head_attention_65','b_k']
+b_v = parameters['multi_head_attention_65','b_v']
+b_o = parameters['multi_head_attention_65','b_o']
 
         
 

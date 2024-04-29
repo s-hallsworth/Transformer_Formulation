@@ -29,7 +29,7 @@ with open(file_path, 'w') as json_file:
     
 print(f"Weights of the model have been saved to {file_path}")
 
-model.save_weights('W_model.weights.h5', overwrite=True)
+#model.save_weights('W_model.weights.h5', overwrite=True)
 
 
 # # read H5
