@@ -24,8 +24,6 @@ for layer_name in transformer_weights:
         # else may contain gamma and beta parameters
     
     if 'MULTI_HEAD_ATTENTION' in layer_name.upper():  
-        for i in range( len(parameters)):
-            print(layer_name, np.array(parameters[i]).shape)
             
         if len(parameters) > 4: # has bias
             dict_transformer_params[(layer_name, 'W_q')] = parameters[0]
@@ -53,7 +51,7 @@ for layer_name in transformer_weights:
         dict_transformer_params[(layer_name, 'b')] = parameters[1] 
         
         
-print(layer_names)
+#print(layer_names) # ['layer_normalization_130', 'multi_head_attention_65', 'layer_normalization_131', 'conv2d_42', 'conv2d_43', 'dense_70', 'dense_71']
 #print(dict_transformer_params)   
 
 # get learned params

@@ -180,7 +180,7 @@ class transformer:
                     }
 
         b_o_dict = {(k): val for k, val in zip(M.k_dims, b_o) }
-        print(b_q_dict)
+
         M.b_q = pyo.Param(M.heads, M.k_dims, initialize=b_q_dict)
         M.b_k = pyo.Param(M.heads, M.k_dims, initialize=b_k_dict)
         M.b_v = pyo.Param(M.heads, M.k_dims, initialize=b_v_dict)
