@@ -74,7 +74,7 @@ transformer.embed_input(model, "input_var","input_embed", "variables")
 transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
 
 transformer.add_attention(model, "layer_norm", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
-#transformer.add_residual_connection(model, model.input_embed, model.layer_norm, "mha_residual")
+transformer.add_residual_connection(model, model.input_embed, model.layer_norm, "mha_residual")
  #transformer.add_output_constraints(model, model.mha_residual)
 
 

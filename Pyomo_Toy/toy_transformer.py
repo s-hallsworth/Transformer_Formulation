@@ -275,21 +275,21 @@ class transformer:
                     )
                 )
                 
-    # def add_residual_connection(self,M, input_1, input_2, output_var_name):
-    #     # create constraint list
-    #     if not hasattr(M, "residual_constraints"):
-    #         M.residual_constraints = pyo.ConstraintList()
+    def add_residual_connection(self,M, input_1, input_2, output_var_name):
+        # create constraint list
+        if not hasattr(M, "residual_constraints"):
+            M.residual_constraints = pyo.ConstraintList()
         
-    #     # add new variable
-    #     if not hasattr(M, output_var_name):
-    #         setattr(M, output_var_name, pyo.Var(M.time_input, M.model_dims))
-    #         residual_var = getattr(M, output_var_name)
-    #     else:
-    #         raise ValueError('Attempting to overwrite variable ', output_var_name)
+        # add new variable
+        if not hasattr(M, output_var_name):
+            setattr(M, output_var_name, pyo.Var(M.time_input, M.model_dims))
+            residual_var = getattr(M, output_var_name)
+        else:
+            raise ValueError('Attempting to overwrite variable ', output_var_name)
         
-    #     for d in M.model_dims:
-    #         for t in M.time_input:
-    #             M.residual_constraints.add(expr= residual_var[t,d] == input_1[t,d] + input_2[t,d])
+        for m in M.model_dims:
+            for t in M.time_input:
+                M.residual_constraints.add(expr= residual_var[t,m] == input_1[t,m] + input_2[t,m])
 
 
     #def add_output_constraints(self, M, input_var):
