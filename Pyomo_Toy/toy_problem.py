@@ -2,22 +2,23 @@ import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
 import toy_transformer as toy_transformer
+import json
 
 # instantiate pyomo model component
 model = pyo.ConcreteModel(name="(TOY)")
 
 # define sets
-T = 4
+T = 11
 time = np.linspace(0, 1, num=T)
 model.time = dae.ContinuousSet(initialize=time)
 
 # T= 11
-# x_input = [1.0, 1.10657895, 1.21388889], 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273, 2.125]
-# u_input = [0.25, 0.26315789, 0.27777778, 0.29411765, 0.3125, 0.33333333, 0.35714286, 0.38461538, 0.41666667, 0.45454545, 0.5]
+x_input = [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273, 2.125]
+u_input = [0.25, 0.26315789, 0.27777778, 0.29411765, 0.3125, 0.33333333, 0.35714286, 0.38461538, 0.41666667, 0.45454545, 0.5]
 
 # T= 4
-x_input = [1.0, 1.35833333, 1.72916667, 2.125]
-u_input = [0.25, 0.3, 0.375, 0.5]
+# x_input = [1.0, 1.35833333, 1.72916667, 2.125]
+# u_input = [0.25, 0.3, 0.375, 0.5]
 
 set_variables = ['1', '0']
 model.variables = pyo.Set(initialize=set_variables)
@@ -50,12 +51,22 @@ for t in model.time:
             [model.input_param[t,'1'], model.input_param[t,'0']]
         )  
           
-transformer = toy_transformer.transformer(model)
+transformer = toy_transformer.transformer(model, "toy_config.json")
 transformer.embed_input(model, "input_embed", model.input_var, model.variables)
+
+#########
+time_input = np.linspace(0, 1, num=11)
+model.time_input = dae.ContinuousSet(initialize=time_input[:-1])
+
+dict_gamma1 = {(t): val for t,val in zip(model.time_input, transformer.gamma1)}
+dict_beta1 = {(t): val for t,val in zip(model.time_input, transformer.beta1)}
+model.gamma1 = pyo.Param(model.time_input, initialize = dict_gamma1)
+model.beta1 = pyo.Param(model.time_input, initialize = dict_beta1)
 transformer.add_layer_norm(model, model.input_embed, "layer_norm")
+
 transformer.add_attention(model, model.layer_norm)
 transformer.add_residual_connection(model, model.input_embed, model.layer_norm, "mha_residual")
-#transformer.add_output_constraints(model, model.mha_residual)
+ #transformer.add_output_constraints(model, model.mha_residual)
 
 
 # define objective
@@ -76,7 +87,7 @@ discretizer = pyo.TransformationFactory("dae.finite_difference")
 discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
 
 # view model
-model.pprint() #pyomo solve test.py --solver=gurobi --stream-solver --summary
+# model.pprint() #pyomo solve test.py --solver=gurobi --stream-solver --summary
 # 'ipopt' for non-linear
 
 # from pyomo.environ import SolverFactory

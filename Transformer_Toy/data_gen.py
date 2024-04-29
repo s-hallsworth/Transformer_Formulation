@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 add_noise = False
 N = 3  # number of functions
-T = 700000
+T = 10
 cols = ["time", "u", "x"]
 x = np.zeros((N, T))
 u = np.zeros((N, T))

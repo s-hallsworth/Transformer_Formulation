@@ -22,14 +22,14 @@ for layer in model.layers:
     if weights:  
         model_weights[layer.name] = [w.tolist() for w in weights]  
 
-# save weights    
-# file_path = 'model_weights.json'
-# with open(file_path, 'w') as json_file:
-#     json.dump(model_weights, json_file)
+#save weights    
+file_path = 'model_weights.json'
+with open(file_path, 'w') as json_file:
+    json.dump(model_weights, json_file)
     
-# print(f"Weights of the model have been saved to {file_path}")
+print(f"Weights of the model have been saved to {file_path}")
 
-# model.save_weights('W_model.weights.h5', overwrite=True)
+model.save_weights('W_model.weights.h5', overwrite=True)
 
 
 # # read H5

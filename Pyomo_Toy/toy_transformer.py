@@ -1,28 +1,40 @@
 import pyomo.environ as pyo
 import numpy as np
-
+from pyomo import dae
+import json
+import extract_weights
 
 class transformer:
-    def __init__(self, M):
+    def __init__(self, M, config_file):
+        
+         # get hyper params
+        with open(config_file, "r") as file:
+            config = json.load(file)
+
+        self.N = config['hyper_params']['N']
+        self.d_model = config['hyper_params']['d_model']
+        self.d_k = config['hyper_params']['d_k']
+        self.d_H = config['hyper_params']['d_H']
+        self.input_dim = config['hyper_params']['input_dim']
+        
+        file.close()
+        
+        # get learned params
+        self.gamma1 = extract_weights.dict_transformer_params['layer_normalization_130','gamma']
+        self.beta1 = extract_weights.dict_transformer_params['layer_normalization_130','beta']
+        
+        print(self.gamma1)
+        
+        self.W_emb = np.ones((self.input_dim, self.d_model))
+        self.W_k = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
+        self.W_q = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
+        self.W_v = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
+        self.W_o = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
+        
+        # additional parameters
         self.transformer_pred = [0, 0]
         self.input_array = []
         self.epsilon = 1e-10
-
-        # get hyper params
-        self.N = 4
-        self.d_model = 3
-        self.d_k = 1
-        self.d_H = 1
-        self.input_dim = 2
-
-        # get learned params
-        self.lambd = 1
-        self.beta = 0
-        self.W_emb = np.ones((self.input_dim, self.d_model))
-        self.W_k = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
-        self.W_q = np.zeros((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
-        self.W_v = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
-        self.W_o = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
         
         # initialise set of model dims
         if self.d_model > 1:
@@ -71,22 +83,23 @@ class transformer:
         """
         if not hasattr(M, "layer_norm_constraints"):
             M.layer_norm_constraints = pyo.ConstraintList()
-
+            
         # Initialize variables
-        M.x_sum = pyo.Var(M.time, initialize=0)
+        M.x_sum = pyo.Var(M.time_input, initialize=0)
         
         if not hasattr(M, layer_norm_var_name):
-            setattr(M, layer_norm_var_name, pyo.Var(M.time, M.model_dims, initialize=0))
+            setattr(M, layer_norm_var_name, pyo.Var(M.time_input, M.model_dims, initialize=0))
             layer_norm_var = getattr(M, layer_norm_var_name)
         else:
             raise ValueError('Attempting to overwrite variable: ', layer_norm_var)
 
-
+        
         # Add constraints for layer norm
         if self.d_model == 1:
             return
 
-        for t in M.time:
+        for t in M.time_input:
+
             # Constraint for summing input_var over model_dims
             M.layer_norm_constraints.add(
                 expr=M.x_sum[t] == sum(input_var[t, d] for d in M.model_dims)
@@ -103,7 +116,7 @@ class transformer:
 
                 # Calculate layer normalization
                 x_mean = input_var[t, d] - mean_d
-                layer_norm = (self.lambd * (x_mean / std_dev)) - self.beta
+                layer_norm = (M.gamma1[t] * (x_mean / std_dev)) - M.beta1[t]
 
                 # Add constraint for layer normalized output
                 M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == layer_norm)
@@ -150,21 +163,21 @@ class transformer:
         M.W_v = pyo.Param(M.heads, M.model_dims, M.k_dims, initialize=W_v_dict)
         M.W_o = pyo.Param(M.heads, M.model_dims, M.k_dims, initialize=W_o_dict)
 
-        M.Q = pyo.Var(M.heads, M.time, M.k_dims)
-        M.K = pyo.Var(M.heads, M.time, M.k_dims)
-        M.V = pyo.Var(M.heads, M.time, M.k_dims)
+        M.Q = pyo.Var(M.heads, M.time_input, M.k_dims)
+        M.K = pyo.Var(M.heads, M.time_input, M.k_dims)
+        M.V = pyo.Var(M.heads, M.time_input, M.k_dims)
 
-        M.compatability = pyo.Var(M.heads, M.time, M.time)  # sqrt(Q * K)
-        M.attention_weight = pyo.Var(M.heads, M.time, M.time)  # softmax ( sqrt(Q * K) )
+        M.compatability = pyo.Var(M.heads, M.time_input, M.time_input)  # sqrt(Q * K)
+        M.attention_weight = pyo.Var(M.heads, M.time_input, M.time_input)  # softmax ( sqrt(Q * K) )
         M.attention_score = pyo.Var(
-            M.heads, M.time, M.k_dims
+            M.heads, M.time_input, M.k_dims
         )  # softmax ( sqrt(Q * K) ) * V
         M.attention_output = pyo.Var(
-            M.time, M.model_dims
+            M.time_input, M.model_dims
         )  # concat heads and linear transform
 
         for h in M.heads:
-            for n in M.time:
+            for n in M.time_input:
                 for k in M.k_dims:
                     # constraints for Query, Key and Value
                     M.attention_constraints.add(
@@ -185,27 +198,26 @@ class transformer:
                         expr=M.attention_score[h, n, k]
                         == sum(
                             M.attention_weight[h, n, n2] * M.V[h, n2, k]
-                            for n2 in M.time
+                            for n2 in M.time_input
                         )
                     )
 
-                for n2 in M.time:
+                for n2 in M.time_input:
                     # compatibility sqrt(Q * K) across all pairs of elements
                     M.attention_constraints.add(
                         expr=M.compatability[h, n, n2]
-                        == sum(M.Q[h, n, k] * M.K[h, n, k] for k in M.k_dims)
-                        ** (1 / self.d_k)
+                        == sum(M.Q[h, n, k] * M.K[h, n, k] for k in M.k_dims) / (self.d_k ** 0.5)
                     )  # non-linear
 
                     # attention weights softmax(compatibility)
                     M.attention_constraints.add(
                         expr=M.attention_weight[h, n, n2]
                         == pyo.exp(M.compatability[h, n, n2])
-                        / sum(pyo.exp(M.compatability[h, n, p]) for p in M.time)
+                        / sum(pyo.exp(M.compatability[h, n, p]) for p in M.time_input)
                     )
 
         # multihead attention output constraint
-        for n in M.time:
+        for n in M.time_input:
             for m in M.model_dims:
                 M.attention_constraints.add(
                     expr=M.attention_output[n, m]
@@ -225,17 +237,17 @@ class transformer:
         
         # add new variable
         if not hasattr(M, output_var_name):
-            setattr(M, output_var_name, pyo.Var(M.time, M.model_dims))
+            setattr(M, output_var_name, pyo.Var(M.time_input, M.model_dims))
             residual_var = getattr(M, output_var_name)
         else:
             raise ValueError('Attempting to overwrite variable ', output_var_name)
         
         for d in M.model_dims:
-            for t in M.time:
+            for t in M.time_input:
                 M.residual_constraints.add(expr= residual_var[t,d] == input_1[t,d] + input_2[t,d])
 
 
-    def add_output_constraints(self, M, input_var):
+    #def add_output_constraints(self, M, input_var):
         # if not hasattr(M, "output_constraints"):
         #     M.output_constraints = pyo.ConstraintList()
 
@@ -253,18 +265,18 @@ class transformer:
         #             M.output_constraints.add(expr=input_var[t,m] == M.transformer_output[t, m])
 
 
-# transformer_pred = [0,0]
-# def _x_transformer(M, t):
-#     if t == M.time.first() :
-#         return pyo.Constraint.Skip
-#     if t <= 0.9:
-#         return M.x[t] == M.x_in[t]
+    # transformer_pred = [0,0]
+    # def _x_transformer(M, t):
+    #     if t == M.time.first() :
+    #         return pyo.Constraint.Skip
+    #     if t <= 0.9:
+    #         return M.x[t] == M.x_in[t]
 
-#     return M.x[t] == transformer_pred[0]
+    #     return M.x[t] == transformer_pred[0]
 
-# def _u_transformer(M, t):
-#     if t == M.time.first():
-#         return pyo.Constraint.Skip
-
-#         return M.u[t] == M.u_in[t]
-#     return M.u[t] == transformer_pred[1]
+    # def _u_transformer(M, t):
+    #     if t == M.time.first():
+    #         return pyo.Constraint.Skip
+    #     if t > 0.9
+    #         return M.u[t] == M.u_in[t]
+    #     return M.u[t] == transformer_pred[1]
