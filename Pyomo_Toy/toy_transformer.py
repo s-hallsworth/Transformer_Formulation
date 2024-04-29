@@ -1,9 +1,11 @@
 import pyomo.environ as pyo
 import numpy as np
 from pyomo import dae
+from pyomo.opt import SolverFactory
 import json
+import unittest
 
-class transformer:
+class Transformer:
     def __init__(self, M, config_file):
         
          # get hyper params
@@ -249,9 +251,10 @@ class transformer:
 
                     for n2 in M.time_input:
                         # compatibility sqrt(Q * K) across all pairs of elements
+                        K_scaled = M.K[ h, n2, k, m]  / (self.d_k ** 0.5) 
                         M.attention_constraints.add(
                             expr=M.compatability[h, n, n2, m]
-                            == sum(M.Q[h, n, k, m] * M.K[ h, n2, k, m] for k in M.k_dims) / (self.d_k ** 0.5)
+                            == sum(M.Q[h, n, k, m] * K_scaled for k in M.k_dims)
                         )  # non-linear
 
                         # attention weights softmax(compatibility)
@@ -310,18 +313,35 @@ class transformer:
         #             M.output_constraints.add(expr=input_var[t,m] == M.transformer_output[t, m])
 
 
-    # transformer_pred = [0,0]
-    # def _x_transformer(M, t):
-    #     if t == M.time.first() :
-    #         return pyo.Constraint.Skip
-    #     if t <= 0.9:
-    #         return M.x[t] == M.x_in[t]
+class TestTransformer(unittest.TestCase):
+    def test_layer_norm(self, model, file_name, T):
+        
+        transformer = Transformer(model, file_name)
+        transformer.embed_input(model, "input_var","input_embed", "variables")
+        transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+        
+        # Discretize model using Backward Difference method
+        discretizer = pyo.TransformationFactory("dae.finite_difference")
+        discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
+        
+        # solve model
+        solver = SolverFactory('ipopt')
+        result = solver.solve(model)
 
-    #     return M.x[t] == transformer_pred[0]
 
-    # def _u_transformer(M, t):
-    #     if t == M.time.first():
-    #         return pyo.Constraint.Skip
-    #     if t > 0.9
-    #         return M.u[t] == M.u_in[t]
-    #     return M.u[t] == transformer_pred[1]
+
+# transformer_pred = [0,0]
+# def _x_transformer(M, t):
+#     if t == M.time.first() :
+#         return pyo.Constraint.Skip
+#     if t <= 0.9:
+#         return M.x[t] == M.x_in[t]
+
+#     return M.x[t] == transformer_pred[0]
+
+# def _u_transformer(M, t):
+#     if t == M.time.first():
+#         return pyo.Constraint.Skip
+#     if t > 0.9
+#         return M.u[t] == M.u_in[t]
+#     return M.u[t] == transformer_pred[1]

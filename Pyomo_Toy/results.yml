@@ -20,7 +20,7 @@ Solver:
   Termination condition: optimal
   Id: 0
   Error rc: 0
-  Time: 5.515549659729004
+  Time: 2.1992454528808594
 # ----------------------------------------------------------
 #   Solution Information
 # ----------------------------------------------------------
@@ -6063,7 +6063,7 @@ Solution:
     attention_output[0.6000000000000001,'1']:
       Value: 0.027657457805880473
     attention_output[0.7000000000000001,'0']:
-      Value: -0.023503409628455766
+      Value: -0.02350340962845577
     attention_output[0.7000000000000001,'1']:
       Value: 0.010698041496488241
     attention_output[0.8,'0']:
@@ -12115,9 +12115,9 @@ Solution:
     input_embed[0.9,'1']:
       Value: 0.45454545
     input_embed[1.0,'0']:
-      Value: -7.613117293859e-09
+      Value: -7.613117293858789e-09
     input_embed[1.0,'1']:
-      Value: 10.000000049746228
+      Value: 10.000000049746227
     input_var[0.0,'0']:
       Value: 1
     input_var[0.0,'1']:
