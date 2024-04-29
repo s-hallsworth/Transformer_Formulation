@@ -1,9 +1,7 @@
 import pyomo.environ as pyo
 import numpy as np
 from pyomo import dae
-from pyomo.opt import SolverFactory
 import json
-import unittest
 
 class Transformer:
     def __init__(self, M, config_file):
@@ -193,7 +191,7 @@ class Transformer:
         M.V = pyo.Var(M.heads, M.time_input, M.k_dims, M.model_dims)
 
         M.compatability = pyo.Var(M.heads, M.time_input, M.time_input, M.model_dims)  # sqrt(Q * K)
-        M.attention_weight = pyo.Var(M.heads, M.time_input, M.time_input, M.model_dims)  # softmax ( sqrt(Q * K) )
+        M.attention_weight = pyo.Var(M.heads, M.time_input, M.time_input, M.model_dims, bounds=(0,1))  # softmax ( sqrt(Q * K) )
         M.attention_score = pyo.Var(
             M.heads, M.time_input, M.k_dims , M.model_dims
         )  # softmax ( sqrt(Q * K) ) * V
@@ -313,20 +311,7 @@ class Transformer:
         #             M.output_constraints.add(expr=input_var[t,m] == M.transformer_output[t, m])
 
 
-class TestTransformer(unittest.TestCase):
-    def test_layer_norm(self, model, file_name, T):
-        
-        transformer = Transformer(model, file_name)
-        transformer.embed_input(model, "input_var","input_embed", "variables")
-        transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        
-        # Discretize model using Backward Difference method
-        discretizer = pyo.TransformationFactory("dae.finite_difference")
-        discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
-        
-        # solve model
-        solver = SolverFactory('ipopt')
-        result = solver.solve(model)
+
 
 
 
