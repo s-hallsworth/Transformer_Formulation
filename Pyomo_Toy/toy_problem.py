@@ -2,7 +2,7 @@ import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
 import toy_transformer as toy_transformer
-import json
+import extract_weights
 
 # instantiate pyomo model component
 model = pyo.ConcreteModel(name="(TOY)")
@@ -20,16 +20,34 @@ u_input = [0.25, 0.26315789, 0.27777778, 0.29411765, 0.3125, 0.33333333, 0.35714
 # x_input = [1.0, 1.35833333, 1.72916667, 2.125]
 # u_input = [0.25, 0.3, 0.375, 0.5]
 
+# define problem vars, params
 set_variables = ['1', '0']
 model.variables = pyo.Set(initialize=set_variables)
-
 dict_inputs = {}
 for t, (u_val, x_val) in zip(model.time, zip(u_input, x_input)):
     dict_inputs[(t, '1')] = u_val
     dict_inputs[(t, '0')] = x_val
-
 model.input_param = pyo.Param(model.time, model.variables, initialize=dict_inputs)
 model.input_var = pyo.Var(model.time, model.variables, bounds=(0, 10))
+
+# define transformer vars, params
+model.time_input = dae.ContinuousSet(initialize=time[:-1])
+dict_gamma1 = {(t): val for t,val in zip(model.time_input, extract_weights.gamma1)}
+dict_beta1 = {(t): val for t,val in zip(model.time_input, extract_weights.beta1)}
+model.gamma1 = pyo.Param(model.time_input, initialize = dict_gamma1)
+model.beta1 = pyo.Param(model.time_input, initialize = dict_beta1)
+
+W_q = extract_weights.dict_transformer_params['multi_head_attention_65','W_q']
+W_k = extract_weights.dict_transformer_params['multi_head_attention_65','W_k']
+W_v = extract_weights.dict_transformer_params['multi_head_attention_65','W_v']
+W_o = extract_weights.dict_transformer_params['multi_head_attention_65','W_o']
+
+b_q = extract_weights.dict_transformer_params['multi_head_attention_65','b_q']
+b_k = extract_weights.dict_transformer_params['multi_head_attention_65','b_k']
+b_v = extract_weights.dict_transformer_params['multi_head_attention_65','b_v']
+b_o = extract_weights.dict_transformer_params['multi_head_attention_65','b_o']
+
+        
 
 # define constraints
 model.x_init_constr = pyo.Constraint(expr=model.input_var[min(model.time),'0'] == 1)
@@ -52,20 +70,11 @@ for t in model.time:
         )  
           
 transformer = toy_transformer.transformer(model, "toy_config.json")
-transformer.embed_input(model, "input_embed", model.input_var, model.variables)
+transformer.embed_input(model, "input_var","input_embed", "variables")
+transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
 
-#########
-time_input = np.linspace(0, 1, num=11)
-model.time_input = dae.ContinuousSet(initialize=time_input[:-1])
-
-dict_gamma1 = {(t): val for t,val in zip(model.time_input, transformer.gamma1)}
-dict_beta1 = {(t): val for t,val in zip(model.time_input, transformer.beta1)}
-model.gamma1 = pyo.Param(model.time_input, initialize = dict_gamma1)
-model.beta1 = pyo.Param(model.time_input, initialize = dict_beta1)
-transformer.add_layer_norm(model, model.input_embed, "layer_norm")
-
-transformer.add_attention(model, model.layer_norm)
-transformer.add_residual_connection(model, model.input_embed, model.layer_norm, "mha_residual")
+transformer.add_attention(model, "layer_norm", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+#transformer.add_residual_connection(model, model.input_embed, model.layer_norm, "mha_residual")
  #transformer.add_output_constraints(model, model.mha_residual)
 
 
