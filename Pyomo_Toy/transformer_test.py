@@ -16,7 +16,7 @@ class TestTransformer(unittest.TestCase):
         
     def test_pyomo_input(self): #, model, pyomo_input_name ,transformer_input):
         # Define Test Case Params
-        model = toy_problem_setup.model
+        model = toy_problem_setup.model.clone()
         pyomo_input_name = "input_param"
         transformer_input= transformer_intermediate_results.input 
         
@@ -31,23 +31,89 @@ class TestTransformer(unittest.TestCase):
             pyomo_input_dict[pyomo_input_name] = pyo.value(input_var)
 
         # Reformat and convert dict to np array
-        pyomo_input, elements = reformat(dict=pyomo_input_dict, layer_name=pyomo_input_name) 
+        pyomo_input, _ = reformat(dict=pyomo_input_dict, layer_name=pyomo_input_name) 
         pyomo_input = np.expand_dims(pyomo_input, axis=2)
         
         # Assertions
         self.assertIsNone(np.testing.assert_array_equal(pyomo_input.shape, transformer_input.shape)) # pyomo input data and transformer input data must be the same shape
-        self.assertIsNone(np.testing.assert_array_equal(pyomo_input, transformer_input))
+        self.assertIsNone(np.testing.assert_array_equal(pyomo_input, transformer_input))             # both inputs must be equal
+        
+    def test_no_embed_input(self):
+        # Define Test Case Params
+        model = toy_problem_setup.model.clone()
+        config_file = '.\\data\\toy_config.json' 
+        T = 11
+        transformer_input= transformer_intermediate_results.input 
+        
+        # Define tranformer and execute up to layer norm
+        transformer = TNN.Transformer(model, config_file)
+        transformer.embed_input(model, "input_param","input_embed", "variables")
+
+        # Discretize model using Backward Difference method
+        discretizer = pyo.TransformationFactory("dae.finite_difference")
+        discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
+        
+        # Solve model
+        solver = SolverFactory('ipopt')
+        opts = {'halt_on_ampl_error': 'yes',
+           'tol': 1e-7, 'bound_relax_factor': 0.0}
+        result = solver.solve(model, options=opts)
+        
+        # Get optimal parameters & reformat first layer norm block --> (1, input_feature, sequence_element)
+        optimal_parameters = get_optimal_dict(result, model)
+        embed_output, _ = reformat(optimal_parameters,"input_embed") 
+        embed_output = np.expand_dims(embed_output, axis=2)
+        
+        
+        # Assertions
+        self.assertIsNone(np.testing.assert_array_equal(embed_output.shape, transformer_input.shape)) # same shape
+        self.assertIsNone(np.testing.assert_array_equal(embed_output, transformer_input))             # equal vlaues
+    
+    def test_embed_input(self):
+        # Define Test Case Params
+        model = toy_problem_setup.model.clone()
+        config_file = '.\\data\\toy_config_embed_3.json' 
+        T = 11
+        transformer_input= transformer_intermediate_results.input 
+        
+        # Define tranformer and execute up to layer norm
+        transformer = TNN.Transformer(model, config_file)
+        W_emb = np.random.rand(transformer.input_dim, transformer.d_model)
+        transformer.embed_input(model, "input_param","input_embed", "variables",W_emb)
+        
+        # Discretize model using Backward Difference method
+        discretizer = pyo.TransformationFactory("dae.finite_difference")
+        discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
+        
+        # Solve model
+        solver = SolverFactory('ipopt')
+        opts = {'halt_on_ampl_error': 'yes',
+           'tol': 1e-7, 'bound_relax_factor': 0.0}
+        result = solver.solve(model, options=opts)
+        
+        # Get optimal parameters & reformat first layer norm block --> (1, input_feature, sequence_element)
+        optimal_parameters = get_optimal_dict(result, model)
+        embed_output, _ = reformat(optimal_parameters,"input_embed") 
+        
+        # Calculate embedded value
+        transformer_input = np.squeeze(transformer_input, axis=(0,2)) # transformer_input dim: (2, 10)
+        transformer_embed = np.dot(W_emb.transpose(), transformer_input) # W_emb dim: (2, 3), transformer_embed dim: (3,10)
+        transformer_embed = np.expand_dims(transformer_embed, axis=0)
+
+        # Assertions
+        self.assertIsNone(np.testing.assert_array_equal(embed_output.shape, transformer_embed.shape)) # same shape
+        self.assertIsNone(np.testing.assert_array_almost_equal(embed_output, transformer_embed, decimal=7))  # almost same values
     
     def test_layer_norm(self):
         # Define Test Case Params
-        model = toy_problem_setup.model
+        model = toy_problem_setup.model.clone()
         config_file = '.\\data\\toy_config.json' 
         T = 11
         transformer_output=transformer_intermediate_results.layer_norm_output
         
         # Define tranformer and execute up to layer norm
         transformer = TNN.Transformer(model, config_file)
-        transformer.embed_input(model, "input_var","input_embed", "variables")
+        transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         
         # Discretize model using Backward Difference method
@@ -63,7 +129,7 @@ class TestTransformer(unittest.TestCase):
         # get optimal parameters & reformat first layer norm block --> (1, input_feature, sequence_element)
         optimal_parameters = get_optimal_dict(result, model)
         layer_norm_output, elements = reformat(optimal_parameters,"layer_norm") 
-        print(layer_norm_output.shape)
+        #print(layer_norm_output.shape)
         
         
         plt.figure(1, figsize=(12, 8))

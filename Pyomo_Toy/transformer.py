@@ -2,6 +2,9 @@ import pyomo.environ as pyo
 import numpy as np
 from pyomo import dae
 import json
+import os
+
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 class Transformer:
     def __init__(self, M, config_file):
@@ -18,7 +21,7 @@ class Transformer:
         
         file.close()
         
-        self.W_emb = np.ones((self.input_dim, self.d_model))
+        #self.W_emb = np.ones((self.input_dim, self.d_model))
         self.W_k = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
         self.W_q = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
         self.W_v = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
@@ -48,16 +51,16 @@ class Transformer:
         
         # define embedding var
         if not hasattr(M, embed_var_name):
-            setattr(M, embed_var_name, pyo.Var(M.time, M.model_dims))
+            setattr(M, embed_var_name, pyo.Var(M.time_input, M.model_dims))
             embed_var = getattr(M, embed_var_name)
         else:
             raise ValueError('Attempting to overwrite variable: ', embed_var_name)
   
         
         #if model dims = number of variables in input var
-        if self.d_model == len(set_var):
+        if W_emb is None:
             for s in set_var:
-                for t in M.time:
+                for t in M.time_input:
                     M.embed_constraints.add(embed_var[t, s] == input_var[t,s])
         else:
             W_emb_dict = {
@@ -68,7 +71,7 @@ class Transformer:
             M.W_emb = pyo.Param(set_var, M.model_dims, initialize=W_emb_dict)
             
             for m in M.model_dims:
-                for t in M.time:
+                for t in M.time_input:
                     M.embed_constraints.add(embed_var[t, m] 
                                             == sum(input_var[t,s] * M.W_emb[s,m] for s in set_var)
                                             )

@@ -18,7 +18,7 @@ pyomo solve test.py --solver=gurobi --stream-solver --summary # run model in ter
 transformer = transformer.Transformer(model, ".\data\toy_config.json")
 
 # add trnasformer layers and constraints
-transformer.embed_input(model, "input_var","input_embed", "variables")
+transformer.embed_input(model, "input_param","input_embed", "variables")
 transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
 transformer.add_attention(model, "layer_norm", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
 transformer.add_residual_connection(model, model.input_embed, model.layer_norm, "mha_residual")

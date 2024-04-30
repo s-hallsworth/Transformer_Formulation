@@ -12,7 +12,9 @@ input = np.array([[[x_input_10], [u_input_10]]])
 # get transformer intermidate outputs
 layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path, input) #, ".\data\intermediary_results_10.json")
 
-# get and reformat layer_normalization_130 output (first layer norm block)
+# no embedding layer 
+
+# layer_normalization_130 output (first layer norm block)
 layer_norm = np.array(layer_outputs_dict["layer_normalization_130"])
 layer_norm_output = np.array([ [x,u] for x,u in zip(layer_norm[0][0], layer_norm[0][1])])
-#print(layer_norm_output.shape)
+
