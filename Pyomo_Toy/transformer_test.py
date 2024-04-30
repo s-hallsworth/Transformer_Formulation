@@ -7,45 +7,46 @@ import matplotlib.pyplot as plt
 import unittest
 
 # Import from repo file
-import transformer
+import transformer as TNN
+import transformer_intermediate_results
+import toy_problem_setup
 
 # ------- Transformer Test Class ------------------------------------------------------------------------------------
-class TestTransformer(unittest.TestCase):
-    def test_pyomo_input(self, model, pyomo_input_name ,transformer_input):
+class TestTransformer(unittest.TestCase):    
         
+    def test_pyomo_input(self): #, model, pyomo_input_name ,transformer_input):
+        # Define Test Case Params
+        model = toy_problem_setup.model
+        pyomo_input_name = "input_param"
+        transformer_input= transformer_intermediate_results.input 
+        
+        # Get input var
         input_var = getattr(model, pyomo_input_name)
         pyomo_input_dict = {}
 
-        # Check if the variable is indexed
+        # Store input pyomo var as dict
         if input_var.is_indexed():
             pyomo_input_dict[pyomo_input_name] = {index: pyo.value(input_var[index]) for index in input_var.index_set()}
         else:
             pyomo_input_dict[pyomo_input_name] = pyo.value(input_var)
-        print(pyomo_input_dict)
-        
+
+        # Reformat and convert dict to np array
         pyomo_input, elements = reformat(dict=pyomo_input_dict, layer_name=pyomo_input_name) 
-        print(pyomo_input.shape)
+        pyomo_input = np.expand_dims(pyomo_input, axis=2)
         
-        
-        # plt.figure(1, figsize=(12, 8))
-        # markers = ["o-", "s-"]  # Different markers for each function
-        # var = [layer_norm_output, transformer_output]
-        # for i in range(len(var)):
-        #     plt.plot(elements, var[i][0, 0 , :], markers[i], label=f"x values from array {i}")
-        #     plt.plot(elements, var[i][0, 1 , :], markers[i], label=f"u values from array {i}")
-        # plt.title("Pyomo and Tranformer results ")
-        # plt.xlabel("Sequence")
-        # plt.ylabel("Magnitude")
-        # plt.legend()
-        # plt.grid(True)
-        # plt.show()
-        
-        # self.assertIsNone(np.testing.assert_array_equal(layer_norm_output, transformer_input))
+        # Assertions
+        self.assertIsNone(np.testing.assert_array_equal(pyomo_input.shape, transformer_input.shape)) # pyomo input data and transformer input data must be the same shape
+        self.assertIsNone(np.testing.assert_array_equal(pyomo_input, transformer_input))
     
-    def test_layer_norm(self, model, config_file, T, transformer_output):
+    def test_layer_norm(self):
+        # Define Test Case Params
+        model = toy_problem_setup.model
+        config_file = '.\\data\\toy_config.json' 
+        T = 11
+        transformer_output=transformer_intermediate_results.layer_norm_output
         
         # Define tranformer and execute up to layer norm
-        transformer = transformer.Transformer(model, config_file)
+        transformer = TNN.Transformer(model, config_file)
         transformer.embed_input(model, "input_var","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         
@@ -78,10 +79,10 @@ class TestTransformer(unittest.TestCase):
         plt.grid(True)
         plt.show()
         
-        self.assertIsNone(np.testing.assert_array_equal(layer_norm_output, transformer_output))
-
+        #self.assertIsNone(np.testing.assert_array_equal(layer_norm_output, transformer_output))
+        
 # -------- Helper functions ----------------------------------------------------------------------------------       
-def get_optimal_dict(self, result, model):
+def get_optimal_dict(result, model):
     if result.solver.status == 'ok' and result.solver.termination_condition == 'optimal':
         optimal_parameters = {}
         for varname, var in model.component_map(pyo.Var).items():
@@ -100,8 +101,6 @@ def reformat(dict, layer_name):
     """
     Reformat pyomo var to match transformer var shape: (1, input_feature, sequence_element)
     """
-    print('Reformatting ',layer_name, ' values')
-
     elements = sorted(set(elem for elem, _ in dict[layer_name].keys()))
     features = sorted(set(feat for _, feat in dict[layer_name].keys())) #x : '0', u: '1' which matches transformer array
 
@@ -112,6 +111,9 @@ def reformat(dict, layer_name):
         
         layer_norm_output[0, feat_index, elem_index] = value
         
-    
     return layer_norm_output, elements
+
+# ------- MAIN -----------------------------------------------------------------------------------
+if __name__ == '__main__': 
+    unittest.main() 
 

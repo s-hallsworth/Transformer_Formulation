@@ -44,10 +44,10 @@ def get_learned_parameters(path):
     for layer_name in transformer_weights:
         layer_names += [layer_name]
         parameters =  transformer_weights[layer_name]
-        try:
-            print(layer_name, np.array(parameters).shape)
-        except:
-            print(layer_name, len(parameters))
+        # try:
+        #     print(layer_name, np.array(parameters).shape)
+        # except:
+        #     print(layer_name, len(parameters))
             
         if 'LAYER_NORM' in layer_name.upper():
             if len(parameters) == 2:

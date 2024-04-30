@@ -35,7 +35,7 @@ model.input_var = pyo.Var(model.time, model.variables, bounds=(0, 10)) #t = 0 to
 
 
 ## define transformer sets, vars, params
-layer_names, parameters = extract_from_pretrained.get_learned_parameters("model_weights.json")
+layer_names, parameters = extract_from_pretrained.get_learned_parameters(".\data\model_weights.json")
 
 dict_gamma1 = {(t): val for t,val in zip(model.time_input, parameters['layer_normalization_130','gamma'])}
 dict_beta1 = {(t): val for t,val in zip(model.time_input,  parameters['layer_normalization_130','beta'])}
