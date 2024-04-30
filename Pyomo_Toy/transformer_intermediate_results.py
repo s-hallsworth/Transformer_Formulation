@@ -1,5 +1,8 @@
 import extract_from_pretrained as extract_from_pretrained
 import numpy as np 
+import os
+
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # define model
 model_path = "..\\Transformer_Toy\\transformer_TOY.keras"
@@ -17,4 +20,17 @@ layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path,
 # layer_normalization_130 output (first layer norm block)
 layer_norm_1 = np.array(layer_outputs_dict["layer_normalization_130"])
 layer_norm_output_1 = np.array([ [x,u] for x,u in zip(layer_norm_1[0][0], layer_norm_1[0][1])])
+
+# multi_head_attention_65 output 
+mha_output = np.array(layer_outputs_dict["multi_head_attention_65"])
+#print(mha_output.shape)
+# W_q = np.array(layer_outputs_dict['multi_head_attention_65','W_q'])
+# W_k = np.array(layer_outputs_dict['multi_head_attention_65','W_k'])
+# W_v = np.array(layer_outputs_dict['multi_head_attention_65','W_v'])
+# W_o = np.array(layer_outputs_dict['multi_head_attention_65','W_o'])
+
+# b_q = np.array(layer_outputs_dict['multi_head_attention_65','b_q'])
+# b_k = np.array(layer_outputs_dict['multi_head_attention_65','b_k'])
+# b_v = np.array(layer_outputs_dict['multi_head_attention_65','b_v'])
+# b_o = np.array(layer_outputs_dict['multi_head_attention_65','b_o'])
 

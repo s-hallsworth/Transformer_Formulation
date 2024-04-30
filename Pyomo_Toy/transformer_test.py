@@ -9,14 +9,14 @@ import unittest
 # Import from repo file
 import transformer as TNN
 import transformer_intermediate_results
-import toy_problem_setup
+import toy_problem_setup as tps
 
 # ------- Transformer Test Class ------------------------------------------------------------------------------------
 class TestTransformer(unittest.TestCase):    
         
     def test_pyomo_input(self): #, model, pyomo_input_name ,transformer_input):
         # Define Test Case Params
-        model = toy_problem_setup.model.clone()
+        model = tps.model.clone()
         pyomo_input_name = "input_param"
         transformer_input= transformer_intermediate_results.input 
         
@@ -40,12 +40,12 @@ class TestTransformer(unittest.TestCase):
         
     def test_no_embed_input(self):
         # Define Test Case Params
-        model = toy_problem_setup.model.clone()
+        model = tps.model.clone()
         config_file = '.\\data\\toy_config.json' 
         T = 11
         transformer_input= transformer_intermediate_results.input 
         
-        # Define tranformer and execute up to layer norm
+        # Define tranformer and execute up to embed
         transformer = TNN.Transformer(model, config_file)
         transformer.embed_input(model, "input_param","input_embed", "variables")
 
@@ -59,7 +59,7 @@ class TestTransformer(unittest.TestCase):
            'tol': 1e-7, 'bound_relax_factor': 0.0}
         result = solver.solve(model, options=opts)
         
-        # Get optimal parameters & reformat first layer norm block --> (1, input_feature, sequence_element)
+        # Get optimal parameters & reformat --> (1, input_feature, sequence_element)
         optimal_parameters = get_optimal_dict(result, model)
         embed_output, _ = reformat(optimal_parameters,"input_embed") 
         embed_output = np.expand_dims(embed_output, axis=2)
@@ -73,12 +73,12 @@ class TestTransformer(unittest.TestCase):
     
     def test_embed_input(self):
         # Define Test Case Params
-        model = toy_problem_setup.model.clone()
+        model = tps.model.clone()
         config_file = '.\\data\\toy_config_embed_3.json' 
         T = 11
         transformer_input= transformer_intermediate_results.input 
         
-        # Define tranformer and execute up to layer norm
+        # Define tranformer and execute up to embed
         transformer = TNN.Transformer(model, config_file)
         W_emb = np.random.rand(transformer.input_dim, transformer.d_model) # define rand embedding matrix
         transformer.embed_input(model, "input_param","input_embed", "variables",W_emb)
@@ -97,7 +97,7 @@ class TestTransformer(unittest.TestCase):
            'tol': 1e-7, 'bound_relax_factor': 0.0}
         result = solver.solve(model, options=opts)
         
-        # Get optimal parameters & reformat first layer norm block --> (1, input_feature, sequence_element)
+        # Get optimal parameters & reformat  --> (1, input_feature, sequence_element)
         optimal_parameters = get_optimal_dict(result, model)
         embed_output, _ = reformat(optimal_parameters,"input_embed") 
         
@@ -112,10 +112,10 @@ class TestTransformer(unittest.TestCase):
     
     def test_layer_norm(self):
         # Define Test Case Params
-        model = toy_problem_setup.model.clone()
+        model = tps.model.clone()
         config_file = '.\\data\\toy_config.json' 
         T = 11
-        transformer_output=transformer_intermediate_results.layer_norm_output_1
+        transformer_output=transformer_intermediate_results.mha_output
         
         # Define tranformer and execute up to layer norm
         transformer = TNN.Transformer(model, config_file)
@@ -167,6 +167,63 @@ class TestTransformer(unittest.TestCase):
         with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
             transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
 
+    def test_multi_head_attention(self):
+        # Define Test Case Params
+        model = tps.model.clone()
+        config_file = '.\\data\\toy_config.json' 
+        T = 11
+        transformer_output=transformer_intermediate_results.layer_norm_output_1
+        
+        # Define tranformer and execute 
+        transformer = TNN.Transformer(model, config_file)
+        transformer.embed_input(model, "input_param","input_embed", "variables")
+        transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        
+        # Check  var and constraints created
+        self.assertIn("attention_output", dir(model))                 # check layer_norm created
+        self.assertIsInstance(model.attention_output, pyo.Var)        # check data type
+        self.assertTrue(hasattr(model, 'attention_constraints'))      # check constraints created
+        
+        # Discretize model using Backward Difference method
+        discretizer = pyo.TransformationFactory("dae.finite_difference")
+        discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
+        
+        # Solve model
+        solver = SolverFactory('ipopt')
+        opts = {'halt_on_ampl_error': 'yes',
+           'tol': 1e-7, 'bound_relax_factor': 0.0}
+        result = solver.solve(model, options=opts)
+        
+        # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
+        optimal_parameters = get_optimal_dict(result, model)
+        attention_output, elements = reformat(optimal_parameters,"attention_output") 
+        print(attention_output.shape)
+        print(transformer_output.shape)
+        
+        # plt.figure(1, figsize=(12, 8))
+        # markers = ["o-", "s-"]  # Different markers for each function
+        # var = [layer_norm_output, transformer_output]
+        # labels = ['- Pyomo', '- Transformer']
+        # for i in range(len(var)):
+        #     plt.plot(elements, var[i][0, 0 , :], markers[i], label=f"x values {labels[i]}")
+        #     plt.plot(elements, var[i][0, 1 , :], markers[i], label=f"u values {labels[i]}")
+        # plt.title("Pyomo and Tranformer results ")
+        # plt.xlabel("Sequence")
+        # plt.ylabel("Magnitude")
+        # plt.legend()
+        # plt.grid(True)
+        # plt.show()
+        
+
+        # # print(" Pyomo (as list):", [model.layer_norm[t, d].value for t in model.time_input for d in model.model_dims])
+        # # print(" from NumPy:", transformer_output)
+        
+        # # Assertions
+        # self.assertIsNone(np.testing.assert_array_equal(layer_norm_output.shape, transformer_output.shape)) # compare shape with transformer
+        # self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_output, transformer_output, decimal=1)) # compare value with transformer output
+        # with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
+        #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         
 # -------- Helper functions ----------------------------------------------------------------------------------       
 def get_optimal_dict(result, model):
