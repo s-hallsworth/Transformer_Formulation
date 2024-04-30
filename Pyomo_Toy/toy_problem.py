@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
-import toy_transformer as toy_transformer
+import Pyomo_Toy.transformer as transformer
 import extract_from_pretrained as extract_from_pretrained
 from toy_problem_setup import *
 
@@ -15,7 +15,7 @@ pyomo solve test.py --solver=gurobi --stream-solver --summary # run model in ter
 """
 
 # create transformer instance     
-transformer = toy_transformer.Transformer(model, "toy_config.json")
+transformer = transformer.Transformer(model, "toy_config.json")
 
 # add trnasformer layers and constraints
 transformer.embed_input(model, "input_var","input_embed", "variables")

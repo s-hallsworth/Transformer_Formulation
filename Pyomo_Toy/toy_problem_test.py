@@ -1,12 +1,12 @@
 """
 Test Transformer with toy optimal control problem
 """
-import toy_transformer_test
+import Pyomo_Toy.transformer_test as transformer_test
 import transformer_intermediate_results
 import toy_problem_setup
 
 # Create test transformer
-test_transformer = toy_transformer_test.TestTransformer()
+test_transformer = transformer_test.TestTransformer()
 
 # Run tests
 test_transformer.test_pyomo_input(toy_problem_setup.model, "input_var",transformer_intermediate_results.input)

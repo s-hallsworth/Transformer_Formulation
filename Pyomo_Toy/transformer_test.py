@@ -4,7 +4,7 @@ from pyomo import dae
 from pyomo.opt import SolverFactory
 import matplotlib.pyplot as plt
 import unittest
-import toy_transformer
+import Pyomo_Toy.transformer as transformer
 
 class TestTransformer(unittest.TestCase):
     def test_pyomo_input(self, model, pyomo_input_name ,transformer_input):
@@ -41,7 +41,7 @@ class TestTransformer(unittest.TestCase):
     def test_layer_norm(self, model, config_file, T, transformer_output):
         
         # Define tranformer and execute up to layer norm
-        transformer = toy_transformer.Transformer(model, config_file)
+        transformer = transformer.Transformer(model, config_file)
         transformer.embed_input(model, "input_var","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         
