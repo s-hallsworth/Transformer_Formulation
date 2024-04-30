@@ -87,7 +87,7 @@ def get_learned_parameters(path):
     #print(dict_transformer_params)   
     return layer_names, dict_transformer_params
 
-def get_intermediate_values(model_path, sample_input, file_name):
+def get_intermediate_values(model_path, sample_input, file_name=None):
     
     # load pre-trained model
     model = keras.models.load_model(model_path)
@@ -103,9 +103,10 @@ def get_intermediate_values(model_path, sample_input, file_name):
     outputs_list = [output.tolist() for output in outputs]
     layer_outputs_dict = {model.layers[i].name: outputs_list[i] for i in range(len(model.layers))}
     
-    with open(file_name, 'w') as file:
-        json.dump(layer_outputs_dict, file, indent=4)
-        
-    print(f"intermedite outputs of the model have been saved to {file_name}")
+    if file_name:
+        with open(file_name, 'w') as file:
+            json.dump(layer_outputs_dict, file, indent=4)
+            
+        print(f"intermedite outputs of the model have been saved to {file_name}")
     
     return layer_outputs_dict
