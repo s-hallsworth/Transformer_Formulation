@@ -15,6 +15,6 @@ layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path,
 # no embedding layer 
 
 # layer_normalization_130 output (first layer norm block)
-layer_norm = np.array(layer_outputs_dict["layer_normalization_130"])
-layer_norm_output = np.array([ [x,u] for x,u in zip(layer_norm[0][0], layer_norm[0][1])])
+layer_norm_1 = np.array(layer_outputs_dict["layer_normalization_130"])
+layer_norm_output_1 = np.array([ [x,u] for x,u in zip(layer_norm_1[0][0], layer_norm_1[0][1])])
 

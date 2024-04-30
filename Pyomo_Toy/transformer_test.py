@@ -78,7 +78,7 @@ class TestTransformer(unittest.TestCase):
         
         # Define tranformer and execute up to layer norm
         transformer = TNN.Transformer(model, config_file)
-        W_emb = np.random.rand(transformer.input_dim, transformer.d_model)
+        W_emb = np.random.rand(transformer.input_dim, transformer.d_model) # define rand embedding matrix
         transformer.embed_input(model, "input_param","input_embed", "variables",W_emb)
         
         # Discretize model using Backward Difference method
@@ -109,7 +109,7 @@ class TestTransformer(unittest.TestCase):
         model = toy_problem_setup.model.clone()
         config_file = '.\\data\\toy_config.json' 
         T = 11
-        transformer_output=transformer_intermediate_results.layer_norm_output
+        transformer_output=transformer_intermediate_results.layer_norm_output_1
         
         # Define tranformer and execute up to layer norm
         transformer = TNN.Transformer(model, config_file)
@@ -145,7 +145,13 @@ class TestTransformer(unittest.TestCase):
         plt.grid(True)
         plt.show()
         
-        #self.assertIsNone(np.testing.assert_array_equal(layer_norm_output, transformer_output))
+
+        print("layer norm Pyomo (as list):", [model.layer_norm[t, d].value for t in model.time_input for d in model.model_dims])
+        print("layer norm from NumPy:", transformer_output)
+        
+        
+        self.assertIsNone(np.testing.assert_array_equal(layer_norm_output.shape, transformer_output.shape))
+        self.assertIsNone(np.testing.assert_array_equal(layer_norm_output, transformer_output))
         
 # -------- Helper functions ----------------------------------------------------------------------------------       
 def get_optimal_dict(result, model):

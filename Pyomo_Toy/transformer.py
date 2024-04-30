@@ -22,10 +22,10 @@ class Transformer:
         file.close()
         
         #self.W_emb = np.ones((self.input_dim, self.d_model))
-        self.W_k = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
-        self.W_q = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
-        self.W_v = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
-        self.W_o = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
+        # self.W_k = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
+        # self.W_q = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
+        # self.W_v = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
+        # self.W_o = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
         
         # additional parameters
         self.transformer_pred = [0, 0]
@@ -86,8 +86,6 @@ class Transformer:
         input_var = getattr(M, input_var_name)
         
         # Initialize variables
-        M.x_sum = pyo.Var(M.time_input, initialize=0)
-        
         if not hasattr(M, layer_norm_var_name):
             setattr(M, layer_norm_var_name, pyo.Var(M.time_input, M.model_dims, initialize=0))
             layer_norm_var = getattr(M, layer_norm_var_name)
@@ -101,13 +99,15 @@ class Transformer:
         for t in M.time_input:
 
             # Constraint for summing input_var over model_dims
-            M.layer_norm_constraints.add(
-                expr=M.x_sum[t] == sum(input_var[t, d] for d in M.model_dims)
-            )
+            x_sum = input_var[t, M.model_dims.first()]
+            for d in M.model_dims:
+                if d == M.model_dims.first():
+                    continue
+                x_sum += input_var[t, d]
 
             # Constraints for each dimension
             for d in M.model_dims:
-                mean_d = M.x_sum[t] / self.d_model  # Mean
+                mean_d = x_sum / self.d_model  # Mean
                 variance = (
                     sum((input_var[t, d_prime] - mean_d) ** 2 for d_prime in M.model_dims)
                     / self.d_model
@@ -115,8 +115,7 @@ class Transformer:
                 std_dev = (variance + self.epsilon) ** 0.5  # epsilon to avoid div 0
 
                 # Calculate layer normalization
-                x_mean = input_var[t, d] - mean_d
-                layer_norm = (getattr(M, gamma)[t] * (x_mean / std_dev)) - getattr(M, beta)[t]
+                layer_norm = (getattr(M, gamma)[t] * ((input_var[t, d] - mean_d) / std_dev)) - getattr(M, beta)[t]
 
                 # Add constraint for layer normalized output
                 M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == layer_norm)
