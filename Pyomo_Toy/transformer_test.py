@@ -68,6 +68,8 @@ class TestTransformer(unittest.TestCase):
         # Assertions
         self.assertIsNone(np.testing.assert_array_equal(embed_output.shape, transformer_input.shape)) # same shape
         self.assertIsNone(np.testing.assert_array_equal(embed_output, transformer_input))             # equal vlaues
+        with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
+            transformer.embed_input(model, "input_param","input_embed", "variables")
     
     def test_embed_input(self):
         # Define Test Case Params
@@ -80,6 +82,10 @@ class TestTransformer(unittest.TestCase):
         transformer = TNN.Transformer(model, config_file)
         W_emb = np.random.rand(transformer.input_dim, transformer.d_model) # define rand embedding matrix
         transformer.embed_input(model, "input_param","input_embed", "variables",W_emb)
+        
+        self.assertIn("input_embed", dir(model))                       # check var created
+        self.assertIsInstance(model.input_embed, pyo.Var)               # check data type
+        self.assertTrue(hasattr(model, 'embed_constraints'))      # check constraints created
         
         # Discretize model using Backward Difference method
         discretizer = pyo.TransformationFactory("dae.finite_difference")
@@ -116,11 +122,16 @@ class TestTransformer(unittest.TestCase):
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         
+        # Check layer norm var and constraints created
+        self.assertIn("layer_norm", dir(model))                        # check layer_norm created
+        self.assertIsInstance(model.layer_norm, pyo.Var)               # check data type
+        self.assertTrue(hasattr(model, 'layer_norm_constraints'))      # check constraints created
+        
         # Discretize model using Backward Difference method
         discretizer = pyo.TransformationFactory("dae.finite_difference")
         discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
         
-        # solve model
+        # Solve model
         solver = SolverFactory('ipopt')
         opts = {'halt_on_ampl_error': 'yes',
            'tol': 1e-7, 'bound_relax_factor': 0.0}
@@ -147,12 +158,15 @@ class TestTransformer(unittest.TestCase):
         plt.show()
         
 
-        print("layer norm Pyomo (as list):", [model.layer_norm[t, d].value for t in model.time_input for d in model.model_dims])
-        print("layer norm from NumPy:", transformer_output)
+        # print("layer norm Pyomo (as list):", [model.layer_norm[t, d].value for t in model.time_input for d in model.model_dims])
+        # print("layer norm from NumPy:", transformer_output)
         
-        
-        self.assertIsNone(np.testing.assert_array_equal(layer_norm_output.shape, transformer_output.shape))
-        self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_output, transformer_output, decimal=1))
+        # Assertions
+        self.assertIsNone(np.testing.assert_array_equal(layer_norm_output.shape, transformer_output.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_output, transformer_output, decimal=1)) # compare value with transformer output
+        with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
+            transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+
         
 # -------- Helper functions ----------------------------------------------------------------------------------       
 def get_optimal_dict(result, model):

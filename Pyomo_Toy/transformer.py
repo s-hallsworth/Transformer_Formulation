@@ -54,7 +54,7 @@ class Transformer:
             setattr(M, embed_var_name, pyo.Var(M.time_input, M.model_dims))
             embed_var = getattr(M, embed_var_name)
         else:
-            raise ValueError('Attempting to overwrite variable: ', embed_var_name)
+            raise ValueError('Attempting to overwrite variable')
   
         
         #if model dims = number of variables in input var
@@ -91,7 +91,7 @@ class Transformer:
             layer_norm_var = getattr(M, layer_norm_var_name)
             
         else:
-            raise ValueError('Attempting to overwrite variable: ', layer_norm_var)
+            raise ValueError('Attempting to overwrite variable')
 
         # Add constraints for layer norm
         if self.d_model == 1:
@@ -280,7 +280,7 @@ class Transformer:
             setattr(M, output_var_name, pyo.Var(M.time_input, M.model_dims))
             residual_var = getattr(M, output_var_name)
         else:
-            raise ValueError('Attempting to overwrite variable ', output_var_name)
+            raise ValueError('Attempting to overwrite variable')
         
         for m in M.model_dims:
             for t in M.time_input:
