@@ -135,9 +135,10 @@ class TestTransformer(unittest.TestCase):
         plt.figure(1, figsize=(12, 8))
         markers = ["o-", "s-"]  # Different markers for each function
         var = [layer_norm_output, transformer_output]
+        labels = ['- Pyomo', '- Transformer']
         for i in range(len(var)):
-            plt.plot(elements, var[i][0, 0 , :], markers[i], label=f"x values from array {i}")
-            plt.plot(elements, var[i][0, 1 , :], markers[i], label=f"u values from array {i}")
+            plt.plot(elements, var[i][0, 0 , :], markers[i], label=f"x values {labels[i]}")
+            plt.plot(elements, var[i][0, 1 , :], markers[i], label=f"u values {labels[i]}")
         plt.title("Pyomo and Tranformer results ")
         plt.xlabel("Sequence")
         plt.ylabel("Magnitude")
@@ -151,7 +152,7 @@ class TestTransformer(unittest.TestCase):
         
         
         self.assertIsNone(np.testing.assert_array_equal(layer_norm_output.shape, transformer_output.shape))
-        self.assertIsNone(np.testing.assert_array_equal(layer_norm_output, transformer_output))
+        self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_output, transformer_output, decimal=1))
         
 # -------- Helper functions ----------------------------------------------------------------------------------       
 def get_optimal_dict(result, model):

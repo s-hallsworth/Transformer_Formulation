@@ -30,7 +30,7 @@ class Transformer:
         # additional parameters
         self.transformer_pred = [0, 0]
         self.input_array = []
-        self.epsilon = 1e-10
+        self.epsilon = 1e-7
         
         # initialise set of model dims
         if self.d_model > 1:
@@ -78,7 +78,7 @@ class Transformer:
 
     def add_layer_norm(self, M, input_var_name, layer_norm_var_name, gamma, beta):  # non-linear
         """
-        Normalization over the feature dimensions of input
+        Normalization over the sequennce of input
         """
         if not hasattr(M, "layer_norm_constraints"):
             M.layer_norm_constraints = pyo.ConstraintList()
@@ -87,8 +87,9 @@ class Transformer:
         
         # Initialize variables
         if not hasattr(M, layer_norm_var_name):
-            setattr(M, layer_norm_var_name, pyo.Var(M.time_input, M.model_dims, initialize=0))
+            setattr(M, layer_norm_var_name, pyo.Var(M.time_input, M.model_dims))
             layer_norm_var = getattr(M, layer_norm_var_name)
+            
         else:
             raise ValueError('Attempting to overwrite variable: ', layer_norm_var)
 
@@ -96,28 +97,19 @@ class Transformer:
         if self.d_model == 1:
             return
 
-        for t in M.time_input:
-
-            # Constraint for summing input_var over model_dims
-            x_sum = input_var[t, M.model_dims.first()]
-            for d in M.model_dims:
-                if d == M.model_dims.first():
-                    continue
-                x_sum += input_var[t, d]
-
-            # Constraints for each dimension
-            for d in M.model_dims:
-                mean_d = x_sum / self.d_model  # Mean
+        for d in M.model_dims:
+            mean_t = sum(input_var[t, d] for t in M.time_input) / self.N
+            
+            # Constraints for each element in sequence
+            for t in M.time_input: 
                 variance = (
-                    sum((input_var[t, d_prime] - mean_d) ** 2 for d_prime in M.model_dims)
-                    / self.d_model
+                    sum((input_var[t_prime, d] - mean_t) ** 2 for t_prime in M.time_input)
+                    / self.N 
                 )
-                std_dev = (variance + self.epsilon) ** 0.5  # epsilon to avoid div 0
-
-                # Calculate layer normalization
-                layer_norm = (getattr(M, gamma)[t] * ((input_var[t, d] - mean_d) / std_dev)) - getattr(M, beta)[t]
+                std_dev = ( variance + self.epsilon) ** 0.5  # epsilon to avoid div 0
 
                 # Add constraint for layer normalized output
+                layer_norm = (getattr(M, gamma)[t] * ((input_var[t, d] - mean_t) / std_dev)) - getattr(M, beta)[t]
                 M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == layer_norm)
 
     def add_attention(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):

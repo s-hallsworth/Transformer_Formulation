@@ -70,7 +70,7 @@ for t in model.time:
 
         # create arrays with input values
         input_array.append(
-            [model.input_param[t,'1'], model.input_param[t,'0']]
+            [ model.input_param[t,'0'], model.input_param[t,'1'],]
         )  
         
 # transformer = toy_transformer.Transformer(model, "toy_config.json")         
