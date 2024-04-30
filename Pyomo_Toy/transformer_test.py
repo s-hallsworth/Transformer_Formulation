@@ -115,7 +115,7 @@ class TestTransformer(unittest.TestCase):
         model = tps.model.clone()
         config_file = '.\\data\\toy_config.json' 
         T = 11
-        transformer_output=transformer_intermediate_results.mha_output
+        transformer_output=transformer_intermediate_results.layer_norm_output_1
         
         # Define tranformer and execute up to layer norm
         transformer = TNN.Transformer(model, config_file)
@@ -172,7 +172,7 @@ class TestTransformer(unittest.TestCase):
         model = tps.model.clone()
         config_file = '.\\data\\toy_config.json' 
         T = 11
-        transformer_output=transformer_intermediate_results.layer_norm_output_1
+        transformer_output=transformer_intermediate_results.mha_output
         
         # Define tranformer and execute 
         transformer = TNN.Transformer(model, config_file)
