@@ -17,24 +17,24 @@ model = pyo.ConcreteModel(name="(TOY_TEST)")
 
 ## define problem sets, vars, params
 T = 11
-time = np.linspace(0, 1, num=T)
+time = np.linspace(0, 1, num=T) # entire time t=0:1 including prediction times
+model.time_input = dae.ContinuousSet(initialize=time[:-1]) # t < prediction times
 model.time = dae.ContinuousSet(initialize=time)
 
-x_input = [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273, 2.125]
-u_input = [0.25, 0.26315789, 0.27777778, 0.29411765, 0.3125, 0.33333333, 0.35714286, 0.38461538, 0.41666667, 0.45454545, 0.5]
+x_input = [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273] #, 2.125]
+u_input = [0.25, 0.26315789, 0.27777778, 0.29411765, 0.3125, 0.33333333, 0.35714286, 0.38461538, 0.41666667, 0.45454545] #, 0.5]
 
 set_variables = ['1', '0']
 model.variables = pyo.Set(initialize=set_variables)
 dict_inputs = {}
-for t, (u_val, x_val) in zip(model.time, zip(u_input, x_input)):
+for t, (u_val, x_val) in zip(model.time_input, zip(u_input, x_input)):
     dict_inputs[(t, '1')] = u_val
     dict_inputs[(t, '0')] = x_val
-model.input_param = pyo.Param(model.time, model.variables, initialize=dict_inputs)
-model.input_var = pyo.Var(model.time, model.variables, bounds=(0, 10))
+model.input_param = pyo.Param(model.time_input, model.variables, initialize=dict_inputs) # t=0 to t=prediction time
+model.input_var = pyo.Var(model.time, model.variables, bounds=(0, 10)) #t = 0 to t=1
 
 
 ## define transformer sets, vars, params
-model.time_input = dae.ContinuousSet(initialize=time[:-1])
 layer_names, parameters = extract_from_pretrained.get_learned_parameters("model_weights.json")
 
 dict_gamma1 = {(t): val for t,val in zip(model.time_input, parameters['layer_normalization_130','gamma'])}

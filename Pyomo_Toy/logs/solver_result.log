@@ -1,4 +1,4 @@
-Solver command line: ['C:\\Users\\sian_\\AMPL\\ipopt.exe', 'C:\\Users\\sian_\\AppData\\Local\\Temp\\tmphe5ny3v7.pyomo.nl', '-AMPL', 'halt_on_ampl_error=yes', 'tol=1e-07', 'bound_relax_factor=0.0']
+Solver command line: ['C:\\Users\\sian_\\AMPL\\ipopt.exe', 'C:\\Users\\sian_\\AppData\\Local\\Temp\\tmpt7xjs_js.pyomo.nl', '-AMPL', 'halt_on_ampl_error=yes', 'tol=1e-07', 'bound_relax_factor=0.0']
 
 Ipopt 3.12.13: halt_on_ampl_error=yes
 tol=1e-07
@@ -148,8 +148,8 @@ Number of inequality constraint evaluations          = 0
 Number of equality constraint Jacobian evaluations   = 112
 Number of inequality constraint Jacobian evaluations = 0
 Number of Lagrangian Hessian evaluations             = 91
-Total CPU secs in IPOPT (w/o function evaluations)   =     16.701
-Total CPU secs in NLP function evaluations           =      0.667
+Total CPU secs in IPOPT (w/o function evaluations)   =     29.725
+Total CPU secs in NLP function evaluations           =      1.023
 
 EXIT: Optimal Solution Found.
 

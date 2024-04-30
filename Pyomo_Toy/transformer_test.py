@@ -1,26 +1,30 @@
+# External imports
 import pyomo.environ as pyo
 import numpy as np
 from pyomo import dae
 from pyomo.opt import SolverFactory
 import matplotlib.pyplot as plt
 import unittest
-import Pyomo_Toy.transformer as transformer
 
+# Import from repo file
+import transformer
+
+# ------- Transformer Test Class ------------------------------------------------------------------------------------
 class TestTransformer(unittest.TestCase):
     def test_pyomo_input(self, model, pyomo_input_name ,transformer_input):
         
         input_var = getattr(model, pyomo_input_name)
         pyomo_input_dict = {}
-        for varname, var in input_var.items():
-            # Check if the variable is indexed
-            if var.is_indexed():
-                pyomo_input_dict[varname] = {index: pyo.value(var[index]) for index in var.index_set()}
-            else:
-                pyomo_input_dict[varname] = pyo.value(var)
+
+        # Check if the variable is indexed
+        if input_var.is_indexed():
+            pyomo_input_dict[pyomo_input_name] = {index: pyo.value(input_var[index]) for index in input_var.index_set()}
+        else:
+            pyomo_input_dict[pyomo_input_name] = pyo.value(input_var)
         print(pyomo_input_dict)
         
-        layer_norm_output, elements = self.reformat(pyomo_input_dict) 
-        print(layer_norm_output.shape)
+        pyomo_input, elements = reformat(dict=pyomo_input_dict, layer_name=pyomo_input_name) 
+        print(pyomo_input.shape)
         
         
         # plt.figure(1, figsize=(12, 8))
@@ -56,8 +60,8 @@ class TestTransformer(unittest.TestCase):
         result = solver.solve(model, options=opts)
         
         # get optimal parameters & reformat first layer norm block --> (1, input_feature, sequence_element)
-        self.get_optimal_dict(result, model)
-        layer_norm_output, elements = self.reformat(self.optimal_parameters,"layer_norm") 
+        optimal_parameters = get_optimal_dict(result, model)
+        layer_norm_output, elements = reformat(optimal_parameters,"layer_norm") 
         print(layer_norm_output.shape)
         
         
@@ -75,47 +79,39 @@ class TestTransformer(unittest.TestCase):
         plt.show()
         
         self.assertIsNone(np.testing.assert_array_equal(layer_norm_output, transformer_output))
+
+# -------- Helper functions ----------------------------------------------------------------------------------       
+def get_optimal_dict(self, result, model):
+    if result.solver.status == 'ok' and result.solver.termination_condition == 'optimal':
+        optimal_parameters = {}
+        for varname, var in model.component_map(pyo.Var).items():
+            # Check if the variable is indexed
+            if var.is_indexed():
+                optimal_parameters[varname] = {index: pyo.value(var[index]) for index in var.index_set()}
+            else:
+                optimal_parameters[varname] = pyo.value(var)
+        #print("Optimal Parameters:", optimal_parameters)
+    else:
+        print("No optimal solution obtained.")
+    
+    return optimal_parameters
+    
+def reformat(dict, layer_name):
+    """
+    Reformat pyomo var to match transformer var shape: (1, input_feature, sequence_element)
+    """
+    print('Reformatting ',layer_name, ' values')
+
+    elements = sorted(set(elem for elem, _ in dict[layer_name].keys()))
+    features = sorted(set(feat for _, feat in dict[layer_name].keys())) #x : '0', u: '1' which matches transformer array
+
+    layer_norm_output = np.zeros((1, len(features),len(elements)))
+    for (elem, feat), value in dict[layer_name].items():
+        elem_index = elements.index(elem)
+        feat_index = features.index(feat)
         
-    def get_optimal_dict(self, result, model):
-        if result.solver.status == 'ok' and result.solver.termination_condition == 'optimal':
-            optimal_parameters = {}
-            for varname, var in model.component_map(pyo.Var).items():
-                # Check if the variable is indexed
-                if var.is_indexed():
-                    optimal_parameters[varname] = {index: pyo.value(var[index]) for index in var.index_set()}
-                else:
-                    optimal_parameters[varname] = pyo.value(var)
-            #print("Optimal Parameters:", optimal_parameters)
-        else:
-            print("No optimal solution obtained.")
+        layer_norm_output[0, feat_index, elem_index] = value
         
-        self.optimal_parameters = optimal_parameters
-        
-    def reformat(optimal_parameters_dict, layer_name=None):
-        """
-        Reformat pyomo var to match transformer var shape: (1, input_feature, sequence_element)
-        """
-        
-        if layer_name:
-            elements = sorted(set(elem for elem, _ in optimal_parameters_dict[layer_name].keys()))
-            features = sorted(set(feat for _, feat in optimal_parameters_dict[layer_name].keys())) #x : '0', u: '1' which matches transformer array
-        
-            layer_norm_output = np.zeros((1, len(features),len(elements)))
-            for (elem, feat), value in optimal_parameters_dict["layer_norm"].items():
-                elem_index = elements.index(elem)
-                feat_index = features.index(feat)
-                
-                layer_norm_output[0, feat_index, elem_index] = value
-        else: 
-            elements = sorted(set(elem for elem, _ in optimal_parameters_dict.keys()))
-            features = sorted(set(feat for _, feat in optimal_parameters_dict.keys())) #x : '0', u: '1' which matches transformer array
-        
-            layer_norm_output = np.zeros((1, len(features),len(elements)))
-            for (elem, feat), value in optimal_parameters_dict.items():
-                elem_index = elements.index(elem)
-                feat_index = features.index(feat)
-                
-                layer_norm_output[0, feat_index, elem_index] = value
-        
-        return layer_norm_output, elements
+    
+    return layer_norm_output, elements
 

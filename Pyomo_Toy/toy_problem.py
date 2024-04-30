@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
-import Pyomo_Toy.transformer as transformer
+import transformer as transformer
 import extract_from_pretrained as extract_from_pretrained
 from toy_problem_setup import *
 
@@ -15,7 +15,7 @@ pyomo solve test.py --solver=gurobi --stream-solver --summary # run model in ter
 """
 
 # create transformer instance     
-transformer = transformer.Transformer(model, "toy_config.json")
+transformer = transformer.Transformer(model, ".\data\toy_config.json")
 
 # add trnasformer layers and constraints
 transformer.embed_input(model, "input_var","input_embed", "variables")
@@ -31,14 +31,14 @@ discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
 
 
 
-# -------------------- SOLVE MODEL ----------------------------------- #
-from pyomo.opt import SolverFactory # run with python3.10
-solver = SolverFactory('ipopt')
-opts = {'halt_on_ampl_error': 'yes',
-           'tol': 1e-7, 'bound_relax_factor': 0.0}
-result = solver.solve(model, logfile='solver_result.log',
-                    symbolic_solver_labels=True, tee=True, load_solutions=True, options=opts)
+# # -------------------- SOLVE MODEL ----------------------------------- #
+# from pyomo.opt import SolverFactory # run with python3.10
+# solver = SolverFactory('ipopt')
+# opts = {'halt_on_ampl_error': 'yes',
+#            'tol': 1e-7, 'bound_relax_factor': 0.0}
+# result = solver.solve(model, logfile='.\logs\solver_result.log',
+#                     symbolic_solver_labels=True, tee=True, load_solutions=True, options=opts)
 
-print(result)
+# print(result)
 
 

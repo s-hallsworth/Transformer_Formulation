@@ -23,7 +23,7 @@ for layer in model.layers:
         model_weights[layer.name] = [w.tolist() for w in weights]  
 
 #save weights    
-file_path = 'model_weights.json'
+file_path = '.\\data\\model_weights.json'
 with open(file_path, 'w') as json_file:
     json.dump(model_weights, json_file)
     
