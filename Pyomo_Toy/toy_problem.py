@@ -10,12 +10,12 @@ Add transformer instance/constraints to toy problem setup and solve
 
 # Commands:
 model.pprint() # view model
-pyomo solve test.py --solver=gurobi --stream-solver --summary # run model in terminal ('ipopt' for NLP)
+pyomo solve toy_problem.py --solver=gurobi --stream-solver --summary # run model in terminal ('ipopt' for NLP)
 
 """
 
 # create transformer instance     
-transformer = transformer.Transformer(model, ".\data\toy_config.json")
+transformer = transformer.Transformer(model, ".\\data\\toy_config.json")
 
 # add trnasformer layers and constraints
 transformer.embed_input(model, "input_param","input_embed", "variables")
