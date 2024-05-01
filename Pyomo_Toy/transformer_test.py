@@ -163,7 +163,7 @@ class TestTransformer(unittest.TestCase):
         
         # Assertions
         self.assertIsNone(np.testing.assert_array_equal(layer_norm_output.shape, transformer_output.shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_output, transformer_output, decimal=1)) # compare value with transformer output
+        self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_output, transformer_output, decimal=7)) # decimal=1 # compare value with transformer output
         with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
             transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
 
@@ -198,37 +198,24 @@ class TestTransformer(unittest.TestCase):
         # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
         optimal_parameters = get_optimal_dict(result, model)
         attention_output, elements = reformat(optimal_parameters,"attention_output") 
+        attention_output = np.expand_dims(attention_output, axis=2)
         print(attention_output.shape)
         print(transformer_output.shape)
-        
-        # plt.figure(1, figsize=(12, 8))
-        # markers = ["o-", "s-"]  # Different markers for each function
-        # var = [layer_norm_output, transformer_output]
-        # labels = ['- Pyomo', '- Transformer']
-        # for i in range(len(var)):
-        #     plt.plot(elements, var[i][0, 0 , :], markers[i], label=f"x values {labels[i]}")
-        #     plt.plot(elements, var[i][0, 1 , :], markers[i], label=f"u values {labels[i]}")
-        # plt.title("Pyomo and Tranformer results ")
-        # plt.xlabel("Sequence")
-        # plt.ylabel("Magnitude")
-        # plt.legend()
-        # plt.grid(True)
-        # plt.show()
         
 
         # # print(" Pyomo (as list):", [model.layer_norm[t, d].value for t in model.time_input for d in model.model_dims])
         # # print(" from NumPy:", transformer_output)
         
         # # Assertions
-        # self.assertIsNone(np.testing.assert_array_equal(layer_norm_output.shape, transformer_output.shape)) # compare shape with transformer
-        # self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_output, transformer_output, decimal=1)) # compare value with transformer output
-        # with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
+        self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, transformer_output.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, transformer_output, decimal=1)) # compare value with transformer output
+        #with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
         #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         
 # -------- Helper functions ----------------------------------------------------------------------------------       
 def get_optimal_dict(result, model):
+    optimal_parameters = {}
     if result.solver.status == 'ok' and result.solver.termination_condition == 'optimal':
-        optimal_parameters = {}
         for varname, var in model.component_map(pyo.Var).items():
             # Check if the variable is indexed
             if var.is_indexed():

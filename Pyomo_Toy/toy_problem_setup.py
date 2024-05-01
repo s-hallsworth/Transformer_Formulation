@@ -30,9 +30,9 @@ dict_inputs = {}
 for t, (u_val, x_val) in zip(model.time_input, zip(u_input, x_input)):
     dict_inputs[(t, '0')] = x_val
     dict_inputs[(t, '1')] = u_val
+    
 model.input_param = pyo.Param(model.time_input, model.variables, initialize=dict_inputs) # t=0 to t=prediction time
 model.input_var = pyo.Var(model.time, model.variables, bounds=(0, 10)) #t = 0 to t=1
-
 
 ## define transformer sets, vars, params
 layer_names, parameters = extract_from_pretrained.get_learned_parameters(".\data\model_weights.json")
