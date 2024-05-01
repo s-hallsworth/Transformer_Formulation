@@ -51,7 +51,13 @@ class Transformer:
         
         # define embedding var
         if not hasattr(M, embed_var_name):
-            setattr(M, embed_var_name, pyo.Var(M.time_input, M.model_dims))
+            init_array = 0.5 * np.ones((self.N, self.d_model)) #initialize embed array to 0.5
+            dict_embed = {}
+            for t, (u_val, x_val) in zip(M.time_input, init_array):
+                dict_embed[(t, '0')] = x_val
+                dict_embed[(t, '1')] = u_val
+
+            setattr(M, embed_var_name, pyo.Var(M.time_input, M.model_dims, initialize=dict_embed))
             embed_var = getattr(M, embed_var_name)
         else:
             raise ValueError('Attempting to overwrite variable')
@@ -97,20 +103,39 @@ class Transformer:
         if self.d_model == 1:
             return
 
+        M.std_dev = pyo.Var(M.model_dims, within=pyo.Reals)
+        M.denominator = pyo.Var(M.time_input, M.model_dims)
+                
         for d in M.model_dims:
-            mean_t = sum(input_var[t, d] for t in M.time_input) / self.N
+            sum_t = sum(input_var[t, d] for t in M.time_input) 
+            mean_t = sum_t/ self.N
             
             # Constraints for each element in sequence
             for t in M.time_input: 
-                variance = (
-                    sum((input_var[t_prime, d] - mean_t) ** 2 for t_prime in M.time_input)
-                    / self.N 
-                )
-                std_dev = ( variance + self.epsilon) ** 0.5  # epsilon to avoid div 0
-
-                # Add constraint for layer normalized output
-                layer_norm = (getattr(M, gamma)[t] * ((input_var[t, d] - mean_t) / std_dev)) - getattr(M, beta)[t]
-                M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == layer_norm)
+                var_minus = input_var
+                var_squ = var_minus
+                for t_prime in M.time_input:
+                    var_minus[t_prime, d] -= mean_t 
+                    var_squ[t_prime, d] = var_minus[t_prime, d] ** 2
+                    
+                var_sum_squ = sum(var_squ[t_prime, d] for t_prime in M.time_input)
+                variance = var_sum_squ / self.N 
+                variance_ep = variance + self.epsilon # epsilon to avoid div 0
+                #std_dev =  variance_ep ** 0.5 
+                
+                # LP format
+                M.layer_norm_constraints.add(expr= M.std_dev[d] **2 == variance_ep )
+                numerator = input_var[t, d] - mean_t
+                scaled_num = getattr(M, gamma)[t] * numerator
+                M.layer_norm_constraints.add(expr= M.denominator[t,d] == layer_norm_var[t, d] - getattr(M, beta)[t])
+                M.layer_norm_constraints.add(expr= M.std_dev[d] **2 == scaled_num - M.denominator[t,d])
+                
+                # # Add constraint for layer normalized output
+                # numerator = input_var[t, d] - mean_t
+                # frac = numerator / M.std_dev[d]
+                # scaled_frac = getattr(M, gamma)[t] * frac
+                # layer_norm = scaled_frac - getattr(M, beta)[t]
+                # M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == layer_norm)
 
     def add_attention(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):
         """
