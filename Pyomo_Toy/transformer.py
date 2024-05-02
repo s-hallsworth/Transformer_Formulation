@@ -94,8 +94,38 @@ class Transformer:
         
         # Initialize variables
         if not hasattr(M, layer_norm_var_name):
+            # define layer norm output var
             setattr(M, layer_norm_var_name, pyo.Var(M.time_input, M.model_dims))
             layer_norm_var = getattr(M, layer_norm_var_name)
+            
+            # define calculation variables
+            variance_name = 'variance_'+ layer_norm_var_name
+            setattr(M, variance_name, pyo.Var(M.model_dims))
+            variance = getattr(M, variance_name)
+            
+            div_name = 'div_'+ layer_norm_var_name
+            setattr(M, div_name, pyo.Var(M.time_input, M.model_dims))
+            div = getattr(M, div_name)
+            
+            denominator_name = 'denominator_'+ layer_norm_var_name
+            setattr(M, denominator_name, pyo.Var(M.model_dims))
+            denominator = getattr(M, denominator_name)
+            
+            numerator_name = 'numerator_'+ layer_norm_var_name
+            setattr(M, numerator_name, pyo.Var(M.time_input, M.model_dims))
+            numerator = getattr(M, numerator_name)
+
+            numerator_scaled_name = 'numerator_scaled_'+ layer_norm_var_name
+            setattr(M, numerator_scaled_name, pyo.Var(M.time_input, M.model_dims))
+            numerator_scaled = getattr(M, numerator_scaled_name)
+            
+            numerator_squared_name = 'numerator_squared_'+ layer_norm_var_name
+            setattr(M, numerator_squared_name, pyo.Var(M.time_input, M.model_dims))
+            numerator_squared = getattr(M, numerator_squared_name)
+              
+            numerator_squared_sum_name = 'numerator_squared_sum_'+ layer_norm_var_name
+            setattr(M, numerator_squared_sum_name, pyo.Var(M.model_dims))
+            numerator_squared_sum = getattr(M, numerator_squared_sum_name)
             
         else:
             raise ValueError('Attempting to overwrite variable')
@@ -103,14 +133,6 @@ class Transformer:
         # Add constraints for layer norm
         if self.d_model == 1:
             return
-
-        M.variance = pyo.Var(M.model_dims, within=pyo.Reals)
-        M.div = pyo.Var(M.time_input, M.model_dims)
-        M.denominator = pyo.Var( M.model_dims)
-        M.numerator = pyo.Var(M.time_input, M.model_dims)  
-        M.numerator_scaled = pyo.Var(M.time_input, M.model_dims)  
-        M.numerator_squared = pyo.Var(M.time_input, M.model_dims) 
-        M.numerator_squared_sum = pyo.Var(M.model_dims) 
             
         for d in M.model_dims:
             sum_t = sum(input_var[t, d] for t in M.time_input) 
@@ -119,44 +141,17 @@ class Transformer:
             # Constraints for each element in sequence
             for t in M.time_input: 
                 
-                M.layer_norm_constraints.add(expr= M.numerator[t,d] == input_var[t, d] - mean_t)
-                M.layer_norm_constraints.add(expr= M.numerator_squared[t,d] == M.numerator[t,d]**2)
-                M.layer_norm_constraints.add(expr= M.numerator_squared_sum[d] == sum(M.numerator_squared[t_prime,d] for t_prime in M.time_input))
-                M.layer_norm_constraints.add(expr= M.variance[d] == M.numerator_squared_sum[d] / self.N)
-                M.layer_norm_constraints.add(expr= M.denominator[d] **2 == M.variance[d] )
-                M.layer_norm_constraints.add(expr= M.numerator_scaled[t,d] == getattr(M, gamma)[t] * M.numerator[t,d])
+                M.layer_norm_constraints.add(expr= numerator[t,d] == input_var[t, d] - mean_t)
+                M.layer_norm_constraints.add(expr= numerator_squared[t,d] == numerator[t,d]**2)
+                M.layer_norm_constraints.add(expr= numerator_squared_sum[d] == sum(numerator_squared[t_prime,d] for t_prime in M.time_input))
+                M.layer_norm_constraints.add(expr= variance[d] == numerator_squared_sum[d] / self.N)
+                M.layer_norm_constraints.add(expr= denominator[d] **2 == variance[d] )
+                M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == getattr(M, gamma)[t] * numerator[t,d])
                 
-                M.layer_norm_constraints.add(expr= M.div[t,d] * M.denominator[d] == M.numerator_scaled[t,d] )
+                M.layer_norm_constraints.add(expr= div[t,d] * denominator[d] == numerator_scaled[t,d] )
                 
-                M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == M.div[t,d] + getattr(M, beta)[t])
+                M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == div[t,d] + getattr(M, beta)[t])
                 
-                # var_minus = input_var
-                # var_squ = var_minus
-                # for t_prime in M.time_input:
-                #     var_minus[t_prime, d] -= mean_t 
-                #     var_squ[t_prime, d] = var_minus[t_prime, d] ** 2
-                    
-                # var_sum_squ = sum(var_squ[t_prime, d] for t_prime in M.time_input)
-                # variance = var_sum_squ / self.N 
-                #variance_ep = variance + self.epsilon # epsilon to avoid div 0
-                #std_dev =  variance_ep ** 0.5 
-                
-                # LP format
-                
-                # M.layer_norm_constraints.add(expr= M.variance[d] == variance + self.epsilon )
-                # M.layer_norm_constraints.add(expr= M.variance[d] == M.std_dev[d] **2)
-                # M.layer_norm_constraints.add(expr= M.denominator[t,d] == layer_norm_var[t, d] - getattr(M, beta)[t])
-                # M.layer_norm_constraints.add(expr= M.numerator[t,d] == input_var[t, d] - mean_t)
-                # M.layer_norm_constraints.add(expr= M.scaled_numerator[t,d] == getattr(M, gamma)[t] * M.numerator[t,d])
-                # M.layer_norm_constraints.add(expr= M.std_dev[d] == M.scaled_numerator[t,d] / M.denominator[t,d])
-                
-                
-                # # Add constraint for layer normalized output
-                # numerator = input_var[t, d] - mean_t
-                # frac = numerator / M.std_dev[d]
-                # scaled_frac = getattr(M, gamma)[t] * frac
-                # layer_norm = scaled_frac - getattr(M, beta)[t]
-                # M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == layer_norm)
 
     def add_attention(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):
         """
