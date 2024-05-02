@@ -52,7 +52,7 @@ b_k = parameters['multi_head_attention_65','b_k']
 b_v = parameters['multi_head_attention_65','b_v']
 b_o = parameters['multi_head_attention_65','b_o']
 
-        
+print(np.array(W_q).shape)
 ## define constraints
 model.x_init_constr = pyo.Constraint(expr=model.input_var[min(model.time),'0'] == 1)
 

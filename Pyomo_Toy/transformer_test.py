@@ -19,6 +19,7 @@ class TestTransformer(unittest.TestCase):
         model = tps.model.clone()
         pyomo_input_name = "input_param"
         transformer_input= transformer_intermediate_results.input 
+        self.solver = 'scip'
         
         # Get input var
         input_var = getattr(model, pyomo_input_name)
@@ -44,6 +45,7 @@ class TestTransformer(unittest.TestCase):
         config_file = '.\\data\\toy_config.json' 
         T = 11
         transformer_input= transformer_intermediate_results.input 
+        self.solver = 'scip'
         
         # Define tranformer and execute up to embed
         transformer = TNN.Transformer(model, config_file)
@@ -77,6 +79,7 @@ class TestTransformer(unittest.TestCase):
         config_file = '.\\data\\toy_config_embed_3.json' 
         T = 11
         transformer_input= transformer_intermediate_results.input 
+        self.solver = 'scip'
         
         # Define tranformer and execute up to embed
         transformer = TNN.Transformer(model, config_file)
@@ -116,6 +119,7 @@ class TestTransformer(unittest.TestCase):
         config_file = '.\\data\\toy_config.json' 
         T = 11
         transformer_output=transformer_intermediate_results.layer_norm_output_1
+        self.solver = 'scip'
         
         # Define tranformer and execute up to layer norm
         transformer = TNN.Transformer(model, config_file)
@@ -132,7 +136,7 @@ class TestTransformer(unittest.TestCase):
         discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
         
         # Solve model
-        solver = SolverFactory('ipopt')
+        solver = SolverFactory(self.solver)
         opts = {'halt_on_ampl_error': 'yes',
            'tol': 1e-7, 'bound_relax_factor': 0.0}
         result = solver.solve(model, options=opts)
@@ -173,6 +177,7 @@ class TestTransformer(unittest.TestCase):
         config_file = '.\\data\\toy_config.json' 
         T = 11
         transformer_output=transformer_intermediate_results.mha_output
+        self.solver = 'scip'
         
         # Define tranformer and execute 
         transformer = TNN.Transformer(model, config_file)
@@ -190,7 +195,7 @@ class TestTransformer(unittest.TestCase):
         discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
         
         # Solve model
-        solver = SolverFactory('ipopt')
+        solver = SolverFactory(self.solver)
         opts = {'halt_on_ampl_error': 'yes',
            'tol': 1e-7, 'bound_relax_factor': 0.0}
         result = solver.solve(model, options=opts)
