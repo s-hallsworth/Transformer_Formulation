@@ -4,13 +4,11 @@ import numpy as np
 import extract_from_pretrained as extract_from_pretrained
 
 """
-Define toy problem and its variables and parameters 
-
-# Commands:
-model.pprint() # view model
-pyomo solve test.py --solver=gurobi --stream-solver --summary # run model in terminal ('ipopt' for NLP)
-
+Define toy problem parametrs and var then run from another script like toy_problem.py or transformer_test.py
 """
+## read model weights
+path = ".\data\weights_small_copy.json"
+layer_names, parameters = extract_from_pretrained.get_learned_parameters(path)
 
 ## create model
 model = pyo.ConcreteModel(name="(TOY_TEST)")
@@ -35,22 +33,20 @@ model.input_param = pyo.Param(model.time_input, model.variables, initialize=dict
 model.input_var = pyo.Var(model.time, model.variables, bounds=(0, 10)) #t = 0 to t=1
 
 ## define transformer sets, vars, params
-layer_names, parameters = extract_from_pretrained.get_learned_parameters(".\data\model_weights.json")
+dict_gamma1 = {(v): val for v,val in zip(model.variables, parameters['layer_normalization_1','gamma'])}
+dict_beta1 = {(v): val for v,val in zip(model.variables,  parameters['layer_normalization_1','beta'])}
+model.gamma1 = pyo.Param(model.variables, initialize = dict_gamma1)
+model.beta1 = pyo.Param(model.variables, initialize = dict_beta1)
 
-dict_gamma1 = {(t): val for t,val in zip(model.time_input, parameters['layer_normalization_130','gamma'])}
-dict_beta1 = {(t): val for t,val in zip(model.time_input,  parameters['layer_normalization_130','beta'])}
-model.gamma1 = pyo.Param(model.time_input, initialize = dict_gamma1)
-model.beta1 = pyo.Param(model.time_input, initialize = dict_beta1)
+W_q = parameters['multi_head_attention_1','W_q']
+W_k = parameters['multi_head_attention_1','W_k']
+W_v = parameters['multi_head_attention_1','W_v']
+W_o = parameters['multi_head_attention_1','W_o']
 
-W_q = parameters['multi_head_attention_65','W_q']
-W_k = parameters['multi_head_attention_65','W_k']
-W_v = parameters['multi_head_attention_65','W_v']
-W_o = parameters['multi_head_attention_65','W_o']
-
-b_q = parameters['multi_head_attention_65','b_q']
-b_k = parameters['multi_head_attention_65','b_k']
-b_v = parameters['multi_head_attention_65','b_v']
-b_o = parameters['multi_head_attention_65','b_o']
+b_q = parameters['multi_head_attention_1','b_q']
+b_k = parameters['multi_head_attention_1','b_k']
+b_v = parameters['multi_head_attention_1','b_v']
+b_o = parameters['multi_head_attention_1','b_o']
 
 print(np.array(W_q).shape)
 ## define constraints

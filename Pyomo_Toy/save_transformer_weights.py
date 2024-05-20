@@ -1,35 +1,15 @@
 import keras
 import os
 import json
+import extract_from_pretrained
 
 
 # variable declaration
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
-model_path = "..\\Transformer_Toy\\transformer_TOY.keras"
+model_path = "..\\Transformer_Toy\\transformer_small_copy_TOY.keras"
 
-# load pre-trained model
-model = keras.models.load_model(model_path)
-
-# print model summary
-# print("--- Model Summary ---")
-# model.summary()
-
-# extract weights
-model_weights = {}
-
-for layer in model.layers:
-    weights = layer.get_weights()
-    if weights:  
-        model_weights[layer.name] = [w.tolist() for w in weights]  
-
-#save weights    
-file_path = '.\\data\\model_weights.json'
-with open(file_path, 'w') as json_file:
-    json.dump(model_weights, json_file)
-    
-print(f"Weights of the model have been saved to {file_path}")
-
-#model.save_weights('W_model.weights.h5', overwrite=True)
+# save moel weigths
+extract_from_pretrained.save_weights_json(model_path, '.\\data\\weights_save.json')
 
 
 # # read H5

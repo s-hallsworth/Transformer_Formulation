@@ -100,7 +100,7 @@ class Transformer:
             
             # define calculation variables
             variance_name = 'variance_'+ layer_norm_var_name
-            setattr(M, variance_name, pyo.Var(M.model_dims))
+            setattr(M, variance_name, pyo.Var(M.time_input))
             variance = getattr(M, variance_name)
             
             div_name = 'div_'+ layer_norm_var_name
@@ -108,7 +108,7 @@ class Transformer:
             div = getattr(M, div_name)
             
             denominator_name = 'denominator_'+ layer_norm_var_name
-            setattr(M, denominator_name, pyo.Var(M.model_dims))
+            setattr(M, denominator_name, pyo.Var(M.time_input))
             denominator = getattr(M, denominator_name)
             
             numerator_name = 'numerator_'+ layer_norm_var_name
@@ -124,7 +124,7 @@ class Transformer:
             numerator_squared = getattr(M, numerator_squared_name)
               
             numerator_squared_sum_name = 'numerator_squared_sum_'+ layer_norm_var_name
-            setattr(M, numerator_squared_sum_name, pyo.Var(M.model_dims))
+            setattr(M, numerator_squared_sum_name, pyo.Var(M.time_input))
             numerator_squared_sum = getattr(M, numerator_squared_sum_name)
             
         else:
@@ -134,23 +134,23 @@ class Transformer:
         if self.d_model == 1:
             return
             
-        for d in M.model_dims:
-            sum_t = sum(input_var[t, d] for t in M.time_input) 
-            mean_t = sum_t/ self.N
+        for t in M.time_input: 
+            sum_t = sum(input_var[t, d] for d in M.model_dims) 
+            mean_t = sum_t/ self.d_model
             
             # Constraints for each element in sequence
-            for t in M.time_input: 
-                
+            
+            for d in M.model_dims:   
                 M.layer_norm_constraints.add(expr= numerator[t,d] == input_var[t, d] - mean_t)
                 M.layer_norm_constraints.add(expr= numerator_squared[t,d] == numerator[t,d]**2)
-                M.layer_norm_constraints.add(expr= numerator_squared_sum[d] == sum(numerator_squared[t_prime,d] for t_prime in M.time_input))
-                M.layer_norm_constraints.add(expr= variance[d] == numerator_squared_sum[d] / self.N)
-                M.layer_norm_constraints.add(expr= denominator[d] **2 == variance[d] )
-                M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == getattr(M, gamma)[t] * numerator[t,d])
+                M.layer_norm_constraints.add(expr= numerator_squared_sum[t] == sum(numerator_squared[t,d_prime] for d_prime in M.model_dims))
+                M.layer_norm_constraints.add(expr= variance[t] == numerator_squared_sum[t] / self.d_model)
+                M.layer_norm_constraints.add(expr= denominator[t] **2 == variance[t] )
                 
-                M.layer_norm_constraints.add(expr= div[t,d] * denominator[d] == numerator_scaled[t,d] )
+                M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
+                M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == getattr(M, gamma)[d] * div[t,d])
                 
-                M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == div[t,d] + getattr(M, beta)[t])
+                M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == numerator_scaled[t,d] + getattr(M, beta)[d])
                 
 
     def add_attention(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):
@@ -221,9 +221,9 @@ class Transformer:
         M.b_v = pyo.Param(M.heads, M.k_dims, initialize=b_v_dict)
         M.b_o = pyo.Param(M.k_dims, initialize=b_o_dict)
 
-        M.Q = pyo.Var(M.heads, M.time_input, M.k_dims, M.model_dims, bounds=(-1,1)) # assuming normalized input
-        M.K = pyo.Var(M.heads, M.time_input, M.k_dims, M.model_dims, bounds=(-1,1)) # assuming normalized input
-        M.V = pyo.Var(M.heads, M.time_input, M.k_dims, M.model_dims, bounds=(-1,1)) # assuming normalized input
+        M.Q = pyo.Var(M.heads, M.time_input, M.k_dims, bounds=(-1,1)) # assuming normalized input
+        M.K = pyo.Var(M.heads, M.time_input, M.k_dims, bounds=(-1,1)) # assuming normalized input
+        M.V = pyo.Var(M.heads, M.time_input, M.k_dims, bounds=(-1,1)) # assuming normalized input
 
         M.compatibility_exp = pyo.Var(M.heads, M.time_input, M.time_input, M.model_dims)
         M.compatibility_exp_sum = pyo.Var(M.heads, M.time_input, M.model_dims)
@@ -238,7 +238,6 @@ class Transformer:
 
         for h in M.heads:
             for n in M.time_input:
-                for d in M.model_dims:
                     for k in M.k_dims:
                         
                         # M.embed_constraints.add(embed_var[t, d] 
@@ -249,7 +248,7 @@ class Transformer:
                         if b_q:
                             M.attention_constraints.add(
                             expr=M.Q[h, n, k, d]
-                            == (input_var[n, d] * M.W_q[n, h, k]) + M.b_q[h,k]
+                            == sum(input_var[n, d] * M.W_q[n, h, k]) + M.b_q[h,k]
                             )  
                         else: 
                             M.attention_constraints.add(
