@@ -205,8 +205,8 @@ class TestTransformer(unittest.TestCase):
         # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
         optimal_parameters = get_optimal_dict(result, model)
         attention_output, elements = reformat(optimal_parameters,"attention_output") 
-        print(attention_output)
-        attention_output = np.expand_dims(attention_output, axis=2)
+        print("attention_output", attention_output)
+        #attention_output = np.expand_dims(attention_output, axis=2)
         print(attention_output.shape)
         
 
@@ -214,10 +214,10 @@ class TestTransformer(unittest.TestCase):
         # # print(" from NumPy:", transformer_output)
         
         MHA_output = np.array(tir.layer_outputs_dict["multi_head_attention_1"])
-        print(MHA_output.shape)
+        print("MHA output",MHA_output)
         # # Assertions
         self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output .shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=1)) # compare value with transformer output
+        self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=4)) # compare value with transformer output
         #with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
         #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         

@@ -335,24 +335,25 @@ class Transformer:
                         M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_7[h, n, p] == M.compatibility_8[h, n, p] )
                         M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_8[h, n, p] == M.compatibility_9[h, n, p] )
                         
-                        M.attention_constraints.add(expr= M.compatibility_exp[h, n, p] == 1+M.compatibility[h, n, p]
+                        M.attention_constraints.add(expr= M.compatibility_exp[h, n, p] == 1
+                                                    + M.compatibility[h, n, p]
                                                     + (0.5*M.compatibility_squ[h, n, p] ) 
-                                                    + (0.166667*M.compatibility_3[h, n, p]) 
-                                                    + (0.041667*M.compatibility_4[h, n, p]) 
-                                                    + (0.008334*M.compatibility_5[h, n, p]) 
-                                                    + (0.001389*M.compatibility_6[h, n, p]) 
+                                                    + (0.166666667*M.compatibility_3[h, n, p]) 
+                                                    + (0.041666667*M.compatibility_4[h, n, p]) 
+                                                    + (0.008333334*M.compatibility_5[h, n, p]) 
+                                                    + (0.001388889*M.compatibility_6[h, n, p]) 
                                                     + (0.000019841*M.compatibility_7[h, n, p]) 
-                                                    + (0.0000248*M.compatibility_8[h, n, p]) 
-                                                    + (0.00000276*M.compatibility_9[h, n, p]) 
+                                                    + (0.000024802*M.compatibility_8[h, n, p]) 
+                                                    + (0.000002756*M.compatibility_9[h, n, p]) 
                                                     )# pyo.exp only seems to work for constant args and pow operator must be <= 2
 
                     for n2 in M.time_input:
                         # compatibility sqrt(Q * K) across all pairs of elements
                         K_scaled = M.K[ h, n2, k]  / (self.d_k ** 0.5) 
-                        # M.attention_constraints.add(
-                        #     expr=M.compatibility[h, n, n2]
-                        #     == sum(M.Q[h, n, k] * K_scaled for k in M.k_dims)
-                        # )  # non-linear
+                        M.attention_constraints.add(
+                            expr=M.compatibility[h, n, n2]
+                            == sum(M.Q[h, n, k] * K_scaled for k in M.k_dims)
+                        )  # non-linear
 
                         # attention weights softmax(compatibility)
                         M.attention_constraints.add(expr= M.compatibility_exp_sum[h, n] == sum(M.compatibility_exp[h, n, p] for p in M.time_input))
@@ -369,11 +370,11 @@ class Transformer:
                         sum(
                             M.attention_score[h, n, k] * M.W_o[d,h, k]
                             for k in M.k_dims
-                        )
+                        ) 
                         for h in M.heads
-                    )
+                    )+ M.b_o[d]
                 )
-                
+                #sum(input_var[n, d] * M.W_v[d, h, k] for d in M.model_dims) + M.b_v[h,k]
     def add_residual_connection(self,M, input_1, input_2, output_var_name):
         # create constraint list
         if not hasattr(M, "residual_constraints"):
