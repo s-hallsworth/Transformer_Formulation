@@ -43,20 +43,13 @@ W_k = parameters['multi_head_attention_1','W_k']
 W_v = parameters['multi_head_attention_1','W_v']
 W_o = parameters['multi_head_attention_1','W_o']
 
-
-
 b_q = parameters['multi_head_attention_1','b_q']
 b_k = parameters['multi_head_attention_1','b_k']
 b_v = parameters['multi_head_attention_1','b_v']
 b_o = parameters['multi_head_attention_1','b_o']
 
-print(np.shape(b_o))
-
 W_0 = np.zeros(np.shape(W_q)).tolist()
 b_0 = np.zeros(np.shape(b_q)).tolist()
-
-print("W_q", W_q)
-print("b_q", b_q)
 
 ## define constraints
 model.x_init_constr = pyo.Constraint(expr=model.input_var[min(model.time),'0'] == 1)
