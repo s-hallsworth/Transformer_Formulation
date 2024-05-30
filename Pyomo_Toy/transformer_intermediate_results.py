@@ -16,7 +16,8 @@ transformer_input = np.array([[ [x,u] for x,u in zip(x_input_10, u_input_10)]])
 
 ## read model weights and intermediate layer outputs
 layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path, transformer_input) 
-
+layer_outputs_dict['layer_normalization_2']
+#print(layer_outputs_dict['layer_normalization_2'])
 
 # W_q = np.array(layer_outputs_dict['multi_head_attention_65','W_q'])
 # W_k = np.array(layer_outputs_dict['multi_head_attention_65','W_k'])

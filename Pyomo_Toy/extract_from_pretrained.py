@@ -3,7 +3,7 @@ import numpy as np
 import keras
 import os
     
-def save_weights_json(model_path, file_name):
+def get_weights(model_path, save_json=True, file_name="model_weights.json"):
     """
     Save weights of pre-trained keras model to json file with layer name appended
     """
@@ -24,19 +24,24 @@ def save_weights_json(model_path, file_name):
         if weights:  
             model_weights[layer.name] = [w.tolist() for w in weights]  
 
-    #save weights    
-    with open(file_name, 'w') as json_file:
-        json.dump(model_weights, json_file)
-        
-    print(f"Weights of the model have been saved to {file_name}")
-        
+    #save weights 
+    if save_json:   
+        with open(file_name, 'w') as json_file:
+            json.dump(model_weights, json_file)
+            
+        print(f"Weights of the model have been saved to {file_name}")
+    
+    else: 
+        return model_weights, model       
 
-def get_learned_parameters(weights_json_path):
+def get_learned_parameters(model_path):
     """
     Read model parameters and store in dict with associated name
     """
-    with open(weights_json_path, "r") as read_file:
-        transformer_weights = json.load(read_file)
+    
+    transformer_weights, model = get_weights(model_path, save_json=False)
+    model_layers = [x.name for x in model.layers if "dropout" not in x.name]
+    model_outputs = [layer.output for layer in model.layers if "dropout" not in layer.name]
 
     # create dictionary with parameters
     dict_transformer_params = {}
@@ -45,13 +50,15 @@ def get_learned_parameters(weights_json_path):
     count_MHA = 0
     count_Conv2D = 0
     count_Dense = 0
+    count_Layers = 0
     
-    for layer_name in transformer_weights:
-        parameters =  transformer_weights[layer_name]
-        # try:
-        #     print(layer_name, np.array(parameters).shape)
-        # except:
-        #     print(layer_name, len(parameters))
+    for i in range(len(model_layers)):
+        layer_name = model_layers[i]
+        
+        try:
+            parameters =  transformer_weights[layer_name]
+        except:
+            continue
         
         if 'LAYER_NORM' in layer_name.upper():
             count_LN += 1
@@ -89,16 +96,29 @@ def get_learned_parameters(weights_json_path):
             dict_transformer_params[(new_layer_name, 'b')] = parameters[1] 
             
         if 'DENSE' in layer_name.upper():  
-            count_Dense += 1
-            new_layer_name = 'dense_'+str(count_Dense)
-            dict_transformer_params[(new_layer_name, 'W')] = parameters[0]
-            dict_transformer_params[(new_layer_name, 'b')] = parameters[1] 
+
+            if 'DENSE' in model_layers[i-1].upper():
+                count_Layers += 1
+                #new_layer_name = 'dense_'+str(count_Layers)
+                
+                dict_transformer_params[NN_name] |= { layer_name: {'W': parameters[0], 'b': parameters[1]}}
+               
+            else:
+                count_Layers = 1
+                count_Dense += 1
+                NN_name = 'ffn_'+str(count_Dense)
+                new_layer_name = NN_name
+                #new_layer_name = 'dense_'+str(count_Layers)
+               
+                dict_transformer_params[NN_name] = {'input_shape': model_outputs[i-1].shape, 
+                                                    'input': model_outputs[i-1],
+                                                     layer_name: {'W': parameters[0], 'b': parameters[1]}}  
             
         layer_names += [new_layer_name]
             
     #print(layer_names) # ['layer_normalization_130', 'multi_head_attention_65', 'layer_normalization_131', 'conv2d_42', 'conv2d_43', 'dense_70', 'dense_71']
     #print(dict_transformer_params)   
-    return layer_names, dict_transformer_params
+    return layer_names, dict_transformer_params, model
 
 def get_intermediate_values(model_path, sample_input, file_name=None):
     
@@ -124,7 +144,6 @@ def get_intermediate_values(model_path, sample_input, file_name=None):
         layer_outputs_dict[layer_name+'_'+str(count)] = outputs_list[i]
         layer_names += [layer_name]
     
-    #layer_outputs_dict = {layer_names[i]: outputs_list[i] for i in range(len(model.layers))}
     
     if file_name:
         with open(file_name, 'w') as file:
