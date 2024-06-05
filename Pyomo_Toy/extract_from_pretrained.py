@@ -117,7 +117,7 @@ def get_learned_parameters(model_path):
         layer_names += [new_layer_name]
             
     #print(layer_names) # ['layer_normalization_130', 'multi_head_attention_65', 'layer_normalization_131', 'conv2d_42', 'conv2d_43', 'dense_70', 'dense_71']
-    #print(dict_transformer_params)   
+    #print(dict_transformer_params['multi_head_attention_1','W_q'])   
     return layer_names, dict_transformer_params, model
 
 def get_intermediate_values(model_path, sample_input, file_name=None):
@@ -139,11 +139,14 @@ def get_intermediate_values(model_path, sample_input, file_name=None):
     for i in range(len(model.layers)):
         if "dropout" in model.layers[i].name: # drop out does nothing during inference
             continue
-        layer_name = model.layers[i].name.rsplit('_', maxsplit=1)[0]
+
+        if model.layers[i].name[-1].isnumeric():
+            layer_name = model.layers[i].name.rsplit('_', maxsplit=1)[0]
+        else:
+            layer_name = model.layers[i].name
         count = layer_names.count(layer_name) + 1
         layer_outputs_dict[layer_name+'_'+str(count)] = outputs_list[i]
         layer_names += [layer_name]
-    
     
     if file_name:
         with open(file_name, 'w') as file:

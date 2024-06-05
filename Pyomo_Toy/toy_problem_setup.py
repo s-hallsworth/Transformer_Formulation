@@ -7,7 +7,8 @@ import extract_from_pretrained as extract_from_pretrained
 Define toy problem parametrs and var then run from another script like toy_problem.py or transformer_test.py
 """
 ## read model weights
-model_path = "..\\Transformer_Toy\\transformer_small_copy_TOY.keras" 
+#model_path = "..\\Transformer_Toy\\transformer_small_2_TOY.keras" 
+model_path = "..\\Transformer_Toy\\transformer_small_2-no_w_mha.keras" 
 layer_names, parameters, TNN_model = extract_from_pretrained.get_learned_parameters(model_path)
 
 ## create model
@@ -43,13 +44,13 @@ W_k = parameters['multi_head_attention_1','W_k']
 W_v = parameters['multi_head_attention_1','W_v']
 W_o = parameters['multi_head_attention_1','W_o']
 
-b_q = parameters['multi_head_attention_1','b_q']
-b_k = parameters['multi_head_attention_1','b_k']
-b_v = parameters['multi_head_attention_1','b_v']
-b_o = parameters['multi_head_attention_1','b_o']
+# b_q = parameters['multi_head_attention_1','b_q']
+# b_k = parameters['multi_head_attention_1','b_k']
+# b_v = parameters['multi_head_attention_1','b_v']
+# b_o = parameters['multi_head_attention_1','b_o']
 
-W_0 = np.zeros(np.shape(W_q)).tolist()
-b_0 = np.zeros(np.shape(b_q)).tolist()
+# W_0 = np.zeros(np.shape(W_q)).tolist()
+# b_0 = np.zeros(np.shape(b_q)).tolist()
 
 ## define constraints
 model.x_init_constr = pyo.Constraint(expr=model.input_var[min(model.time),'0'] == 1)
