@@ -118,6 +118,9 @@ class TestTransformer(unittest.TestCase):
         self.assertIsNone(np.testing.assert_array_almost_equal(embed_output, transformer_embed, decimal=2))  # almost same values
     
     def test_layer_norm(self):
+        
+        print("======= LAYER NORM =======")
+
         # Define Test Case Params
         model = tps.model.clone()
         config_file = '.\\data\\toy_config.json' 
@@ -128,36 +131,32 @@ class TestTransformer(unittest.TestCase):
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         
-        print(tps.dict_beta1)
         
         # Check layer norm var and constraints created
         self.assertIn("layer_norm", dir(model))                        # check layer_norm created
         self.assertIsInstance(model.layer_norm, pyo.Var)               # check data type
         self.assertTrue(hasattr(model, 'layer_norm_constraints'))      # check constraints created
+        print("- Vars and constraints created successfully")
         
         # Discretize model using Backward Difference method
         discretizer = pyo.TransformationFactory("dae.finite_difference")
         discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
         
         # Solve model
-        #self.solver = 'scip' 
         self.solver = 'scip'
-        
         solver = SolverFactory(self.solver)
-        
+        result = solver.solve(model, tee=True) 
+        optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat first layer norm block --> (1, input_feature, sequence_element)
+        print("---------- MODEL SOLVED ----------")
         # opts = {'halt_on_ampl_error': 'yes',
         #    'tol': 1e-7, 'bound_relax_factor': 0.0}#scip
-        
         # result = solver.solve(model, options=opts) #scip
-        result = solver.solve(model, tee=True) #gurobi
-        
-        # get optimal parameters & reformat first layer norm block --> (1, input_feature, sequence_element)
-        optimal_parameters = get_optimal_dict(result, model)
-        
-        print("scip params",optimal_parameters)
+
+        # Check layer norm output
         layer_norm_output, elements = reformat(optimal_parameters,"layer_norm") 
         LN_1_output= np.array(tir.layer_outputs_dict["layer_normalization_1"])
 
+        # Plot expected and actual results
         # plt.figure(1, figsize=(12, 8))
         # markers = ["o-", "x--"]  # Different markers for each function
         # var = [layer_norm_output, LN_1_output]
@@ -171,20 +170,21 @@ class TestTransformer(unittest.TestCase):
         # plt.legend()
         # plt.grid(True)
         # plt.show()
-        
-
         # print("layer norm Pyomo (as list):", [model.layer_norm[t, d].value for t in model.time_input for d in model.model_dims])
         # print("layer norm from NumPy:", transformer_output)
-        
         
         # Assertions
         self.assertIsNone(np.testing.assert_array_equal(layer_norm_output.shape, LN_1_output.shape)) # compare shape with transformer
         self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_output,LN_1_output, decimal=5)) # decimal=1 # compare value with transformer output
         with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
             transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+        print("- LN output formulation == LN output model")
 
     def test_multi_head_attention(self):
         ### Right now can only support one MHA block in transformer (--> fix add uniquely named parameters for the MHA block)
+        
+        print("======= MULTIHEAD ATTENTION =======")
+        
         # Define Test Case Params
         model = tps.model.clone()
         config_file = '.\\data\\toy_config.json' 
@@ -195,43 +195,13 @@ class TestTransformer(unittest.TestCase):
         transformer = TNN.Transformer(model, config_file)
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        #transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o) #, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o) #, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
         
-        input = np.array(tir.layer_outputs_dict['input_layer_1']).squeeze(0)
-        transformer_input = np.array(tir.layer_outputs_dict["layer_normalization_1"]).squeeze(0)#np.array(tir.layer_outputs_dict['input_layer_1']).squeeze(0)
-        #print(transformer_input)
-        #print(transformer_input.shape)
-        Q = np.dot( transformer_input, np.transpose(np.array(tps.W_q),(1,0,2)))
-        K = np.dot( transformer_input, np.transpose(np.array(tps.W_k),(1,0,2)))
-        V = np.dot( transformer_input, np.transpose(np.array(tps.W_v),(1,0,2)))
-        
-        print(input.shape)
-        print(transformer_input.shape)
-        
-        Q = np.transpose(Q,(1,0,2))
-        print(Q.shape)
-        print("-----------------")
-        #print(Q)
-        W_Q = np.array(tps.W_q) #np.transpose(np.array(tps.W_q),(1,0,2))
-        # Q_prime = np.zeros(Q.shape)
-        # for h in range( W_Q .shape[0]):
-        #     for n in range( transformer_input.shape[0]):
-        #         for k in range( W_Q.shape[2]):
-                    
-        #             #for d in range(transformer_input.shape[1]):
-        #             Q_prime[n,h,k] = transformer_input[n,0] *  W_Q[h,0,k]
-        #             Q_prime[n,h,k] += transformer_input[n,1] *  W_Q[h,1,k]
-        print("-----------------")
-        # print("Q",np.transpose(Q,(1,0,2)))
-        # # print("K",np.transpose(K,(1,0,2)))
-        # # print("V",np.transpose(V,(1,0,2)))
-        # print("Q_prime",np.transpose(Q_prime,(1,0,2)))
-
-        
-        # Check  var and constraints created
-        # self.assertIn("attention_output", dir(model))                 # check layer_norm created
-        # self.assertIsInstance(model.attention_output, pyo.Var)        # check data type
-        # self.assertTrue(hasattr(model, 'attention_constraints'))      # check constraints created
+        #Check  var and constraints created
+        self.assertIn("attention_output", dir(model))                 # check layer_norm created
+        self.assertIsInstance(model.attention_output, pyo.Var)        # check data type
+        self.assertTrue(hasattr(model, 'attention_constraints'))      # check constraints created
+        print("- Vars and constraints created successfully")
         
         # Discretize model using Backward Difference method
         discretizer = pyo.TransformationFactory("dae.finite_difference")
@@ -239,37 +209,46 @@ class TestTransformer(unittest.TestCase):
         
         # Solve model
         solver = SolverFactory(self.solver, solver_io='python')
-        #opts = {'halt_on_ampl_error': 'yes', #scip opts
-        #'tol': 1e-7, 'bound_relax_factor': 0.0}
-        
-        # solver.options['FeasibilityTol'] = 1e-6      # Feasibility tolerance
-        # solver.options['IntFeasTol'] = 1e-6          # Integrality tolerance
-        # solver.options['OptimalityTol'] = 1e-6     # Optimality tolerance
-        # solver.options['MIPGap'] = 1e-6            # Relative MIP optimality gap
-        # solver.options['NumericFocus'] = 1            # Emphasis on numerical accuracy
-        
         result = solver.solve(model, tee=True)
-        print("=====================")
-        # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
-        optimal_parameters = get_optimal_dict(result, model)
+        optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
+        print("---------- MODEL SOLVED ----------")
+        
+        # Check Solve calculations
+        input = np.array(tir.layer_outputs_dict['input_layer_1']).squeeze(0)
+        transformer_input = np.array(tir.layer_outputs_dict["layer_normalization_1"]).squeeze(0)#np.array(tir.layer_outputs_dict['input_layer_1']).squeeze(0)
+        Q = np.dot( transformer_input, np.transpose(np.array(tps.W_q),(1,0,2)))
+        K = np.dot( transformer_input, np.transpose(np.array(tps.W_k),(1,0,2)))
+        V = np.dot( transformer_input, np.transpose(np.array(tps.W_v),(1,0,2)))
+        Q = np.transpose(Q,(1,0,2))
+        K = np.transpose(K,(1,0,2))
+        V = np.transpose(V,(1,0,2))
 
-        #print("q_res", optimal_parameters['Q'])
 
-        print(optimal_parameters)
         LN_output, _ = reformat(optimal_parameters,"layer_norm")
         self.assertIsNone(np.testing.assert_array_almost_equal(LN_output,np.array(tir.layer_outputs_dict["layer_normalization_1"]), decimal =5))
-        print("LN formulation == LN model")
+        print("- LN formulation == LN model")
+        
         Q_output, _ = reformat(optimal_parameters,"Q") 
-        print("Q_output",Q_output.shape)
         self.assertIsNone(np.testing.assert_array_equal(Q.shape, Q_output.shape))
         self.assertIsNone(np.testing.assert_array_almost_equal(Q, Q_output, decimal =6))
+        print("- Query formulation == Query model")
         
-        # attention_output, elements = reformat(optimal_parameters,"attention_output") 
-
-        # MHA_output = np.array(tir.layer_outputs_dict["multi_head_attention_1"])
-        # # # Assertions
-        # self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
-        # #self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=4)) # compare value with transformer output
+        K_output, _ = reformat(optimal_parameters,"K") 
+        self.assertIsNone(np.testing.assert_array_equal(K.shape, K_output.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal(K, K_output, decimal =6))
+        print("- Key formulation == Key model")
+        
+        V_output, _ = reformat(optimal_parameters,"V") 
+        self.assertIsNone(np.testing.assert_array_equal(V.shape, V_output.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal(V, V_output, decimal =6))
+        print("- Value formulation == Value model")
+        
+        ## Check MHA output
+        attention_output, elements = reformat(optimal_parameters,"attention_output") 
+        MHA_output = np.array(tir.layer_outputs_dict["multi_head_attention_1"])
+        self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=6)) # compare value with transformer output
+        print("- MHA output formulation == MHA output model")
         
 # -------- Helper functions ----------------------------------------------------------------------------------       
 def get_optimal_dict(result, model):
