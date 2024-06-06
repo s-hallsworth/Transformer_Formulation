@@ -262,11 +262,12 @@ class Transformer:
         if b_o:
             b_o_dict = {(d): val for d, val in zip(M.model_dims, b_o) }
             M.b_o = pyo.Param(M.model_dims, initialize=b_o_dict, mutable=False)
+            
 
         M.Q = pyo.Var(M.heads, M.time_input, M.k_dims, within=pyo.Reals) 
         M.K = pyo.Var(M.heads, M.time_input, M.k_dims, within=pyo.Reals) 
         M.V = pyo.Var(M.heads, M.time_input, M.k_dims, within=pyo.Reals) 
-        M.Q_scaled = pyo.Var(M.heads, M.time_input, M.k_dims)
+        #M.Q_scaled = pyo.Var(M.heads, M.time_input, M.k_dims)
 
         M.compatibility = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals) #, initialize=init_compatibility)  # sqrt(Q * K)
         M.compatibility_exp = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.NonNegativeReals) # range: 0-->inf, initialize=init_compatibility_exp)
@@ -342,12 +343,12 @@ class Transformer:
                     for p in M.time_input:
                         # compatibility sqrt(Q * K) across all pairs of elements
                         scale = np.sqrt(self.d_k) 
+                        # M.attention_constraints.add(
+                        #     expr=M.Q_scaled[h, n, k] * scale
+                        #     == M.Q[h, n, k])
                         M.attention_constraints.add(
-                            expr=M.Q_scaled[h, n, k] * scale
-                            == M.Q[h, n, k])
-                        M.attention_constraints.add(
-                            expr=M.compatibility[h, n, p]
-                            == sum(M.Q_scaled[h, n, k] * (M.K[ h, p, k] )for k in M.k_dims)
+                            expr=M.compatibility[h, n, p] *scale
+                            == sum(M.Q[h, n, k] * (M.K[ h, p, k] )for k in M.k_dims)
                         )  
                         
     #                   # power series approx for EXP

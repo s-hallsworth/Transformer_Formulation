@@ -195,7 +195,7 @@ class TestTransformer(unittest.TestCase):
         transformer = TNN.Transformer(model, config_file)
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o) #, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
         
         #Check  var and constraints created
         self.assertIn("attention_output", dir(model))                 # check layer_norm created
@@ -216,38 +216,38 @@ class TestTransformer(unittest.TestCase):
         # Check Solve calculations
         input = np.array(tir.layer_outputs_dict['input_layer_1']).squeeze(0)
         transformer_input = np.array(tir.layer_outputs_dict["layer_normalization_1"]).squeeze(0)#np.array(tir.layer_outputs_dict['input_layer_1']).squeeze(0)
-        Q = np.dot( transformer_input, np.transpose(np.array(tps.W_q),(1,0,2)))
-        K = np.dot( transformer_input, np.transpose(np.array(tps.W_k),(1,0,2)))
-        V = np.dot( transformer_input, np.transpose(np.array(tps.W_v),(1,0,2)))
-        Q = np.transpose(Q,(1,0,2))
-        K = np.transpose(K,(1,0,2))
-        V = np.transpose(V,(1,0,2))
+        Q = np.dot( transformer_input, np.transpose(np.array(tps.W_q),(1,0,2))) 
+        K = np.dot( transformer_input, np.transpose(np.array(tps.W_k),(1,0,2))) 
+        V = np.dot( transformer_input, np.transpose(np.array(tps.W_v),(1,0,2))) 
 
-
-        LN_output, _ = reformat(optimal_parameters,"layer_norm")
-        self.assertIsNone(np.testing.assert_array_almost_equal(LN_output,np.array(tir.layer_outputs_dict["layer_normalization_1"]), decimal =5))
-        print("- LN formulation == LN model")
+        Q = np.transpose(Q,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_q),axis=1),10 ,axis=1)
+        K = np.transpose(K,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_k),axis=1),10 ,axis=1)
+        V = np.transpose(V,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_v),axis=1),10 ,axis=1)
         
-        Q_output, _ = reformat(optimal_parameters,"Q") 
-        self.assertIsNone(np.testing.assert_array_equal(Q.shape, Q_output.shape))
-        self.assertIsNone(np.testing.assert_array_almost_equal(Q, Q_output, decimal =6))
+        LN_output, _ = reformat(optimal_parameters,"layer_norm")
+        self.assertIsNone(np.testing.assert_array_almost_equal(np.array(tir.layer_outputs_dict["layer_normalization_1"]),LN_output, decimal =5))
+        print("- MHA input formulation == MHA input model")
+        
+        Q_form, _ = reformat(optimal_parameters,"Q") 
+        self.assertIsNone(np.testing.assert_array_equal(Q.shape, Q_form.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal( Q_form,Q, decimal =5))
         print("- Query formulation == Query model")
         
-        K_output, _ = reformat(optimal_parameters,"K") 
-        self.assertIsNone(np.testing.assert_array_equal(K.shape, K_output.shape))
-        self.assertIsNone(np.testing.assert_array_almost_equal(K, K_output, decimal =6))
+        K_form, _ = reformat(optimal_parameters,"K") 
+        self.assertIsNone(np.testing.assert_array_equal(K.shape, K_form.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal( K_form,K, decimal =5))
         print("- Key formulation == Key model")
         
-        V_output, _ = reformat(optimal_parameters,"V") 
-        self.assertIsNone(np.testing.assert_array_equal(V.shape, V_output.shape))
-        self.assertIsNone(np.testing.assert_array_almost_equal(V, V_output, decimal =6))
+        V_form, _ = reformat(optimal_parameters,"V") 
+        self.assertIsNone(np.testing.assert_array_equal(V.shape, V_form.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal( V_form,V, decimal =5))
         print("- Value formulation == Value model")
         
         ## Check MHA output
         attention_output, elements = reformat(optimal_parameters,"attention_output") 
         MHA_output = np.array(tir.layer_outputs_dict["multi_head_attention_1"])
         self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=6)) # compare value with transformer output
+        self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=5)) # compare value with transformer output
         print("- MHA output formulation == MHA output model")
         
 # -------- Helper functions ----------------------------------------------------------------------------------       

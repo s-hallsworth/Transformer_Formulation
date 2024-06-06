@@ -24,7 +24,7 @@ transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1"
 # transformer_input = np.array([[ [x,u] for x,u in zip(x_input, u_input)]])
 # layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path, transformer_input) 
 # transformer.add_FFN_2D(model, "layer_norm", "ffn_1", layer_outputs_dict['layer_normalization_2'], parameters)
-transformer.add_attention(model, "layer_norm", W_q, W_k, W_v, W_o)#, b_q, b_k, b_v, b_o)
+transformer.add_attention(model, "layer_norm", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
 # transformer.add_residual_connection(model, model.input_embed, model.layer_norm, "mha_residual")
 #transformer.add_output_constraints(model, model.mha_residual)
 
