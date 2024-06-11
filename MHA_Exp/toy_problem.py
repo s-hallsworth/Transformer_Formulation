@@ -23,7 +23,7 @@ transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1"
 
 # transformer_input = np.array([[ [x,u] for x,u in zip(x_input, u_input)]])
 # layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path, transformer_input) 
-# transformer.add_FFN_2D(model, "layer_norm_2", "ffn_1", layer_outputs_dict['layer_normalization_2'], parameters)
+# transformer.add_FFN_2D(model, "layer_norm", "ffn_1", layer_outputs_dict['layer_normalization_2'], parameters)
 transformer.add_attention(model, "layer_norm", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
 # transformer.add_residual_connection(model, model.input_embed, model.layer_norm, "mha_residual")
 #transformer.add_output_constraints(model, model.mha_residual)
@@ -56,8 +56,7 @@ from pyomo.core import *
 from pyomo.opt import SolverFactory # run with python3.10
 keepfiles = False  # True prints intermediate file names (.nl,.sol,...)
 
-solver = SolverFactory('gurobi', solver_io='python')
-#opts = {'halt_on_ampl_error': 'yes','tol': 1e-7, 'bound_relax_factor': 1.0}
+solver = SolverFactory('scip', solver_io='python')
 
 #Create an IMPORT Suffix to store the iis information that willbe returned by gurobi_ampl
 model.iis = Suffix(direction=Suffix.IMPORT)
@@ -75,7 +74,6 @@ print("IIS Results")
 for component, value in model.iis.items():
     print(component.name + " " + str(value))
 
-model.compatibility.pprint()
 #---------------
 # import pyomo
 # #pyomo.contrib.mis.compute_infeasibility_explanation(model, solver=solver)

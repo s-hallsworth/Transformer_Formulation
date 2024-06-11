@@ -245,26 +245,10 @@ class Transformer:
         M.Q = pyo.Var(M.heads, M.time_input, M.k_dims, within=pyo.Reals) 
         M.K = pyo.Var(M.heads, M.time_input, M.k_dims, within=pyo.Reals) 
         M.V = pyo.Var(M.heads, M.time_input, M.k_dims, within=pyo.Reals) 
-        
-        #init_compatibility = {
-                    #     (H, T, P): 1
-                    #     for h,H in enumerate(M.heads)
-                    #     for n,T in enumerate(M.time_input)
-                    #     for p,P in enumerate(M.time_input)
-                    #    }
-        M.compatibility = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals) #, initialize=init_compatibility, bounds=(-10,10))  # sqrt(Q * K)
-        M.compatibility_exp = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.NonNegativeReals, bounds=(0,None)) # range: 0-->inf, initialize=init_compatibility_exp)
-        M.compatibility_exp_sum = pyo.Var(M.heads, M.time_input) #, initialize=init_compatibility_sum)
-        M.compatibility_squ = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_3 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_4 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_5 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_6 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_7 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_8 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_9 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_10 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_11 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
+
+        M.compatibility = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals) #, initialize=init_compatibility)  # sqrt(Q * K)
+        M.compatibility_exp = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.NonNegativeReals) # range: 0-->inf, initialize=init_compatibility_exp)
+        M.compatibility_exp_sum = pyo.Var(M.heads, M.time_input, within=pyo.NonNegativeReals) 
           
         M.attention_weight = pyo.Var(M.heads, M.time_input, M.time_input, bounds=(0,1))  # softmax ( (Q * K)/sqrt(d_k) )
         M.attention_score = pyo.Var(
@@ -326,43 +310,14 @@ class Transformer:
                     for p in M.time_input:
                         # compatibility sqrt(Q * K) across all pairs of elements
                         scale = np.sqrt(self.d_k) 
-
                         M.attention_constraints.add(
                             expr=M.compatibility[h, n, p] *scale
                             == sum(M.Q[h, n, k] * (M.K[ h, p, k] )for k in M.k_dims)
                         )  
                         
-                        #M.attention_constraints.add(expr= pyo.exp(M.compatibility[h,n,p]) >= 0)#== M.compatibility_exp[h, n, p] )
-                        #print(M.compatibility.pprint())
+                        M.attention_constraints.add(expr= M.compatibility_exp[h, n, p] == pyo.exp(M.compatibility[h, n, p])) # exp(compatibility_x_n_p)
                         
-                        
-    # # #                 # power series approx for EXP
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]**2 == M.compatibility_squ[h, n, p] )#problem for gurobi
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_squ[h, n, p] == M.compatibility_3[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_3[h, n, p] == M.compatibility_4[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_4[h, n, p] == M.compatibility_5[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_5[h, n, p] == M.compatibility_6[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_6[h, n, p] == M.compatibility_7[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_7[h, n, p] == M.compatibility_8[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_8[h, n, p] == M.compatibility_9[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_9[h, n, p] == M.compatibility_10[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_10[h, n, p] == M.compatibility_11[h, n, p] )
-                        
-                        M.attention_constraints.add(expr= M.compatibility_exp[h, n, p] == 1
-                                                    + M.compatibility[h, n, p]
-                                                    + (0.5*M.compatibility_squ[h, n, p] ) 
-                                                    + (0.166666667*M.compatibility_3[h, n, p]) 
-                                                    + (0.0416666667*M.compatibility_4[h, n, p]) 
-                                                    + (0.00833333333*M.compatibility_5[h, n, p]) 
-                                                    + (0.00138888889*M.compatibility_6[h, n, p]) 
-                                                    + (0.000198412698*M.compatibility_7[h, n, p]) 
-                                                    + (0.0000248015873*M.compatibility_8[h, n, p]) 
-                                                    + (0.00000275573192*M.compatibility_9[h, n, p]) 
-                                                    + (0.000000275573192*M.compatibility_10[h, n, p])
-                                                    + (0.0000000250521084*M.compatibility_11[h, n, p])
-                                                    )# pyo.exp() only seems to work for constant args and pow operator must be <= 2
-                        
-                    M.attention_constraints.add(expr= M.compatibility_exp_sum[h, n] == sum(M.compatibility_exp[h, n, p] for p in M.time_input))
+                    M.attention_constraints.add(expr= M.compatibility_exp_sum[h, n] == sum(M.compatibility_exp[h, n, p] for p in M.time_input)) # sum over p=1:N (exp(compatibility_x_n_p))
 
                     for n2 in M.time_input:
 
@@ -427,47 +382,35 @@ class Transformer:
         #     variance = getattr(M, variance_name)
         
         # create constraint list
-        # constraint_name = input_var_name + "_constraints"
-        # if not hasattr(M, constraint_name):
-        #     setattr(M, constraint_name, pyo.ConstraintList())
-        #     constraint_list = getattr(M, constraint_name)
-        #     constraint_list.pprint()
-        M.ffn_constraints = pyo.ConstraintList()
-
+        constraint_name = "constraints_"+input_var_name
+        if not hasattr(M, constraint_name):
+            setattr(M, constraint_name, pyo.ConstraintList())
+            constraint_list = getattr(M, constraint_name)
+            #M.residual_constraints = pyo.ConstraintList()
+        
         # add new variable
         if not hasattr(M, output_var_name):
             setattr(M, output_var_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals))
             output_var = getattr(M, output_var_name)
             
-            NN_block_list = []
-            for d in range(self.d_model):
-                NN_name = output_var_name + "_NN_Block_"+str(d)
-                setattr(M, NN_name, OmltBlock())
-                NN_block_list += [getattr(M, NN_name)]
-            
-            # NN_name = output_var_name + "_NN_Block_"+str(d)
-            # setattr(M, NN_name, OmltBlock())
-            # NN_block = [getattr(M, NN_name)]
+            NN_name = output_var_name
+            setattr(M, NN_name, OmltBlock())
+            NN_block = getattr(M, NN_name)
         
         else:
             raise ValueError('Attempting to overwrite variable')
         
-        input_bounds={0: (-10,10), 1: (-10,10)} ### fix input bounds
+        input_bounds={0: (-10,10), 1: (-10,10)}
         net_relu = weights_to_NetDef(output_var_name, input_value, model_parameters, input_bounds)
         #net_relu = weights_to_NetworkDefinition(output_var_name, model_parameters)
   
-        #formulation_bigm = []
-        for i, net in enumerate(net_relu):
-            #formulation_bigm += [ReluBigMFormulation(net)]
-            NN_block_list[i].build_formulation(ReluBigMFormulation(net))
+        formulation_bigm = ReluBigMFormulation(net_relu)
+        NN_block.build_formulation(formulation_bigm)
         
-        # for i,t in enumerate(M.time_input): 
-        #     for j,d in enumerate(M.model_dims): 
-        #         M.ffn_constraints.add(expr= input_var[t,d] == NN_block_list[j].inputs[i])
-        #         M.ffn_constraints.add(expr= output_var[t,d] == NN_block_list[j].outputs[i])
-
-        NN_block_list[0].pprint()
-        NN_block_list[1].pprint()
+        for t in M.time_input: 
+            for j,d in enumerate(M.model_dims): 
+                constraint_list.add(expr= input_var[t,d] == NN_block.inputs[j])
+                constraint_list.add(expr= output_var[t,d] == NN_block.outputs[j])
     #def add_output_constraints(self, M, input_var):
         # if not hasattr(M, "output_constraints"):
         #     M.output_constraints = pyo.ConstraintList()
