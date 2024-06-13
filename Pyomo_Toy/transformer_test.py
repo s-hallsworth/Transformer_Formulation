@@ -362,7 +362,7 @@ class TestTransformer(unittest.TestCase):
         #Check  var and constraints created
         self.assertIn("ffn_1", dir(model))                 # check layer_norm created
         self.assertIsInstance(model.ffn_1, pyo.Var)        # check data type
-        self.assertIsInstance(model.ffn_1_NN_Block, OmltBlock)
+        self.assertIsInstance(model.ffn_1_NN_Block_0, OmltBlock)
         self.assertTrue(hasattr(model, 'ffn_constraints'))      # check constraints created
         print("- Vars and constraints created successfully")
         
@@ -377,12 +377,20 @@ class TestTransformer(unittest.TestCase):
         print("---------- MODEL SOLVED ----------")
         
         # 
+        
+        model.ffn_1_NN_Block_0.inputs.pprint()
+        model.ffn_1_NN_Block_0.outputs.pprint()
+        model.ffn_1_NN_Block_1.inputs.pprint()
+        model.ffn_1_NN_Block_1.outputs.pprint()
+        
         layer_norm_2_output, _ = reformat(optimal_parameters,"layer_norm_2")
         print(layer_norm_2_output)
         ffn_1_output, _ = reformat(optimal_parameters,"ffn_1") 
+        FFN_1= np.array(tir.layer_outputs_dict["dense_1"])
         FFN_output= np.array(tir.layer_outputs_dict["dense_2"])
-        print("form:", ffn_1_output)
-        print("TNN:", FFN_output)
+        print("form out :", ffn_1_output)
+        print("TNN dense 1:", FFN_1)
+        print("TNN dense 2:", FFN_output)
         self.assertIsNone(np.testing.assert_array_equal(ffn_1_output.shape,  FFN_output.shape)) # compare shape with transformer
         self.assertIsNone(np.testing.assert_array_almost_equal(ffn_1_output,  FFN_output, decimal=5)) # compare value with transformer output
         print("- FFN1 output formulation == FFN1 output model")    

@@ -452,22 +452,22 @@ class Transformer:
         else:
             raise ValueError('Attempting to overwrite variable')
         
-        input_bounds={0: (-10,10), 1: (-10,10)} ### fix input bounds
+        input_bounds={0: (-100,100), 1: (-100,100), 2: (-100,100), 3:(-100,100), 4:(-100,100), 5: (-100,100), 6: (-100,100), 7: (-100,100), 8: (-100,100), 9: (-100,100)} ### fix input bounds
         net_relu = weights_to_NetDef(output_var_name, input_value, model_parameters, input_bounds)
         #net_relu = weights_to_NetworkDefinition(output_var_name, model_parameters)
   
         #formulation_bigm = []
         for i, net in enumerate(net_relu):
+            print(i, net)
             #formulation_bigm += [ReluBigMFormulation(net)]
             NN_block_list[i].build_formulation(ReluBigMFormulation(net))
+            
         
-        # for i,t in enumerate(M.time_input): 
-        #     for j,d in enumerate(M.model_dims): 
-        #         M.ffn_constraints.add(expr= input_var[t,d] == NN_block_list[j].inputs[i])
-        #         M.ffn_constraints.add(expr= output_var[t,d] == NN_block_list[j].outputs[i])
-
-        NN_block_list[0].pprint()
-        NN_block_list[1].pprint()
+        for i,t in enumerate(M.time_input): 
+            for j,d in enumerate(M.model_dims): 
+                M.ffn_constraints.add(expr= input_var[t,d] == NN_block_list[j].inputs[i])
+                M.ffn_constraints.add(expr= output_var[t,d] == NN_block_list[j].outputs[i])
+        
     #def add_output_constraints(self, M, input_var):
         # if not hasattr(M, "output_constraints"):
         #     M.output_constraints = pyo.ConstraintList()
