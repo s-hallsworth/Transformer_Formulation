@@ -246,6 +246,25 @@ class Transformer:
         M.K = pyo.Var(M.heads, M.time_input, M.k_dims, within=pyo.Reals) 
         M.V = pyo.Var(M.heads, M.time_input, M.k_dims, within=pyo.Reals) 
         
+
+        exp_dict = {
+                    (k): math.exp(2*k)
+                    for k in M.k_dims
+                    }
+        
+        # init_compatibility_floor = {
+        #                 (H, T, P): 1
+        #                 for h,H in enumerate(M.heads)
+        #                 for n,T in enumerate(M.time_input)
+        #                 for p,P in enumerate(M.time_input)
+        #                }
+        
+        # M.exp_array = pyo.Param(M.k_dims, initialize=exp_dict, mutable=False)
+        # M.compatibility_mod = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals, initialize=init_compatibility_floor, bounds=(0,2))
+        # M.compatibility_mod_exp = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals, initialize=init_compatibility_floor)
+        # M.compatibility_div = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
+        
+        # M.compatibility_floor = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Integers, initialize=init_compatibility_floor)
         #init_compatibility = {
                     #     (H, T, P): 1
                     #     for h,H in enumerate(M.heads)
@@ -255,16 +274,8 @@ class Transformer:
         M.compatibility = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals) #, initialize=init_compatibility, bounds=(-10,10))  # sqrt(Q * K)
         M.compatibility_exp = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.NonNegativeReals, bounds=(0,None)) # range: 0-->inf, initialize=init_compatibility_exp)
         M.compatibility_exp_sum = pyo.Var(M.heads, M.time_input) #, initialize=init_compatibility_sum)
-        M.compatibility_squ = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_3 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_4 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_5 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_6 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_7 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_8 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_9 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_10 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
-        M.compatibility_11 = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals)
+       
+        
           
         M.attention_weight = pyo.Var(M.heads, M.time_input, M.time_input, bounds=(0,1))  # softmax ( (Q * K)/sqrt(d_k) )
         M.attention_score = pyo.Var(
@@ -332,36 +343,16 @@ class Transformer:
                             == sum(M.Q[h, n, k] * (M.K[ h, p, k] )for k in M.k_dims)
                         )  
                         
-                        #M.attention_constraints.add(expr= pyo.exp(M.compatibility[h,n,p]) >= 0)#== M.compatibility_exp[h, n, p] )
+                        M.attention_constraints.add(expr= pyo.exp(M.compatibility[h,n,p]) == M.compatibility_exp[h, n, p] )
                         #print(M.compatibility.pprint())
                         
-                        
-    # # #                 # power series approx for EXP
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]**2 == M.compatibility_squ[h, n, p] )#problem for gurobi
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_squ[h, n, p] == M.compatibility_3[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_3[h, n, p] == M.compatibility_4[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_4[h, n, p] == M.compatibility_5[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_5[h, n, p] == M.compatibility_6[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_6[h, n, p] == M.compatibility_7[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_7[h, n, p] == M.compatibility_8[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_8[h, n, p] == M.compatibility_9[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_9[h, n, p] == M.compatibility_10[h, n, p] )
-                        M.attention_constraints.add(expr= M.compatibility[h, n, p]*M.compatibility_10[h, n, p] == M.compatibility_11[h, n, p] )
-                        
-                        M.attention_constraints.add(expr= M.compatibility_exp[h, n, p] == 1
-                                                    + M.compatibility[h, n, p]
-                                                    + (0.5*M.compatibility_squ[h, n, p] ) 
-                                                    + (0.166666667*M.compatibility_3[h, n, p]) 
-                                                    + (0.0416666667*M.compatibility_4[h, n, p]) 
-                                                    + (0.00833333333*M.compatibility_5[h, n, p]) 
-                                                    + (0.00138888889*M.compatibility_6[h, n, p]) 
-                                                    + (0.000198412698*M.compatibility_7[h, n, p]) 
-                                                    + (0.0000248015873*M.compatibility_8[h, n, p]) 
-                                                    + (0.00000275573192*M.compatibility_9[h, n, p]) 
-                                                    + (0.000000275573192*M.compatibility_10[h, n, p])
-                                                    + (0.0000000250521084*M.compatibility_11[h, n, p])
-                                                    )# pyo.exp() only seems to work for constant args and pow operator must be <= 2
-                        
+                        # M.attention_constraints.add(expr= M.compatibility_div[h,n,p] == M.compatibility[h,n,p] / 2)
+                        # M.attention_constraints.add(expr= M.compatibility_floor[h,n,p] <= M.compatibility_div[h,n,p])
+                        # M.attention_constraints.add(expr= M.compatibility_floor[h,n,p] >= M.compatibility_div[h,n,p] - 1)
+                        # M.attention_constraints.add(expr= M.compatibility_mod[h,n,p] == 1)#* M.compatibility_div[h,n,p])#(2 * M.compatibility_div[h,n,p]) - (2 * M.compatibility_floor[h,n,p]))
+                        # M.attention_constraints.add(expr= M.compatibility_mod_exp[h,n,p] == pyo.exp(M.compatibility_mod[h,n,p]))
+                        #M.attention_constraints.add(expr= M.compatibility_exp[h,n,p] == M.exp_array[M.compatibility_floor[h,n,p]] * M.compatibility_mod_exp[h,n,p])
+                    
                     M.attention_constraints.add(expr= M.compatibility_exp_sum[h, n] == sum(M.compatibility_exp[h, n, p] for p in M.time_input))
 
                     for n2 in M.time_input:

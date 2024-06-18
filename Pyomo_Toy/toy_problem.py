@@ -1,8 +1,8 @@
 import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
-import transformer as transformer
-import extract_from_pretrained as extract_from_pretrained
+import transformer
+import extract_from_pretrained
 from toy_problem_setup import *
 
 """
@@ -52,30 +52,30 @@ def get_optimal_dict(result, model):
     
     return optimal_parameters
 
-from pyomo.core import *
-from pyomo.opt import SolverFactory # run with python3.10
-keepfiles = False  # True prints intermediate file names (.nl,.sol,...)
+# from pyomo.core import *
+# from pyomo.opt import SolverFactory # run with python3.10
+# keepfiles = False  # True prints intermediate file names (.nl,.sol,...)
 
-solver = SolverFactory('gurobi', solver_io='python')
-#opts = {'halt_on_ampl_error': 'yes','tol': 1e-7, 'bound_relax_factor': 1.0}
+# solver = SolverFactory('gurobi', solver_io='python')
+# #opts = {'halt_on_ampl_error': 'yes','tol': 1e-7, 'bound_relax_factor': 1.0}
 
-#Create an IMPORT Suffix to store the iis information that willbe returned by gurobi_ampl
-model.iis = Suffix(direction=Suffix.IMPORT)
+# #Create an IMPORT Suffix to store the iis information that willbe returned by gurobi_ampl
+# model.iis = Suffix(direction=Suffix.IMPORT)
 
-## Send the model to gurobi_ampl and collect the solution
-#The solver plugin will scan the model for all active suffixes
-# valid for importing, which it will store into the results object
-results = solver.solve(model, keepfiles=keepfiles, tee=True)
-print(results)
+# ## Send the model to gurobi_ampl and collect the solution
+# #The solver plugin will scan the model for all active suffixes
+# # valid for importing, which it will store into the results object
+# results = solver.solve(model, keepfiles=keepfiles, tee=True)
+# print(results)
 
 
-print("")
-print("IIS Results")
+# print("")
+# print("IIS Results")
 
-for component, value in model.iis.items():
-    print(component.name + " " + str(value))
+# for component, value in model.iis.items():
+#     print(component.name + " " + str(value))
 
-model.compatibility.pprint()
+# model.compatibility.pprint()
 #---------------
 # import pyomo
 # #pyomo.contrib.mis.compute_infeasibility_explanation(model, solver=solver)

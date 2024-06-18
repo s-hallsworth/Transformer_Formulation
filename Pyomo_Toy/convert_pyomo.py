@@ -1,20 +1,21 @@
 import pyomo.environ as pyo
 import pyomo.core.expr as pyo_expr
-from gurobipy import Model, GRB
-from gurobipy import LinExpr, QuadExpr
+from pyomo import dae
+from gurobipy import Model, GRB, LinExpr, QuadExpr
 import math
 
-def convert_pyomo_to_gurobipy(pyomo_model):
+def convert_pyomo_to_gurobipy(pyomo_model, func_nonlinear=1):
     
     # Create gurobi model with same name as pyomo model
     gurobi_model = Model(pyomo_model.name)
+    gurobi_model.params.FuncNonlinear = func_nonlinear # 0: piecewise linear approx, 1: outer approx of function, -1: controlled by FuncNonLinear
     
     # Mapping of Pyomo variables to Gurobi variables
     var_map = {}
     
     # Convert pyo.Var to Gurobi Var
     for var in pyomo_model.component_data_objects(pyo.Var, active=True):
-        print(var)
+
         if var.is_indexed():
             for index in var:
                 pyomo_var = var[index]
@@ -30,16 +31,15 @@ def convert_pyomo_to_gurobipy(pyomo_model):
             gurobi_var = gurobi_model.addVar(lb=lb, ub=ub, name=str(var), vtype=vtype)
             var_map[var.name] = gurobi_var
     
+        
     # Update model
     gurobi_model.update()
-    print(gurobi_model.getVars())
     
     # Convert objective
     for obj in pyomo_model.component_objects(pyo.Objective, active=True):
         expr = obj.expr
         sense = GRB.MINIMIZE if obj.sense == pyo.minimize else GRB.MAXIMIZE
         expr, _= expr_to_gurobi(expr, var_map, gurobi_model)
-        
         gurobi_model.setObjective(expr, sense=sense)
        
     # Convert constraints
@@ -78,7 +78,7 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
     if isinstance(expr, float):
         return expr, True
     
-    ## Parameter
+    ## PARAMETER
     if isinstance(expr, pyo.Param):
         return expr(), True
     
@@ -157,6 +157,36 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
             return logx, False
         else:
             raise ValueError(f"Unsupported unary function: {func}")
+        
+    ## DAE.INTEGRAL EXPR
+    # elif isinstance(expr, dae.Integral):
+    #     integral_var = gurobi_model.addVar(name=f"{expr.name}_integral")
+        
+    #     # Convert the integrand expression to Gurobi expression
+    #     integrand_gurobi_expr, _ = expr_to_gurobi(expr.integrand, var_map, gurobi_model)
+        
+    #     # Add the integral constraint
+    #     gurobi_model.addConstr(integral_var == gurobi_model.addLConstr(
+    #         gurobi_model.integral(0, expr.tau, integrand_gurobi_expr), GRB.EQUAL, expr.upper_bound
+    #     ))
+        
+    #     gurobi_model.update()
+        
+    #     return integral_var, True
+    
+    ## SCALAR INTEGRAL EXPR (ScalarIntegral)
+    # elif isinstance(expr, pyo.ScalarIntegral):
+    #     integral_var = gurobi_model.addVar(name=f"{expr.name}_integral", lb=expr.lb, ub=expr.ub)
+        
+    #     # Convert the integrand expression to Gurobi expression
+    #     integrand_gurobi_expr, _ = expr_to_gurobi(expr.f, var_map, gurobi_model)
+        
+    #     # Add the integral constraint
+    #     gurobi_model.addConstr(integral_var == gurobi_model.integral(0, expr.t, integrand_gurobi_expr))
+        
+    #     gurobi_model.update()
+        
+    #     return integral_var, True
     
     ## BOOLEAN EXPR
     elif isinstance(expr, pyo_expr.logical_expr.BooleanExpression):
@@ -185,16 +215,37 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
         return any(expr_to_gurobi(arg, var_map, gurobi_model)[0] for arg in expr.args)
     
     ## NUMERIC VALUE
-    if isinstance(expr, pyo_expr.numeric_expr.NumericValue):
+    elif isinstance(expr, pyo_expr.numeric_expr.NumericValue):
         return expr
     
     ## BOOLEAN VALUE
-    if isinstance(expr, pyo_expr.logical_expr.BooleanValue):
+    elif isinstance(expr, pyo_expr.logical_expr.BooleanValue):
         return expr
     
     else:
         raise ValueError(f"Unsupported expression type: {type(expr)}")
 
+# Test toy transformer
+
+from pyomo import dae
+import numpy as np
+from transformer import *
+import extract_from_pretrained as extract_from_pretrained
+from toy_problem import *
+from toy_problem_setup import *
+from omlt import OmltBlock
+from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation
+from omlt.io.keras import keras_reader
+import omlt
+import OMLT_helper
+
+gurobi_model = convert_pyomo_to_gurobipy(model)
+gurobi_model.optimize()
+
+if gurobi_model.status == GRB.OPTIMAL:
+    # for v in gurobi_model.getVars():
+    #     print(f'{v.varName}: {v.x}')
+    print(f'Objective: {gurobi_model.objVal}')
 
 ############################################################################
 # Example usage
