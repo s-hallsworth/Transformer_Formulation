@@ -1,5 +1,6 @@
 import pyomo.environ as pyo
 import pyomo.core.expr as pyo_expr
+import pyomo.core.base as pyo_base
 from pyomo import dae
 from gurobipy import Model, GRB, LinExpr, QuadExpr
 import math
@@ -69,40 +70,64 @@ def get_gurobi_vtype(pyomo_var):
         return GRB.CONTINUOUS  # Default to continuous if the domain is not specified or different
 
 def expr_to_gurobi(expr, var_map, gurobi_model):
+    print("expression", expr, type(expr))
     
     ## INT
     if isinstance(expr, int):
         return expr, True
     
     ## FLOAT
-    if isinstance(expr, float):
+    elif isinstance(expr, float):
         return expr, True
+    
+    ## INDEXED
+    try:
+        if expr.is_indexed():
+           for i,sub_expr in enumerate(expr.args):
+            var = gurobi_model.addVar(name=arg.name+"_index_"+str(i))
+            gurobi_model.addConstr(var == expr_to_gurobi(sub_expr, var_map, gurobi_model)[0])
+            
+            gurobi_model.update()
+        return var, False
+    except:
+        pass
     
     ## PARAMETER
     if isinstance(expr, pyo.Param):
-        return expr(), True
+        func = expr.getname()
+        arg = expr.args[0]
+        var = gurobi_model.setParam(arg.name, expr.args[0])
+        return var, True
     
     ## VARIABLE
-    elif isinstance(expr, pyo.Var):
-        return var_map[expr.name], True
+    elif isinstance(expr, (pyo.Var,pyo_base.var._GeneralVarData)):
+        print("var")
+        lb = expr.lb if expr.lb is not None else -GRB.INFINITY
+        ub = expr.ub if expr.ub is not None else GRB.INFINITY
+        vtype = get_gurobi_vtype(expr)
+        gurobi_var = gurobi_model.addVar(lb=lb, ub=ub, name=str(expr), vtype=vtype)
+        return gurobi_var , True
     
     ## LINEAR EXPR
     elif isinstance(expr, pyo_expr.numeric_expr.LinearExpression):
-        gurobi_expr = LinExpr()
+        gurobi_expr = 0.0
         for coef, var in zip(expr.linear_coefs, expr.linear_vars):
+            print("linear expr ",var.name, var_map[var.name], type(var_map[var.name]))
+            print("coeff",coef, type(coef) )
             gurobi_expr += coef * var_map[var.name]
         return gurobi_expr, True
     
     ## PRODUCT EXPR
     elif isinstance(expr, pyo_expr.numeric_expr.ProductExpression):
-        gurobi_expr = QuadExpr()
+        gurobi_expr = 1.0
         for sub_expr in expr.args:
-            gurobi_expr *= expr_to_gurobi(sub_expr, var_map, gurobi_model)[0]
+            sub_gurobi_expr, _ = expr_to_gurobi(sub_expr, var_map, gurobi_model)
+            gurobi_expr *= sub_gurobi_expr
         return gurobi_expr, True
     
     ## SUM EXPR
     elif isinstance(expr, pyo_expr.numeric_expr.SumExpression):
-        gurobi_expr = LinExpr()
+        gurobi_expr = 0.0
         for sub_expr in expr.args:
             gurobi_expr += expr_to_gurobi(sub_expr, var_map, gurobi_model)[0]
         return gurobi_expr, True
@@ -115,7 +140,7 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
     ## DIVISION EXPR
     elif isinstance(expr, pyo_expr.numeric_expr.DivisionExpression):
         numerator, denominator = expr.args
-        return expr_to_gurobi(numerator, var_map)[0] / expr_to_gurobi(denominator, var_map, gurobi_model)[0], True
+        return expr_to_gurobi(numerator, var_map, gurobi_model)[0] / expr_to_gurobi(denominator, var_map, gurobi_model)[0], True
     
     ## MAX EXPR
     elif isinstance(expr, pyo_expr.numeric_expr.MaxExpression):
@@ -159,93 +184,73 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
             raise ValueError(f"Unsupported unary function: {func}")
         
     ## DAE.INTEGRAL EXPR
-    # elif isinstance(expr, dae.Integral):
-    #     integral_var = gurobi_model.addVar(name=f"{expr.name}_integral")
+    elif isinstance(expr, dae.Integral):
+        print("intefgral",expr, expr.getname(), expr.args)
+        func = expr.getname()
+        arg = expr.args[0]
+
+        integrand_gurobi_expr, _ = expr_to_gurobi(arg, var_map, gurobi_model)
         
-    #     # Convert the integrand expression to Gurobi expression
-    #     integrand_gurobi_expr, _ = expr_to_gurobi(expr.integrand, var_map, gurobi_model)
-        
-    #     # Add the integral constraint
-    #     gurobi_model.addConstr(integral_var == gurobi_model.addLConstr(
-    #         gurobi_model.integral(0, expr.tau, integrand_gurobi_expr), GRB.EQUAL, expr.upper_bound
-    #     ))
-        
-    #     gurobi_model.update()
-        
-    #     return integral_var, True
-    
-    ## SCALAR INTEGRAL EXPR (ScalarIntegral)
-    # elif isinstance(expr, pyo.ScalarIntegral):
-    #     integral_var = gurobi_model.addVar(name=f"{expr.name}_integral", lb=expr.lb, ub=expr.ub)
-        
-    #     # Convert the integrand expression to Gurobi expression
-    #     integrand_gurobi_expr, _ = expr_to_gurobi(expr.f, var_map, gurobi_model)
-        
-    #     # Add the integral constraint
-    #     gurobi_model.addConstr(integral_var == gurobi_model.integral(0, expr.t, integrand_gurobi_expr))
-        
-    #     gurobi_model.update()
-        
-    #     return integral_var, True
+        return integrand_gurobi_expr, True
     
     ## BOOLEAN EXPR
     elif isinstance(expr, pyo_expr.logical_expr.BooleanExpression):
-        return expr_to_gurobi(expr.args[0], var_map, gurobi_model)[0]
+        return expr_to_gurobi(expr.args[0], var_map, gurobi_model)[0], True
     
     ## NOT EXPR
     elif isinstance(expr, pyo_expr.logical_expr.NotExpression):
-        return not expr_to_gurobi(expr.args[0], var_map, gurobi_model)[0]
+        return not expr_to_gurobi(expr.args[0], var_map, gurobi_model)[0], True
     
     ## XOR EXPR
     elif isinstance(expr, pyo_expr.logical_expr.XorExpression):
         arg1, arg2 = expr.args
-        return expr_to_gurobi(arg1, var_map, gurobi_model)[0] ^ expr_to_gurobi(arg2, var_map, gurobi_model)[0]
+        return expr_to_gurobi(arg1, var_map, gurobi_model)[0] ^ expr_to_gurobi(arg2, var_map, gurobi_model)[0], True
     
     ## EQUIVALENT EXPR
     elif isinstance(expr, pyo_expr.logical_expr.EquivalenceExpression):
         arg1, arg2 = expr.args
-        return expr_to_gurobi(arg1, var_map, gurobi_model)[0] == expr_to_gurobi(arg2, var_map, gurobi_model)[0]
+        return expr_to_gurobi(arg1, var_map, gurobi_model)[0] == expr_to_gurobi(arg2, var_map, gurobi_model)[0], True
     
     ## AND EXPR
     elif isinstance(expr, pyo_expr.logical_expr.AndExpression):
-        return all(expr_to_gurobi(arg, var_map, gurobi_model)[0] for arg in expr.args)
+        return all(expr_to_gurobi(arg, var_map, gurobi_model)[0] for arg in expr.args), True
     
     ## OR EXPR
     elif isinstance(expr, pyo_expr.logical_expr.OrExpression):
-        return any(expr_to_gurobi(arg, var_map, gurobi_model)[0] for arg in expr.args)
+        return any(expr_to_gurobi(arg, var_map, gurobi_model)[0] for arg in expr.args), True
     
     ## NUMERIC VALUE
     elif isinstance(expr, pyo_expr.numeric_expr.NumericValue):
-        return expr
+        return expr, True
     
     ## BOOLEAN VALUE
     elif isinstance(expr, pyo_expr.logical_expr.BooleanValue):
-        return expr
+        return expr, True
     
     else:
         raise ValueError(f"Unsupported expression type: {type(expr)}")
 
-# Test toy transformer
+# # Test toy transformer
 
-from pyomo import dae
-import numpy as np
-from transformer import *
-import extract_from_pretrained as extract_from_pretrained
-from toy_problem import *
-from toy_problem_setup import *
-from omlt import OmltBlock
-from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation
-from omlt.io.keras import keras_reader
-import omlt
-import OMLT_helper
+# from pyomo import dae
+# import numpy as np
+# from transformer import *
+# import extract_from_pretrained as extract_from_pretrained
+# from toy_problem import *
+# from toy_problem_setup import *
+# from omlt import OmltBlock
+# from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation
+# from omlt.io.keras import keras_reader
+# import omlt
+# import OMLT_helper
 
-gurobi_model = convert_pyomo_to_gurobipy(model)
-gurobi_model.optimize()
+# gurobi_model = convert_pyomo_to_gurobipy(model)
+# gurobi_model.optimize()
 
-if gurobi_model.status == GRB.OPTIMAL:
-    # for v in gurobi_model.getVars():
-    #     print(f'{v.varName}: {v.x}')
-    print(f'Objective: {gurobi_model.objVal}')
+# if gurobi_model.status == GRB.OPTIMAL:
+#     # for v in gurobi_model.getVars():
+#     #     print(f'{v.varName}: {v.x}')
+#     print(f'Objective: {gurobi_model.objVal}')
 
 ############################################################################
 # Example usage
