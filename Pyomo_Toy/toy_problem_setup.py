@@ -39,7 +39,6 @@ dict_beta1 = {(v): val for v,val in zip(model.variables,  parameters['layer_norm
 model.gamma1 = pyo.Param(model.variables, initialize = dict_gamma1)
 model.beta1 = pyo.Param(model.variables, initialize = dict_beta1)
 
-print("beta1", dict_beta1)
 
 dict_gamma2 = {(v): val for v,val in zip(model.variables, parameters['layer_normalization_2','gamma'])}
 dict_beta2 = {(v): val for v,val in zip(model.variables,  parameters['layer_normalization_2','beta'])}

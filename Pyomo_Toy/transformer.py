@@ -528,9 +528,6 @@ class Transformer:
                             == sum(M.Q[h, n, k] * (M.K[ h, p, k] )for k in M.k_dims)
                         )  
                         
-                        #M.attention_constraints.add(expr= pyo.exp(M.compatibility[h,n,p]) >= 0)#== M.compatibility_exp[h, n, p] )
-                        #print(M.compatibility.pprint())
-                        
                         
     # # #                 # power series approx for EXP
                         M.attention_constraints.add(expr= M.compatibility[h, n, p]**2 == M.compatibility_squ[h, n, p] )#problem for gurobi
@@ -566,6 +563,33 @@ class Transformer:
                         M.attention_constraints.add(
                             expr=M.attention_weight[h, n, n2] * M.compatibility_exp_sum[h, n]
                             == M.compatibility_exp[h, n, n2]) 
+                        
+        # multihead attention output constraint
+        for n in M.time_input:
+            for d in M.model_dims:
+                if b_o:
+                    M.attention_constraints.add(
+                        expr=M.attention_output[n, d]
+                        == sum(
+                            (sum(
+                            M.attention_score[h, n, k] * M.W_o[d,h, k]
+                            for k in M.k_dims
+                             ) )
+                        for h in M.heads
+                        
+                        ) + M.b_o[d]
+                    )
+                else:
+                    M.attention_constraints.add(
+                        expr=M.attention_output[n, d]
+                        == sum(
+                            (sum(
+                            M.attention_score[h, n, k] * M.W_o[d,h, k]
+                            for k in M.k_dims
+                             ) )
+                        for h in M.heads
+                        )
+                    )
 
     def add_residual_connection(self,M, input_1_name, input_2_name, output_var_name):
         # create constraint list
