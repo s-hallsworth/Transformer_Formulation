@@ -6,7 +6,7 @@ scipy==1.12.0
 seaborn==0.13.2
 matplotlib==3.7.5
 pyomo==6.7.1
-gurobipy==11.0.1
+gurobipy==11.0.2
 pyscipopt==5.0.0
 google==3.0.0
 gurobi-machinelearning==1.5.0

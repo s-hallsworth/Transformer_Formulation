@@ -63,8 +63,8 @@ class Transformer:
                 for s in range(len(set_var)):
                     dict_embed[(M.time_input.at(t+1), set_var.at(s+1))] = init_array[t,s]
                 
+            setattr(M, embed_var_name, pyo.Var(M.time_input, M.model_dims, initialize=dict_embed))
 
-            setattr(M, embed_var_name, pyo.Var(M.time_input, M.model_dims, initialize=dict_embed, within=pyo.Reals, bounds=(None,None)))
             embed_var = getattr(M, embed_var_name)
         else:
             raise ValueError('Attempting to overwrite variable')
@@ -118,7 +118,7 @@ class Transformer:
             setattr(M, denominator_name, pyo.Var(M.time_input, within=pyo.Reals, bounds=(None,None)))
             denominator = getattr(M, denominator_name)
             
-            denominator_abs_name = 'denominator_abs'+ layer_norm_var_name
+            denominator_abs_name = 'denominator_abs_'+ layer_norm_var_name
             setattr(M, denominator_abs_name, pyo.Var(M.time_input, within=pyo.NonNegativeReals, bounds=(0,None)))
             denominator_abs = getattr(M, denominator_abs_name)
             
@@ -173,6 +173,202 @@ class Transformer:
     def add_attention(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):
         """
         Multihead attention between each element of embedded sequence
+        
+        Uses the pyo.exp() function to calculate softmax. 
+        This is compatible with gurobi which allows for the outer approximation of the function to be calculated
+        """
+        if not hasattr(M, "attention_constraints"):
+            M.attention_constraints = pyo.ConstraintList()
+            
+        input_var = getattr(M, input_var_name)
+
+        # define sets, vars
+        M.heads = pyo.RangeSet(1, self.d_H)
+        M.k_dims = pyo.RangeSet(1, self.d_k)
+
+        W_q_dict = {
+            (D, H, K): W_q[d][h][k]
+            for d,D in enumerate(M.model_dims)
+            for h,H in enumerate(M.heads)
+            for k,K in enumerate(M.k_dims)
+        }
+        W_k_dict = {
+            (D, H, K): W_k[d][h][k]
+            for d,D in enumerate(M.model_dims)
+            for h,H in enumerate(M.heads)
+            for k,K in enumerate(M.k_dims)
+        }
+        W_v_dict = {
+            (D, H, K): W_v[d][h][k]
+            for d,D in enumerate(M.model_dims)
+            for h,H in enumerate(M.heads)
+            for k,K in enumerate(M.k_dims)
+        }
+        W_o_dict = {
+            (D, H, K): W_o[h][k][d]
+            for d,D in enumerate(M.model_dims)
+            for h,H in enumerate(M.heads)
+            for k,K in enumerate(M.k_dims)
+        }
+ 
+        M.W_q = pyo.Param(M.model_dims, M.heads, M.k_dims, initialize=W_q_dict, mutable=False)
+        M.W_k = pyo.Param(M.model_dims, M.heads, M.k_dims, initialize=W_k_dict, mutable=False)
+        M.W_v = pyo.Param(M.model_dims, M.heads, M.k_dims, initialize=W_v_dict, mutable=False)
+        M.W_o = pyo.Param(M.model_dims,M.heads, M.k_dims, initialize=W_o_dict, mutable=False)
+       
+        if b_q:
+            b_q_dict = {
+                        (h, k): b_q[h-1][k-1]
+                        for h in M.heads
+                        for k in M.k_dims
+                       }
+            M.b_q = pyo.Param(M.heads, M.k_dims, initialize=b_q_dict, mutable=False)
+            
+        if b_k:
+            b_k_dict = {
+                        (h, k): b_k[h-1][k-1]
+                        for h in M.heads
+                        for k in M.k_dims
+                       }
+            M.b_k = pyo.Param(M.heads, M.k_dims, initialize=b_k_dict, mutable=False)
+            
+        if b_v: 
+            b_v_dict = {
+                        (h, k): b_v[h-1][k-1]
+                        for h in M.heads
+                        for k in M.k_dims
+                       }
+            M.b_v = pyo.Param(M.heads, M.k_dims, initialize=b_v_dict, mutable=False)
+            
+        if b_o:
+            b_o_dict = {(d): val for d, val in zip(M.model_dims, b_o) }
+            M.b_o = pyo.Param(M.model_dims, initialize=b_o_dict, mutable=False)
+            
+
+        M.Q = pyo.Var(M.heads, M.time_input, M.k_dims, within=pyo.Reals) 
+        M.K = pyo.Var(M.heads, M.time_input, M.k_dims, within=pyo.Reals) 
+        M.V = pyo.Var(M.heads, M.time_input, M.k_dims, within=pyo.Reals) 
+        
+
+        exp_dict = {
+                    (k): math.exp(2*k)
+                    for k in M.k_dims
+                    }
+        
+        M.compatibility = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Reals) #, initialize=init_compatibility, bounds=(-10,10))  # sqrt(Q * K)
+        M.compatibility_exp = pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.NonNegativeReals, bounds=(0,None)) # range: 0-->inf, initialize=init_compatibility_exp)
+        M.compatibility_exp_sum = pyo.Var(M.heads, M.time_input) #, initialize=init_compatibility_sum)
+       
+        M.attention_weight = pyo.Var(M.heads, M.time_input, M.time_input, bounds=(0,1))  # softmax ( (Q * K)/sqrt(d_k) )
+        M.attention_score = pyo.Var(
+            M.heads, M.time_input, M.k_dims, within=pyo.Reals
+        )  # softmax ( (Q * K)/sqrt(d_k) ) * V
+        M.attention_output = pyo.Var(
+            M.time_input, M.model_dims, within=pyo.Reals
+        )  # concat heads and linear transform
+
+        for h in M.heads:
+            for n in M.time_input:
+                    for k in M.k_dims:
+                        
+                        # constraints for Query
+                        if b_q:
+                            M.attention_constraints.add(
+                            expr=M.Q[h, n, k]
+                            == sum(input_var[n,d] * M.W_q[d, h, k] for d in M.model_dims) + M.b_q[h,k] 
+                            )  
+                        else: 
+                            M.attention_constraints.add(
+                                expr=M.Q[h, n, k]
+                                == sum(input_var[n, d] * M.W_q[d, h, k] for d in M.model_dims)
+                            )
+                        
+                        # constraints for Key
+                        if b_k:
+                            M.attention_constraints.add(
+                            expr=M.K[h, n, k]
+                            == sum(input_var[n, d] * M.W_k[d, h, k] for d in M.model_dims) + M.b_k[h,k]
+                        )  
+                        else: 
+                            M.attention_constraints.add(
+                                expr=M.K[h, n, k]
+                                == sum(input_var[n, d] * M.W_k[d, h, k] for d in M.model_dims)
+                            )
+                            
+                        # constraints for Value    
+                        if b_v:
+                            M.attention_constraints.add(
+                            expr=M.V[h, n, k]
+                            == sum(input_var[n, d] * M.W_v[d, h, k] for d in M.model_dims) + M.b_v[h,k]
+                        )  
+                        else: 
+                            M.attention_constraints.add(
+                                expr=M.V[h, n, k]
+                                == sum(input_var[n, d] * M.W_v[d, h, k] for d in M.model_dims) 
+                            )
+
+                        # attention score = sum(attention_weight * V)
+                        M.attention_constraints.add(
+                            expr=M.attention_score[h, n, k]
+                            == sum(
+                                M.attention_weight[h, n, n2] * M.V[h, n2, k]
+                                for n2 in M.time_input
+                            )
+                        )
+                        
+                    for p in M.time_input:
+                        # compatibility sqrt(Q * K) across all pairs of elements
+                        scale = np.sqrt(self.d_k) 
+
+                        M.attention_constraints.add(
+                            expr=M.compatibility[h, n, p] *scale
+                            == sum(M.Q[h, n, k] * (M.K[ h, p, k] )for k in M.k_dims)
+                        )  
+                        
+                        M.attention_constraints.add(expr= pyo.exp(M.compatibility[h,n,p]) == M.compatibility_exp[h, n, p] )
+                    M.attention_constraints.add(expr= M.compatibility_exp_sum[h, n] == sum(M.compatibility_exp[h, n, p] for p in M.time_input))
+
+                    for n2 in M.time_input:
+
+                        # attention weights softmax(compatibility)
+                        M.attention_constraints.add(
+                            expr=M.attention_weight[h, n, n2] * M.compatibility_exp_sum[h, n]
+                            == M.compatibility_exp[h, n, n2]) 
+
+        # multihead attention output constraint
+        for n in M.time_input:
+            for d in M.model_dims:
+                if b_o:
+                    M.attention_constraints.add(
+                        expr=M.attention_output[n, d]
+                        == sum(
+                            (sum(
+                            M.attention_score[h, n, k] * M.W_o[d,h, k]
+                            for k in M.k_dims
+                             ) )
+                        for h in M.heads
+                        
+                        ) + M.b_o[d]
+                    )
+                else:
+                    M.attention_constraints.add(
+                        expr=M.attention_output[n, d]
+                        == sum(
+                            (sum(
+                            M.attention_score[h, n, k] * M.W_o[d,h, k]
+                            for k in M.k_dims
+                             ) )
+                        for h in M.heads
+                        )
+                    )
+                
+                
+    def add_attention_approx(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):
+        """
+        Multihead attention between each element of embedded sequence
+        
+        Exp function created using power series approximation (11 elements of power series). 
+        This formulation avoids the pyomo solving error when calculating pyo.exp(pyo.Var())
         """
         if not hasattr(M, "attention_constraints"):
             M.attention_constraints = pyo.ConstraintList()
@@ -371,33 +567,6 @@ class Transformer:
                             expr=M.attention_weight[h, n, n2] * M.compatibility_exp_sum[h, n]
                             == M.compatibility_exp[h, n, n2]) 
 
-        # multihead attention output constraint
-        for n in M.time_input:
-            for d in M.model_dims:
-                if b_o:
-                    M.attention_constraints.add(
-                        expr=M.attention_output[n, d]
-                        == sum(
-                            (sum(
-                            M.attention_score[h, n, k] * M.W_o[d,h, k]
-                            for k in M.k_dims
-                             ) )
-                        for h in M.heads
-                        
-                        ) + M.b_o[d]
-                    )
-                else:
-                    M.attention_constraints.add(
-                        expr=M.attention_output[n, d]
-                        == sum(
-                            (sum(
-                            M.attention_score[h, n, k] * M.W_o[d,h, k]
-                            for k in M.k_dims
-                             ) )
-                        for h in M.heads
-                        )
-                    )
-                
     def add_residual_connection(self,M, input_1_name, input_2_name, output_var_name):
         # create constraint list
         if not hasattr(M, "residual_constraints"):
