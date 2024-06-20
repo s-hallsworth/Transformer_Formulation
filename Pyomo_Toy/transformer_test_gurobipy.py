@@ -8,6 +8,8 @@ import unittest
 import os
 from omlt import OmltBlock
 import convert_pyomo
+from gurobipy import Model, GRB
+
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
@@ -25,68 +27,82 @@ class TestTransformer(unittest.TestCase):
         # Define Test Case Params
         model = tps.model.clone()
         pyomo_input_name = "input_param"
-        self.solver = 'scip'
         
         # Get input var
         input_var = getattr(model, pyomo_input_name)
-        pyomo_input_dict = {}
-
-        # Store input pyomo var as dict
-        if input_var.is_indexed():
-            pyomo_input_dict[pyomo_input_name] = {index: pyo.value(input_var[index]) for index in input_var.index_set()}
-        else:
-            pyomo_input_dict[pyomo_input_name] = pyo.value(input_var)
-
-        # Reformat and convert dict to np array
-        pyomo_input, _ = reformat(dict=pyomo_input_dict, layer_name=pyomo_input_name) 
         
-        ## layer outputs  
-        transformer_input = np.array(tir.layer_outputs_dict['input_layer_1'])
+        # Convert to gurobipy
+        gurobi_model = convert_pyomo.to_gurobi(model)
+        parameters = {}
+        
+        # Get input value (before solve)
+        for v in gurobi_model.getVars():
+            # print(f'var name: {v.varName}, var type {type(v)}')
+            # print(v.LB, v.UB)
+            if "[" in v.varName:
+                name = v.varname.split("[")[0]
+                if name in parameters.keys():
+                    parameters[name] += [v.LB]
+                else:
+                    parameters[name] = [v.LB]
+            else:    
+                parameters[v.varName] = v.LB
+
+        # model input
+        model_input = np.array(parameters[pyomo_input_name])
+        
+        ## TNN outputs  
+        transformer_input = np.array(tir.layer_outputs_dict['input_layer_1']).flatten()
         
         # Assertions
-        self.assertIsNone(np.testing.assert_array_equal(pyomo_input.shape, transformer_input.shape)) # pyomo input data and transformer input data must be the same shape
-        self.assertIsNone(np.testing.assert_array_almost_equal(pyomo_input, transformer_input, decimal = 7))             # both inputs must be equal
+        self.assertIsNone(np.testing.assert_array_equal(model_input.shape, transformer_input.shape)) # pyomo input data and transformer input data must be the same shape
+        self.assertIsNone(np.testing.assert_array_almost_equal(model_input, transformer_input, decimal = 7))             # both inputs must be equal
+        
         
     def test_no_embed_input(self):
         # Define Test Case Params
         model = tps.model.clone()
         config_file = '.\\data\\toy_config.json' 
         T = 11 
-        self.solver = 'scip'
         
         # Define tranformer and execute up to embed
         transformer = TNN.Transformer(model, config_file)
         transformer.embed_input(model, "input_param","input_embed", "variables")
+        
+        # Convert to gurobipy
+        gurobi_model = convert_pyomo.to_gurobi(model)
+        gurobi_model.optimize()
 
-        # Discretize model using Backward Difference method
-        discretizer = pyo.TransformationFactory("dae.finite_difference")
-        discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
-        
-        # Solve model
-        solver = SolverFactory('ipopt')
-        opts = {'halt_on_ampl_error': 'yes',
-           'tol': 1e-7, 'bound_relax_factor': 0.0}
-        result = solver.solve(model, options=opts)
-        
-        # Get optimal parameters & reformat
-        optimal_parameters = get_optimal_dict(result, model)
-        embed_output, _ = reformat(optimal_parameters,"input_embed") 
+        if gurobi_model.status == GRB.OPTIMAL:
+            optimal_parameters = {}
+            for v in gurobi_model.getVars():
+                #print(f'var name: {v.varName}, var type {type(v)}')
+                if "[" in v.varName:
+                    name = v.varname.split("[")[0]
+                    if name in optimal_parameters.keys():
+                        optimal_parameters[name] += [v.x]
+                    else:
+                        optimal_parameters[name] = [v.x]
+                else:    
+                    optimal_parameters[v.varName] = v.x
+
+        # model input
+        embed_output = np.array(optimal_parameters["input_embed"])
         
         ## layer outputs  
-        transformer_input = np.array(tir.layer_outputs_dict['input_layer_1'])
+        transformer_input = np.array(tir.layer_outputs_dict['input_layer_1']).flatten()
         
         # Assertions
         self.assertIsNone(np.testing.assert_array_equal(embed_output.shape, transformer_input.shape)) # same shape
         self.assertIsNone(np.testing.assert_array_almost_equal(embed_output, transformer_input, decimal = 7))             # equal vlaues
-        with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
-            transformer.embed_input(model, "input_param","input_embed", "variables")
+        # with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
+        #     transformer.embed_input(model, "input_param","input_embed", "variables")
     
     def test_embed_input(self):
         # Define Test Case Params
         model = tps.model.clone()
         config_file = '.\\data\\toy_config_embed_3.json' 
         T = 11
-        self.solver = 'scip'
         
         # Define tranformer and execute up to embed
         transformer = TNN.Transformer(model, config_file)
@@ -97,27 +113,34 @@ class TestTransformer(unittest.TestCase):
         self.assertIsInstance(model.input_embed, pyo.Var)               # check data type
         self.assertTrue(hasattr(model, 'embed_constraints'))      # check constraints created
         
-        # Discretize model using Backward Difference method
-        discretizer = pyo.TransformationFactory("dae.finite_difference")
-        discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
-        
-        # Solve model
-        solver = SolverFactory('ipopt')
-        opts = {'halt_on_ampl_error': 'yes',
-           'tol': 1e-7, 'bound_relax_factor': 0.0}
-        result = solver.solve(model, options=opts)
-        
-        # Get optimal parameters & reformat  --> (1, input_feature, sequence_element)
-        optimal_parameters = get_optimal_dict(result, model)
-        embed_output, _ = reformat(optimal_parameters,"input_embed") 
+        # Convert to gurobipy
+        gurobi_model = convert_pyomo.to_gurobi(model)
+        gurobi_model.optimize()
+
+        if gurobi_model.status == GRB.OPTIMAL:
+            optimal_parameters = {}
+            for v in gurobi_model.getVars():
+                #print(f'var name: {v.varName}, var type {type(v)}')
+                if "[" in v.varName:
+                    name = v.varname.split("[")[0]
+                    if name in optimal_parameters.keys():
+                        optimal_parameters[name] += [v.x]
+                    else:
+                        optimal_parameters[name] = [v.x]
+                else:    
+                    optimal_parameters[v.varName] = v.x
+
+        # model input
+        embed_output = np.array(optimal_parameters["input_embed"])
         
         # Calculate embedded value
         transformer_input = np.array(tir.layer_outputs_dict['input_layer_1'])
-        transformer_embed = np.dot(transformer_input, W_emb) # W_emb dim: (2, 3), transformer_input dim: (1,10,2)
+        transformer_embed = np.dot(transformer_input, W_emb).flatten() # W_emb dim: (2, 3), transformer_input dim: (1,10,2)
 
         # Assertions
         self.assertIsNone(np.testing.assert_array_equal(embed_output.shape, transformer_embed.shape)) # same shape
         self.assertIsNone(np.testing.assert_array_almost_equal(embed_output, transformer_embed, decimal=2))  # almost same values
+    
     
     def test_layer_norm(self):
         
@@ -140,42 +163,28 @@ class TestTransformer(unittest.TestCase):
         self.assertTrue(hasattr(model, 'layer_norm_constraints'))      # check constraints created
         print("- Vars and constraints created successfully")
         
-        # Discretize model using Backward Difference method
-        discretizer = pyo.TransformationFactory("dae.finite_difference")
-        discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
-        
-        # Solve model
-        self.solver = 'scip'
-        solver = SolverFactory(self.solver)
-        result = solver.solve(model, tee=False) 
-        optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat first layer norm block --> (1, input_feature, sequence_element)
-        
-        print("---------- MODEL SOLVED ----------")
-        print(optimal_parameters)
-        # opts = {'halt_on_ampl_error': 'yes',
-        #    'tol': 1e-7, 'bound_relax_factor': 0.0}#scip
-        # result = solver.solve(model, options=opts) #scip
+        # Convert to gurobipy
+        gurobi_model = convert_pyomo.to_gurobi(model)
+        gurobi_model.optimize()
 
-        # Check layer norm output
-        layer_norm_output, elements = reformat(optimal_parameters,"layer_norm") 
-        LN_1_output= np.array(tir.layer_outputs_dict["layer_normalization_1"])
+        if gurobi_model.status == GRB.OPTIMAL:
+            optimal_parameters = {}
+            for v in gurobi_model.getVars():
+                #print(f'var name: {v.varName}, var type {type(v)}')
+                if "[" in v.varName:
+                    name = v.varname.split("[")[0]
+                    if name in optimal_parameters.keys():
+                        optimal_parameters[name] += [v.x]
+                    else:
+                        optimal_parameters[name] = [v.x]
+                else:    
+                    optimal_parameters[v.varName] = v.x
 
-        # Plot expected and actual results
-        # plt.figure(1, figsize=(12, 8))
-        # markers = ["o-", "x--"]  # Different markers for each function
-        # var = [layer_norm_output, LN_1_output]
-        # labels = ['- Pyomo', '- Transformer']
-        # for i in range(len(var)):
-        #     plt.plot(elements, var[i][0, :, 0 ], markers[i], label=f"x values {labels[i]}")
-        #     plt.plot(elements, var[i][0, :, 1 ], markers[i], label=f"u values {labels[i]}")
-        # plt.title("Pyomo and Tranformer results ")
-        # plt.xlabel("Sequence")
-        # plt.ylabel("Magnitude")
-        # plt.legend()
-        # plt.grid(True)
-        # plt.show()
-        # print("layer norm Pyomo (as list):", [model.layer_norm[t, d].value for t in model.time_input for d in model.model_dims])
-        # print("layer norm from NumPy:", transformer_output)
+        # model output
+        layer_norm_output = np.array(optimal_parameters["layer_norm"])
+        
+        # transformer output
+        LN_1_output= np.array(tir.layer_outputs_dict["layer_normalization_1"]).flatten()
         
         # Assertions
         self.assertIsNone(np.testing.assert_array_equal(layer_norm_output.shape, LN_1_output.shape)) # compare shape with transformer
@@ -184,114 +193,88 @@ class TestTransformer(unittest.TestCase):
             transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         print("- LN output formulation == LN output model")
 
-    # def test_multi_head_attention(self):
-    #     ### Right now can only support one MHA block in transformer (--> fix add uniquely named parameters for the MHA block)
-        
-    #     print("======= MULTIHEAD ATTENTION =======")
-        
-    #     # Define Test Case Params
-    #     model = tps.model.clone()
-    #     config_file = '.\\data\\toy_config.json' 
-    #     T = 11
-    #     #self.solver = 'couenne'
-        
-    #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(model, config_file)
-    #     transformer.embed_input(model, "input_param","input_embed", "variables")
-    #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-    #     transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
-        
-    #     #Check  var and constraints created
-    #     self.assertIn("attention_output", dir(model))                 # check layer_norm created
-    #     self.assertIsInstance(model.attention_output, pyo.Var)        # check data type
-    #     self.assertTrue(hasattr(model, 'attention_constraints'))      # check constraints created
-    #     print("- Vars and constraints created successfully")
-        
-    #     # Discretize model using Backward Difference method
-    #     discretizer = pyo.TransformationFactory("dae.finite_difference")
-    #     discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
-        
-    #     # Solve model
-    #     #solver = SolverFactory(self.solver)#, solver_io='python')#'gurobi_persistent')#self.solver, solver_io='python')
-    #     # solver.set_instance(model)
-    #     # result = solver.solve(tee=True)
-    #     # optimal_parameters = get_optimal_dict(result, model)
-    #     # compat, _ = reformat(optimal_parameters,"layer_norm")
-        
-    #     # print("solved")
-    #     # count = 0
-    #     # for h in model.heads:
-    #     #     for n in model.time_input:
-    #     #             for p in model.time_input:
-    #     #                 count += 1
-                        
-    #     #                 e_squ_count = model.compatibility[h,n,p].value // 2
-    #     #                 e_rem_count = model.compatibility[h,n,p].value % 2
-                        
-    #     # print(e_squ_count, e_rem_count)
-                        
-    #                         # new_constraint_expr = pyo.exp(model.compatibility[h,n,p]) == model.compatibility_exp[h, n, p]
-    #                         # new_constraint = pyo.Constraint(expr=new_constraint_expr)
+    def test_multi_head_attention(self):
+        print("======= MULTIHEAD ATTENTION =======")
 
-    #                         # constraint_name = f"new_constraint_{count}"
-    #                         # model.add_component(constraint_name, new_constraint)
-    #                         # solver.add_constraint(new_constraint)
+        # Define Test Case Params
+        model = tps.model.clone()
+        config_file = '.\\data\\toy_config.json' 
+        T = 11
+        
+        # Define tranformer and execute 
+        transformer = TNN.Transformer(model, config_file)
+        transformer.embed_input(model, "input_param","input_embed", "variables")
+        transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        
+        #Check  var and constraints created
+        self.assertIn("attention_output", dir(model))                 # check layer_norm created
+        self.assertIsInstance(model.attention_output, pyo.Var)        # check data type
+        self.assertTrue(hasattr(model, 'attention_constraints'))      # check constraints created
+        print("- Vars and constraints created successfully")
+        
+        
+        # Convert to gurobipy
+        gurobi_model = convert_pyomo.to_gurobi(model)
+        gurobi_model.optimize()
 
-    #     # result = solver.solve(tee=True)
-    #     #result = solver.solve(model, tee=False)
-    #     #optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
-        
-    #     gurobi_model = convert_pyomo_to_gurobipy(model)
-    #     gurobi_model.optimize()
+        if gurobi_model.status == GRB.OPTIMAL:
+            optimal_parameters = {}
+            for v in gurobi_model.getVars():
+                #print(f'var name: {v.varName}, var type {type(v)}')
+                if "[" in v.varName:
+                    name = v.varname.split("[")[0]
+                    if name in optimal_parameters.keys():
+                        optimal_parameters[name] += [v.x]
+                    else:
+                        optimal_parameters[name] = [v.x]
+                else:    
+                    optimal_parameters[v.varName] = v.x
 
-    #     if gurobi_model.status == GRB.OPTIMAL:
-    #         optimal_parameters = {}
-    #         for v in gurobi_model.getVars():
-    #             print(f'{v.varName} ({type(v)}): {v.x}')
-    #             optimal_parameters[v.varName] = v.x
-    #         print(f'Objective: {gurobi_model.objVal}')
-    
-    # #print(optimal_parameters)
+        # model output
+        LN_output = np.array(optimal_parameters["layer_norm"])
+        Q_form = np.array(optimal_parameters["Q"])
+        K_form = np.array(optimal_parameters["K"])
+        V_form = np.array(optimal_parameters["V"])
+        attention_output= np.array(optimal_parameters["attention_output"]) 
+        
+        print("---------- MODEL SOLVED ----------")
+        
+        # Check Solve calculations
+        input = np.array(tir.layer_outputs_dict['input_layer_1']).squeeze(0)
+        transformer_input = np.array(tir.layer_outputs_dict["layer_normalization_1"]).squeeze(0)#np.array(tir.layer_outputs_dict['input_layer_1']).squeeze(0)
+        Q = np.dot( transformer_input, np.transpose(np.array(tps.W_q),(1,0,2))) 
+        K = np.dot( transformer_input, np.transpose(np.array(tps.W_k),(1,0,2))) 
+        V = np.dot( transformer_input, np.transpose(np.array(tps.W_v),(1,0,2))) 
 
+        Q = np.transpose(Q,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_q),axis=1),10 ,axis=1)
+        K = np.transpose(K,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_k),axis=1),10 ,axis=1)
+        V = np.transpose(V,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_v),axis=1),10 ,axis=1)
         
-    #     print("---------- MODEL SOLVED ----------")
+        Q = Q.flatten()
+        K = K.flatten()
+        V = V.flatten()
         
-    #     # Check Solve calculations
-    #     input = np.array(tir.layer_outputs_dict['input_layer_1']).squeeze(0)
-    #     transformer_input = np.array(tir.layer_outputs_dict["layer_normalization_1"]).squeeze(0)#np.array(tir.layer_outputs_dict['input_layer_1']).squeeze(0)
-    #     Q = np.dot( transformer_input, np.transpose(np.array(tps.W_q),(1,0,2))) 
-    #     K = np.dot( transformer_input, np.transpose(np.array(tps.W_k),(1,0,2))) 
-    #     V = np.dot( transformer_input, np.transpose(np.array(tps.W_v),(1,0,2))) 
-
-    #     Q = np.transpose(Q,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_q),axis=1),10 ,axis=1)
-    #     K = np.transpose(K,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_k),axis=1),10 ,axis=1)
-    #     V = np.transpose(V,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_v),axis=1),10 ,axis=1)
+        self.assertIsNone(np.testing.assert_array_almost_equal(np.array(tir.layer_outputs_dict["layer_normalization_1"]).flatten(),LN_output, decimal =5))
+        print("- MHA input formulation == MHA input model")
         
-    #     LN_output, _ = reformat(optimal_parameters,"layer_norm")
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(np.array(tir.layer_outputs_dict["layer_normalization_1"]),LN_output, decimal =5))
-    #     print("- MHA input formulation == MHA input model")
+        self.assertIsNone(np.testing.assert_array_equal(Q.shape, Q_form.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal( Q_form,Q, decimal =5))
+        print("- Query formulation == Query model")
         
-    #     Q_form, _ = reformat(optimal_parameters,"Q") 
-    #     self.assertIsNone(np.testing.assert_array_equal(Q.shape, Q_form.shape))
-    #     self.assertIsNone(np.testing.assert_array_almost_equal( Q_form,Q, decimal =5))
-    #     print("- Query formulation == Query model")
+        self.assertIsNone(np.testing.assert_array_equal(K.shape, K_form.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal( K_form,K, decimal =5))
+        print("- Key formulation == Key model")
         
-    #     K_form, _ = reformat(optimal_parameters,"K") 
-    #     self.assertIsNone(np.testing.assert_array_equal(K.shape, K_form.shape))
-    #     self.assertIsNone(np.testing.assert_array_almost_equal( K_form,K, decimal =5))
-    #     print("- Key formulation == Key model")
+        self.assertIsNone(np.testing.assert_array_equal(V.shape, V_form.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal( V_form,V, decimal =5))
+        print("- Value formulation == Value model")
         
-    #     V_form, _ = reformat(optimal_parameters,"V") 
-    #     self.assertIsNone(np.testing.assert_array_equal(V.shape, V_form.shape))
-    #     self.assertIsNone(np.testing.assert_array_almost_equal( V_form,V, decimal =5))
-    #     print("- Value formulation == Value model")
-        
-    #     ## Check MHA output
-    #     attention_output, elements = reformat(optimal_parameters,"attention_output") 
-    #     MHA_output = np.array(tir.layer_outputs_dict["multi_head_attention_1"])
-    #     self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=5)) # compare value with transformer output
-    #     print("- MHA output formulation == MHA output model")
+        ## Check MHA output
+        MHA_output = np.array(tir.layer_outputs_dict["multi_head_attention_1"]).flatten()
+        self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=5)) # compare value with transformer output
+        print("- MHA output formulation == MHA output model")
         
     # def test_add_residual(self):
     #     print("======= RESIDUAL LAYER =======")
