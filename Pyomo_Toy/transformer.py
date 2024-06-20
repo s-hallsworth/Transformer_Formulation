@@ -63,8 +63,8 @@ class Transformer:
                 for s in range(len(set_var)):
                     dict_embed[(M.time_input.at(t+1), set_var.at(s+1))] = init_array[t,s]
                 
+            setattr(M, embed_var_name, pyo.Var(M.time_input, M.model_dims, initialize=dict_embed))
 
-            setattr(M, embed_var_name, pyo.Var(M.time_input, M.model_dims, initialize=dict_embed, within=pyo.Reals, bounds=(None,None)))
             embed_var = getattr(M, embed_var_name)
         else:
             raise ValueError('Attempting to overwrite variable')
@@ -118,7 +118,7 @@ class Transformer:
             setattr(M, denominator_name, pyo.Var(M.time_input, within=pyo.Reals, bounds=(None,None)))
             denominator = getattr(M, denominator_name)
             
-            denominator_abs_name = 'denominator_abs'+ layer_norm_var_name
+            denominator_abs_name = 'denominator_abs_'+ layer_norm_var_name
             setattr(M, denominator_abs_name, pyo.Var(M.time_input, within=pyo.NonNegativeReals, bounds=(0,None)))
             denominator_abs = getattr(M, denominator_abs_name)
             

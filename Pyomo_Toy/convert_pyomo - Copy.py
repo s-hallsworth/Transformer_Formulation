@@ -2,9 +2,10 @@ import pyomo.environ as pyo
 import pyomo.core.expr as pyo_expr
 import pyomo.core.base as pyo_base
 from pyomo import dae
-from gurobipy import Model, GRB
+from gurobipy import Model, GRB, LinExpr, QuadExpr
+import math
 
-def to_gurobi(pyomo_model, func_nonlinear=1):
+def convert_pyomo_to_gurobipy(pyomo_model, func_nonlinear=1):
     
     # Create gurobi model with same name as pyomo model
     gurobi_model = Model(pyomo_model.name)
@@ -13,59 +14,27 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
     # Mapping of Pyomo variables to Gurobi variables
     var_map = {}
     
-    # Convert Vars and Params
-    for attr in dir(pyomo_model):
-        var = getattr(pyomo_model, attr)
-        
-        # Variables
-        if isinstance(var, pyo.Var):
-            if var.is_indexed():
-                index_set = list(var.index_set().data())
-                vtype = get_gurobi_vtype(var[index_set[0]])
-                gurobi_var = gurobi_model.addVars(index_set, name=str(var), vtype=vtype)
-                
-                # add bounds
-                for index in index_set:
-                    pyomo_var = var[index]
-                    gurobi_var[index].lb = pyomo_var.lb if pyomo_var.lb is not None else -GRB.INFINITY
-                    gurobi_var[index].ub = pyomo_var.ub if pyomo_var.ub is not None else GRB.INFINITY
-                    var_map[pyomo_var.name] = gurobi_var[index] 
-            else:
-                lb = var.lb if var.lb is not None else -GRB.INFINITY
-                ub = var.ub if var.ub is not None else GRB.INFINITY
-                vtype = get_gurobi_vtype(var)
-                gurobi_var = gurobi_model.addVar(lb=lb, ub=ub, name=str(var), vtype=vtype)
-                var_map[var.name] = gurobi_var
-        
-        # Parameters   
-        elif isinstance(var, pyo.Param):
-            if var.is_indexed():
-                index_set = list(var.index_set().data())
-                vtype = get_gurobi_vtype(var[index_set[0]])
-                gurobi_var = gurobi_model.addVars(index_set, name=str(var), vtype=vtype)
-                var_map[var.name] = gurobi_var
-                
-                # add bounds
-                for index in index_set:
-                    pyomo_var = var[index]
-                    
-                    if isinstance(pyomo_var, (int, float)):
-                        gurobi_var[index].lb = pyomo_var
-                        gurobi_var[index].ub = pyomo_var
-                        var_map[var.name+str(list(index))] = gurobi_var[index] 
-                    else:
-                        gurobi_var[index].lb = pyomo_var.data()
-                        gurobi_var[index].ub = pyomo_var.data()
-                        var_map[pyomo_var.name] = gurobi_var[index] 
-                        
-            else:
-                gurobi_var = gurobi_model.setParam( str(var), var.data())
-                var_map[var.name] = gurobi_var
-                
-        gurobi_model.update()
-        # else:
-        #     print(f"{attr} ({type(var)}): Attribute not included in gurobi model")
+    # Convert pyo.Var to Gurobi Var
+    for var in pyomo_model.component_data_objects(pyo.Var, active=True):
 
+        if var.is_indexed():
+            for index in var:
+                pyomo_var = var[index]
+                lb = pyomo_var.lb if pyomo_var.lb is not None else -GRB.INFINITY
+                ub = pyomo_var.ub if pyomo_var.ub is not None else GRB.INFINITY
+                vtype = get_gurobi_vtype(pyomo_var)
+                gurobi_var = gurobi_model.addVar(lb=lb, ub=ub, name=str(pyomo_var), vtype=vtype)
+                var_map[pyomo_var.name] = gurobi_var
+        else:
+            lb = var.lb if var.lb is not None else -GRB.INFINITY
+            ub = var.ub if var.ub is not None else GRB.INFINITY
+            vtype = get_gurobi_vtype(var)
+            gurobi_var = gurobi_model.addVar(lb=lb, ub=ub, name=str(var), vtype=vtype)
+            var_map[var.name] = gurobi_var
+    
+        
+    # Update model
+    gurobi_model.update()
     
     # Convert objective
     for obj in pyomo_model.component_objects(pyo.Objective, active=True):
@@ -77,75 +46,31 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
     # Convert constraints
     for con in pyomo_model.component_objects(pyo.Constraint, active=True):
         for index in con:
+            gurobi_expr, add_constraint = expr_to_gurobi(con[index].body, var_map, gurobi_model)
             
-            lhs, rhs = con[index].expr.args
-            
-            ## UNARY FUNCTIONS
-            unary = False
-            if isinstance(lhs, pyo_expr.numeric_expr.UnaryFunctionExpression):
-                func_equ = lhs
-                res = rhs
-                unary = True
-            elif isinstance(rhs, pyo_expr.numeric_expr.UnaryFunctionExpression):
-                func_equ = rhs
-                res = lhs
-                unary = True
-                
-            if unary:
-                func = func_equ.getname()
-                arg = func_equ.args[0]
-                result = var_map[res.name]
-                arg_gurobi = expr_to_gurobi(arg, var_map, gurobi_model)[0]
-                
-                if func == 'exp':
-                    gurobi_model.addGenConstrExp(arg_gurobi, result)
-                    
-
-                elif func == 'sqrt':
-                    gurobi_model.addConstr(arg_gurobi * arg_gurobi == result)
-
-
-                elif func == 'log': #natural log
-                    gurobi_model.addGenConstrLog(arg_gurobi, result)
-
-                else:
-                    raise ValueError(f"Unsupported unary function: {func}")
-                
-            # OTHER FUNCTION
-            else:     
-                
-                lhs_gurobi_expr, add_constraint = expr_to_gurobi(lhs, var_map, gurobi_model)
-                rhs_gurobi_expr, add_constraint = expr_to_gurobi(rhs, var_map, gurobi_model)
-                    
             if add_constraint :
                 if con[index].equality:
-                    gurobi_model.addConstr(lhs_gurobi_expr == rhs_gurobi_expr)
+                    gurobi_model.addConstr(gurobi_expr == con[index].upper)
                 else:
                     if con[index].has_lb():
-                        gurobi_model.addConstr(lhs_gurobi_expr >= rhs_gurobi_expr)
+                        gurobi_model.addConstr(gurobi_expr >= con[index].lower)
                     if con[index].has_ub():
-                        gurobi_model.addConstr(lhs_gurobi_expr <= rhs_gurobi_expr)
+                        gurobi_model.addConstr(gurobi_expr <= con[index].upper)
     
-            gurobi_model.update()
     return gurobi_model
 
 def get_gurobi_vtype(pyomo_var):
-    try:
-        domain =  pyomo_var.domain
-    except:
-        domain = None
-        
-    if domain == pyo.NonNegativeReals:
+    if pyomo_var.domain == pyo.NonNegativeReals:
         return GRB.CONTINUOUS
-    elif domain == pyo.Binary:
+    elif pyomo_var.domain == pyo.Binary:
         return GRB.BINARY
-    elif domain == pyo.Integers or domain == pyo.NonNegativeIntegers:
+    elif pyomo_var.domain == pyo.Integers or pyomo_var.domain == pyo.NonNegativeIntegers:
         return GRB.INTEGER
     else:
         return GRB.CONTINUOUS  # Default to continuous if the domain is not specified or different
 
 def expr_to_gurobi(expr, var_map, gurobi_model):
-    #print("expression", expr, type(expr))
+    print("expression", expr, type(expr))
     
     ## INT
     if isinstance(expr, int):
@@ -155,22 +80,41 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
     elif isinstance(expr, float):
         return expr, True
     
+    ## INDEXED
+    try:
+        if expr.is_indexed():
+           for i,sub_expr in enumerate(expr.args):
+            var = gurobi_model.addVar(name=arg.name+"_index_"+str(i))
+            gurobi_model.addConstr(var == expr_to_gurobi(sub_expr, var_map, gurobi_model)[0])
+            
+            gurobi_model.update()
+        return var, False
+    except:
+        pass
+    
     ## PARAMETER
     if isinstance(expr, pyo.Param):
-        gurobi_var = var_map[expr.name]
-        return  gurobi_var, True
+        func = expr.getname()
+        arg = expr.args[0]
+        var = gurobi_model.setParam(arg.name, expr.args[0])
+        return var, True
     
     ## VARIABLE
     elif isinstance(expr, (pyo.Var,pyo_base.var._GeneralVarData)):
-        gurobi_var = var_map[expr.name]
+        print("var")
+        lb = expr.lb if expr.lb is not None else -GRB.INFINITY
+        ub = expr.ub if expr.ub is not None else GRB.INFINITY
+        vtype = get_gurobi_vtype(expr)
+        gurobi_var = gurobi_model.addVar(lb=lb, ub=ub, name=str(expr), vtype=vtype)
         return gurobi_var , True
     
     ## LINEAR EXPR
     elif isinstance(expr, pyo_expr.numeric_expr.LinearExpression):
         gurobi_expr = 0.0
-        for sub_expr in expr.args:
-            sub_gurobi_expr, _ = expr_to_gurobi(sub_expr, var_map, gurobi_model)
-            gurobi_expr += sub_gurobi_expr
+        for coef, var in zip(expr.linear_coefs, expr.linear_vars):
+            print("linear expr ",var.name, var_map[var.name], type(var_map[var.name]))
+            print("coeff",coef, type(coef) )
+            gurobi_expr += coef * var_map[var.name]
         return gurobi_expr, True
     
     ## PRODUCT EXPR
@@ -216,11 +160,32 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
     elif isinstance(expr, pyo_expr.numeric_expr.NegationExpression):
         return -expr_to_gurobi(expr.args[0], var_map, gurobi_model)[0], True
     
-    
+    ## UNARY FUNCTIONS
+    elif isinstance(expr, pyo_expr.numeric_expr.UnaryFunctionExpression):
+        func = expr.getname()
+        arg = expr.args[0]
+        arg_gurobi = expr_to_gurobi(arg, var_map, gurobi_model)[0]
+        if func == 'exp':
+            expx = gurobi_model.addVar(name=arg.name+"_exp")
+            gurobi_model.addGenConstrExp(arg_gurobi, expx)
+            gurobi_model.update()
+            return expx, False
+        elif func == 'sqrt':
+            sqrtx = gurobi_model.addVar(name=arg.name+"_sqrt")
+            gurobi_model.addConstr(sqrtx * sqrtx == arg_gurobi)
+            gurobi_model.update()
+            return sqrtx, False
+        elif func == 'log': #natural log
+            logx = gurobi_model.addVar(name=arg.name+"_log")
+            gurobi_model.addGenConstrLog(arg_gurobi, logx)
+            gurobi_model.update()
+            return logx, False
+        else:
+            raise ValueError(f"Unsupported unary function: {func}")
         
     ## DAE.INTEGRAL EXPR
     elif isinstance(expr, dae.Integral):
-        #print("intefgral",expr, expr.getname(), expr.args)
+        print("intefgral",expr, expr.getname(), expr.args)
         func = expr.getname()
         arg = expr.args[0]
 
@@ -265,38 +230,7 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
     else:
         raise ValueError(f"Unsupported expression type: {type(expr)}")
 
-# # Test toy transformer
 
-# from pyomo import dae
-# import numpy as np
-# from transformer import *
-# import extract_from_pretrained as extract_from_pretrained
-# from toy_problem import *
-# from toy_problem_setup import *
-# from omlt import OmltBlock
-# from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation
-# from omlt.io.keras import keras_reader
-# import omlt
-# import OMLT_helper
-
-# gurobi_model = to_gurobi(model)
-# gurobi_model.optimize()
-
-# if gurobi_model.status == GRB.OPTIMAL:
-#     optimal_parameters = {}
-#     for v in gurobi_model.getVars():
-#         #print(f'var name: {v.varName}, var type {type(v)}')
-#         if "[" in v.varName:
-#             name = v.varname.split("[")[0]
-#             if name in optimal_parameters.keys():
-#                 optimal_parameters[name] += [v.x]
-#             else:
-#                 optimal_parameters[name] = [v.x]
-#         else:    
-#             optimal_parameters[v.varName] = v.x
-#     #print(f'Objective: {gurobi_model.objVal}')
-    
-#     print(optimal_parameters)
 
 ############################################################################
 # Example usage
@@ -319,14 +253,10 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
 # pyomo_model.con8 = pyo.Constraint(expr= pyo.sqrt(pyomo_model.x**2) <= 100)
 
 
-# gurobi_model = to_gurobi(pyomo_model)
+# gurobi_model = convert_pyomo_to_gurobipy(pyomo_model)
 # gurobi_model.optimize()
 
 # if gurobi_model.status == GRB.OPTIMAL:
-#     optimal_parameters = {}
 #     for v in gurobi_model.getVars():
-#         #print(f'{v.varName}: {v.x}')
-#         optimal_parameters[v.varName] = v.x
-#     #print(f'Objective: {gurobi_model.objVal}')
-    
-#     print(optimal_parameters)
+#         print(f'{v.varName}: {v.x}')
+#     print(f'Objective: {gurobi_model.objVal}')
