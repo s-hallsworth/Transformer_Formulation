@@ -19,6 +19,7 @@ class Transformer:
         with open(config_file, "r") as file:
             config = json.load(file)
 
+        self.seq_len = 10
         self.N = config['hyper_params']['N']
         self.d_model = config['hyper_params']['d_model'] # embedding dimensions of model
         self.d_k = config['hyper_params']['d_k']
@@ -614,17 +615,6 @@ class Transformer:
     def add_FFN_2D(self,M, input_var_name, output_var_name, input_value, model_parameters):
         input_var = getattr(M, input_var_name)
         
-        # # define calculation variables
-        #     variance_name = 'variance_'+ layer_norm_var_name
-        #     setattr(M, variance_name, pyo.Var(M.time_input, within=pyo.Reals, bounds=(None,None)))
-        #     variance = getattr(M, variance_name)
-        
-        # create constraint list
-        # constraint_name = input_var_name + "_constraints"
-        # if not hasattr(M, constraint_name):
-        #     setattr(M, constraint_name, pyo.ConstraintList())
-        #     constraint_list = getattr(M, constraint_name)
-        #     constraint_list.pprint()
         M.ffn_constraints = pyo.ConstraintList()
 
         # add new variable
@@ -633,8 +623,8 @@ class Transformer:
             output_var = getattr(M, output_var_name)
             
             NN_block_list = []
-            for d in range(self.d_model):
-                NN_name = output_var_name + "_NN_Block_"+str(d)
+            for elem in range(self.seq_len):
+                NN_name = output_var_name + "_NN_Block_"+str(elem)
                 setattr(M, NN_name, OmltBlock())
                 NN_block_list += [getattr(M, NN_name)]
             
@@ -650,6 +640,7 @@ class Transformer:
         #net_relu = weights_to_NetworkDefinition(output_var_name, model_parameters)
   
         #formulation_bigm = []
+        print("LEN",len(net_relu ))
         for i, net in enumerate(net_relu):
             print(i, net)
             #formulation_bigm += [ReluBigMFormulation(net)]
@@ -658,8 +649,8 @@ class Transformer:
         
         for i,t in enumerate(M.time_input): 
             for j,d in enumerate(M.model_dims): 
-                M.ffn_constraints.add(expr= input_var[t,d] == NN_block_list[j].inputs[i])
-                M.ffn_constraints.add(expr= output_var[t,d] == NN_block_list[j].outputs[i])
+                M.ffn_constraints.add(expr= input_var[t,d] == NN_block_list[i].inputs[j])
+                M.ffn_constraints.add(expr= output_var[t,d] == NN_block_list[i].outputs[j])
         
     #def add_output_constraints(self, M, input_var):
         # if not hasattr(M, "output_constraints"):

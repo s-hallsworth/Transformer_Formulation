@@ -184,7 +184,7 @@ class TestTransformer(unittest.TestCase):
             transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         print("- LN output formulation == LN output model")
 
-    def test_multi_head_attention(self):
+    def test_multi_head_attention_approx(self):
         ### Right now can only support one MHA block in transformer (--> fix add uniquely named parameters for the MHA block)
         
         print("======= MULTIHEAD ATTENTION =======")
@@ -213,7 +213,7 @@ class TestTransformer(unittest.TestCase):
         # Solve model
         self.solver = 'gurobi'
         solver = SolverFactory(self.solver, solver_io='python')#'gurobi_persistent')#self.solver, solver_io='python')
-        result = solver.solve(model,tee=True)
+        result = solver.solve(model,tee=False)
         optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
 
         print("---------- MODEL SOLVED ----------")
@@ -253,151 +253,153 @@ class TestTransformer(unittest.TestCase):
         MHA_output = np.array(tir.layer_outputs_dict["multi_head_attention_1"])
         self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
         self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=5)) # compare value with transformer output
-        print("- MHA output formulation == MHA output model")
+        print("- MHA approx formulation ~= MHA output model")
         
-    # def test_add_residual(self):
-    #     print("======= RESIDUAL LAYER =======")
+    def test_add_residual(self):
+        print("======= RESIDUAL LAYER =======")
         
-    #     # Define Test Case Params
-    #     model = tps.model.clone()
-    #     config_file = '.\\data\\toy_config.json' 
-    #     T = 11
-    #     self.solver = 'gurobi'
+        # Define Test Case Params
+        model = tps.model.clone()
+        config_file = '.\\data\\toy_config.json' 
+        T = 11
+        self.solver = 'gurobi'
         
-    #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(model, config_file)
-    #     transformer.embed_input(model, "input_param","input_embed", "variables")
-    #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-    #     transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
-    #     transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
+        # Define tranformer and execute 
+        transformer = TNN.Transformer(model, config_file)
+        transformer.embed_input(model, "input_param","input_embed", "variables")
+        transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+        transformer.add_attention_approx(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
             
-    #     #Check  var and constraints created
-    #     self.assertIn("residual_1", dir(model))                 # check layer_norm created
-    #     self.assertIsInstance(model.residual_1, pyo.Var)        # check data type
-    #     self.assertTrue(hasattr(model, 'residual_constraints'))      # check constraints created
-    #     print("- Vars and constraints created successfully")
+        #Check  var and constraints created
+        self.assertIn("residual_1", dir(model))                 # check layer_norm created
+        self.assertIsInstance(model.residual_1, pyo.Var)        # check data type
+        self.assertTrue(hasattr(model, 'residual_constraints'))      # check constraints created
+        print("- Vars and constraints created successfully")
         
-    #     # Discretize model using Backward Difference method
-    #     discretizer = pyo.TransformationFactory("dae.finite_difference")
-    #     discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
+        # Discretize model using Backward Difference method
+        discretizer = pyo.TransformationFactory("dae.finite_difference")
+        discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
         
-    #     # Solve model
-    #     solver = SolverFactory(self.solver, solver_io='python')
-    #     result = solver.solve(model, tee=False)
-    #     optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
-    #     print("---------- MODEL SOLVED ----------")
+        # Solve model
+        solver = SolverFactory(self.solver, solver_io='python')
+        result = solver.solve(model, tee=False)
+        optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
+        print("---------- MODEL SOLVED ----------")
         
-    #     ## Check Inputs
-    #     input_embed, elements = reformat(optimal_parameters,"input_embed") 
-    #     input = np.array(tir.layer_outputs_dict["input_layer_1"])
-    #     self.assertIsNone(np.testing.assert_array_equal(input_embed.shape, input.shape)) # compare shape with transformer
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(input_embed, input, decimal=5)) # compare value with transformer output
+        ## Check Inputs
+        input_embed, elements = reformat(optimal_parameters,"input_embed") 
+        input = np.array(tir.layer_outputs_dict["input_layer_1"])
+        self.assertIsNone(np.testing.assert_array_equal(input_embed.shape, input.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(input_embed, input, decimal=5)) # compare value with transformer output
        
-    #     attention_output, elements = reformat(optimal_parameters,"attention_output") 
-    #     MHA_output = np.array(tir.layer_outputs_dict["multi_head_attention_1"])
-    #     self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=5)) # compare value with transformer output
+        attention_output, elements = reformat(optimal_parameters,"attention_output") 
+        MHA_output = np.array(tir.layer_outputs_dict["multi_head_attention_1"])
+        self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=5)) # compare value with transformer output
         
-    #     ## Check Output
-    #     residual_output, elements = reformat(optimal_parameters,"residual_1") 
-    #     residual_calc = input + MHA_output
-    #     self.assertIsNone(np.testing.assert_array_equal(residual_output.shape, residual_calc.shape)) # compare shape with transformer
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(residual_output, residual_calc, decimal=5)) # compare value with transformer output
-    #     print("- Residual output formulation == Residual output model")
+        ## Check Output
+        residual_output, elements = reformat(optimal_parameters,"residual_1") 
+        residual_calc = input + MHA_output
+        self.assertIsNone(np.testing.assert_array_equal(residual_output.shape, residual_calc.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(residual_output, residual_calc, decimal=5)) # compare value with transformer output
+        print("- Residual output formulation == Residual output model")
     
-    # def test_layer_norm_2(self):
-    #     print("======= LAYER NORM 2 =======")
+    def test_layer_norm_2(self):
+        print("======= LAYER NORM 2 =======")
         
-    #     # Define Test Case Params
-    #     model = tps.model.clone()
-    #     config_file = '.\\data\\toy_config.json' 
-    #     T = 11
-    #     self.solver = 'gurobi'
+        # Define Test Case Params
+        model = tps.model.clone()
+        config_file = '.\\data\\toy_config.json' 
+        T = 11
+        self.solver = 'gurobi'
         
-    #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(model, config_file)
-    #     transformer.embed_input(model, "input_param","input_embed", "variables")
-    #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-    #     transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
-    #     transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
-    #     transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
+        # Define tranformer and execute 
+        transformer = TNN.Transformer(model, config_file)
+        transformer.embed_input(model, "input_param","input_embed", "variables")
+        transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+        transformer.add_attention_approx(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
+        transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
           
-    #     #Check  var and constraints created
-    #     self.assertIn("layer_norm_2", dir(model))                 # check layer_norm created
-    #     self.assertIsInstance(model.layer_norm_2, pyo.Var)        # check data type
-    #     self.assertTrue(hasattr(model, 'layer_norm_constraints'))      # check constraints created
-    #     print("- Vars and constraints created successfully")
+        #Check  var and constraints created
+        self.assertIn("layer_norm_2", dir(model))                 # check layer_norm created
+        self.assertIsInstance(model.layer_norm_2, pyo.Var)        # check data type
+        self.assertTrue(hasattr(model, 'layer_norm_constraints'))      # check constraints created
+        print("- Vars and constraints created successfully")
         
-    #     # Discretize model using Backward Difference method
-    #     discretizer = pyo.TransformationFactory("dae.finite_difference")
-    #     discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
+        # Discretize model using Backward Difference method
+        discretizer = pyo.TransformationFactory("dae.finite_difference")
+        discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
         
-    #     # Solve model
-    #     solver = SolverFactory(self.solver, solver_io='python')
-    #     result = solver.solve(model, tee=False)
-    #     optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
-    #     print("---------- MODEL SOLVED ----------")
+        # Solve model
+        solver = SolverFactory(self.solver, solver_io='python')
+        result = solver.solve(model, tee=False)
+        optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
+        print("---------- MODEL SOLVED ----------")
         
-    #     # ## Check Inputs
-    #     layer_norm_2_output, _ = reformat(optimal_parameters,"layer_norm_2") 
-    #     LN_2_output= np.array(tir.layer_outputs_dict["layer_normalization_2"])
-    #     self.assertIsNone(np.testing.assert_array_equal(layer_norm_2_output.shape, LN_2_output.shape)) # compare shape with transformer
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_2_output, LN_2_output, decimal=5)) # compare value with transformer output
-    #     print("- LN2 output formulation == LN2 output model")
+        # ## Check Inputs
+        layer_norm_2_output, _ = reformat(optimal_parameters,"layer_norm_2") 
+        LN_2_output= np.array(tir.layer_outputs_dict["layer_normalization_2"])
+        self.assertIsNone(np.testing.assert_array_equal(layer_norm_2_output.shape, LN_2_output.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_2_output, LN_2_output, decimal=5)) # compare value with transformer output
+        print("- LN2 output formulation == LN2 output model")
         
-    # def test_FFN1(self):
-    #     print("======= FFN1 =======")
+    def test_FFN1(self):
+        print("======= FFN1 =======")
         
-    #     # Define Test Case Params
-    #     model = tps.model.clone()
-    #     config_file = '.\\data\\toy_config.json' 
-    #     T = 11
-    #     self.solver = 'gurobi'
+        # Define Test Case Params
+        model = tps.model.clone()
+        config_file = '.\\data\\toy_config.json' 
+        T = 11
+        self.solver = 'gurobi'
         
-    #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(model, config_file)
-    #     transformer.embed_input(model, "input_param","input_embed", "variables")
-    #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-    #     transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
-    #     transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
-    #     transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-    #     transformer.add_FFN_2D(model, "layer_norm_2", "ffn_1", tir.layer_outputs_dict['layer_normalization_2'], tps.parameters)
+        # Define tranformer and execute 
+        transformer = TNN.Transformer(model, config_file)
+        transformer.embed_input(model, "input_param","input_embed", "variables")
+        transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+        transformer.add_attention_approx(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
+        transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
+        transformer.add_FFN_2D(model, "layer_norm_2", "ffn_1", tir.layer_outputs_dict['layer_normalization_2'], tps.parameters)
 
-        # #Check  var and constraints created
-        # self.assertIn("ffn_1", dir(model))                 # check layer_norm created
-        # self.assertIsInstance(model.ffn_1, pyo.Var)        # check data type
-        # self.assertIsInstance(model.ffn_1_NN_Block_0, OmltBlock)
-        # self.assertTrue(hasattr(model, 'ffn_constraints'))      # check constraints created
-        # print("- Vars and constraints created successfully")
+        #Check  var and constraints created
+        self.assertIn("ffn_1", dir(model))                 # check layer_norm created
+        self.assertIsInstance(model.ffn_1, pyo.Var)        # check data type
+        self.assertIsInstance(model.ffn_1_NN_Block_0, OmltBlock)
+        self.assertTrue(hasattr(model, 'ffn_constraints'))      # check constraints created
+        print("- Vars and constraints created successfully")
         
-    #     # # Discretize model using Backward Difference method
-    #     discretizer = pyo.TransformationFactory("dae.finite_difference")
-    #     discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
+        # # Discretize model using Backward Difference method
+        discretizer = pyo.TransformationFactory("dae.finite_difference")
+        discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
         
-    #     # # Solve model
-    #     solver = SolverFactory(self.solver, solver_io='python')
-    #     result = solver.solve(model, tee=False)
-    #     optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
-    #     print("---------- MODEL SOLVED ----------")
+        # # Solve model
+        solver = SolverFactory(self.solver, solver_io='python')
+        result = solver.solve(model, tee=False)
+        optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
+        print("---------- MODEL SOLVED ----------")
         
-        # 
         
-        # model.ffn_1_NN_Block_0.inputs.pprint()
-        # model.ffn_1_NN_Block_0.outputs.pprint()
-        # model.ffn_1_NN_Block_1.inputs.pprint()
-        # model.ffn_1_NN_Block_1.outputs.pprint()
         
-        # layer_norm_2_output, _ = reformat(optimal_parameters,"layer_norm_2")
-        # print(layer_norm_2_output)
-        # ffn_1_output, _ = reformat(optimal_parameters,"ffn_1") 
-        # FFN_1= np.array(tir.layer_outputs_dict["dense_1"])
-        # FFN_output= np.array(tir.layer_outputs_dict["dense_2"])
-        # print("form out :", ffn_1_output)
-        # print("TNN dense 1:", FFN_1)
-        # print("TNN dense 2:", FFN_output)
-        # self.assertIsNone(np.testing.assert_array_equal(ffn_1_output.shape,  FFN_output.shape)) # compare shape with transformer
-        # self.assertIsNone(np.testing.assert_array_almost_equal(ffn_1_output,  FFN_output, decimal=5)) # compare value with transformer output
-        # print("- FFN1 output formulation == FFN1 output model")    
+        model.ffn_1_NN_Block_0.inputs.pprint()
+        model.ffn_1_NN_Block_0.outputs.pprint()
+        model.ffn_1_NN_Block_1.inputs.pprint()
+        model.ffn_1_NN_Block_1.outputs.pprint()
+        
+        layer_norm_2_output, _ = reformat(optimal_parameters,"layer_norm_2")
+        print(layer_norm_2_output)
+        ffn_1_output, _ = reformat(optimal_parameters,"ffn_1") 
+        FNN_input = np.array(tir.layer_outputs_dict["layer_normalization_2"])
+        FFN_1= np.array(tir.layer_outputs_dict["dense_1"])
+        FFN_output= np.array(tir.layer_outputs_dict["dense_2"])
+        print("form out :", ffn_1_output)
+        print("TNN input:", FNN_input)
+        print("TNN dense 1:", FFN_1)
+        print("TNN dense 2:", FFN_output)
+        self.assertIsNone(np.testing.assert_array_equal(ffn_1_output.shape,  FFN_output.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(ffn_1_output,  FFN_output, decimal=5)) # compare value with transformer output
+        print("- FFN1 output formulation == FFN1 output model")    
         
 # -------- Helper functions ----------------------------------------------------------------------------------       
 def get_optimal_dict(result, model):
