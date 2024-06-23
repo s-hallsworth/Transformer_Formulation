@@ -7,7 +7,8 @@ import extract_from_pretrained as extract_from_pretrained
 Define toy problem parametrs and var then run from another script like toy_problem.py or transformer_test.py
 """
 ## read model weights
-model_path = "..\\Transformer_Toy\\transformer_small_2_TOY.keras" 
+model_path = "..\\Transformer_Toy\\transformer_small_relu_2_TOY.keras" 
+# model_path = "..\\Transformer_Toy\\transformer_small_2_TOY.keras" 
 #model_path = "..\\Transformer_Toy\\transformer_small_2-no_w_mha.keras" 
 layer_names, parameters, TNN_model = extract_from_pretrained.get_learned_parameters(model_path)
 

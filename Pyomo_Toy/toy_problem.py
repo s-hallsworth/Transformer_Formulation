@@ -15,7 +15,7 @@ pyomo solve toy_problem.py --solver=gurobi --stream-solver --summary # run model
 """
 
 # create transformer instance     
-transformer = transformer.Transformer(model, ".\\data\\toy_config.json")
+transformer = transformer.Transformer(model, ".\\data\\toy_config_relu_2.json")
 
 # add trnasformer layers and constraints
 transformer.embed_input(model, "input_param","input_embed", "variables")

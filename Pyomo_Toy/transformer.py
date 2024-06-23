@@ -19,8 +19,7 @@ class Transformer:
         with open(config_file, "r") as file:
             config = json.load(file)
 
-        self.seq_len = 10
-        self.N = config['hyper_params']['N']
+        self.N = config['hyper_params']['N'] # sequence length
         self.d_model = config['hyper_params']['d_model'] # embedding dimensions of model
         self.d_k = config['hyper_params']['d_k']
         self.d_H = config['hyper_params']['d_H']
@@ -612,45 +611,47 @@ class Transformer:
                 M.residual_constraints.add(expr= residual_var[n,d] == input_1[n,d] + input_2[n,d])
 
     
-    def add_FFN_2D(self,M, input_var_name, output_var_name, input_value, model_parameters):
+    def add_FFN_2D(self,M, input_var_name, output_var_name, input_shape, model_parameters):
         input_var = getattr(M, input_var_name)
-        
         M.ffn_constraints = pyo.ConstraintList()
 
         # add new variable
-        if not hasattr(M, output_var_name):
+        if not hasattr(M, output_var_name + "_NN_Block"):
+            NN_name = output_var_name + "_NN_Block"
+            setattr(M, NN_name, OmltBlock())
+            NN_block = getattr(M, NN_name)
+            
             setattr(M, output_var_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals))
             output_var = getattr(M, output_var_name)
-            
-            NN_block_list = []
-            for elem in range(self.seq_len):
-                NN_name = output_var_name + "_NN_Block_"+str(elem)
-                setattr(M, NN_name, OmltBlock())
-                NN_block_list += [getattr(M, NN_name)]
-            
-            # NN_name = output_var_name + "_NN_Block_"+str(d)
-            # setattr(M, NN_name, OmltBlock())
-            # NN_block = [getattr(M, NN_name)]
-        
         else:
             raise ValueError('Attempting to overwrite variable')
         
+        ###### GET BOUNDS
         input_bounds={0: (-100,100), 1: (-100,100), 2: (-100,100), 3:(-100,100), 4:(-100,100), 5: (-100,100), 6: (-100,100), 7: (-100,100), 8: (-100,100), 9: (-100,100)} ### fix input bounds
-        net_relu = weights_to_NetDef(output_var_name, input_value, model_parameters, input_bounds)
-        #net_relu = weights_to_NetworkDefinition(output_var_name, model_parameters)
-  
-        #formulation_bigm = []
-        print("LEN",len(net_relu ))
-        for i, net in enumerate(net_relu):
-            print(i, net)
-            #formulation_bigm += [ReluBigMFormulation(net)]
-            NN_block_list[i].build_formulation(ReluBigMFormulation(net))
-            
+        net_relu = weights_to_NetDef(output_var_name, input_shape, model_parameters, input_bounds)
+        NN_block.build_formulation(ReluBigMFormulation(net_relu))
+
+
+        for r, row in enumerate(M.time_input): 
+            for c, col in enumerate(M.model_dims): 
+                M.ffn_constraints.add(expr= input_var[row,col] == NN_block.inputs[c])
+                M.ffn_constraints.add(expr= output_var[row,col] == NN_block.outputs[c])
         
-        for i,t in enumerate(M.time_input): 
-            for j,d in enumerate(M.model_dims): 
-                M.ffn_constraints.add(expr= input_var[t,d] == NN_block_list[i].inputs[j])
-                M.ffn_constraints.add(expr= output_var[t,d] == NN_block_list[i].outputs[j])
+    def add_avg_pool(self,M, input_var_name, output_var_name):
+        input_var = getattr(M, input_var_name)
+        M.avg_pool_constraints = pyo.ConstraintList()
+
+        # add new variable
+        if not hasattr(M, output_var_name):
+            
+            setattr(M, output_var_name, pyo.Var(M.model_dims, within=pyo.Reals))
+            output_var = getattr(M, output_var_name)
+        else:
+            raise ValueError('Attempting to overwrite variable')
+
+
+        for d in M.model_dims: 
+            M.avg_pool_constraints.add(expr= output_var[d] * self.N == sum(input_var[t,d] for t in M.time_input))
         
     #def add_output_constraints(self, M, input_var):
         # if not hasattr(M, "output_constraints"):
@@ -674,18 +675,3 @@ class Transformer:
 
 
 
-# transformer_pred = [0,0]
-# def _x_transformer(M, t):
-#     if t == M.time.first() :
-#         return pyo.Constraint.Skip
-#     if t <= 0.9:
-#         return M.x[t] == M.x_in[t]
-
-#     return M.x[t] == transformer_pred[0]
-
-# def _u_transformer(M, t):
-#     if t == M.time.first():
-#         return pyo.Constraint.Skip
-#     if t > 0.9
-#         return M.u[t] == M.u_in[t]
-#     return M.u[t] == transformer_pred[1]
