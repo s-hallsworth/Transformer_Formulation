@@ -613,7 +613,6 @@ class Transformer:
     
     def add_FFN_2D(self,M, input_var_name, output_var_name, input_shape, model_parameters):
         input_var = getattr(M, input_var_name)
-        M.ffn_constraints = pyo.ConstraintList()
 
         # add new variable
         if not hasattr(M, output_var_name + "_NN_Block"):
@@ -621,8 +620,11 @@ class Transformer:
             setattr(M, NN_name, OmltBlock())
             NN_block = getattr(M, NN_name)
             
-            setattr(M, output_var_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals))
+            setattr(M, output_var_name, pyo.Var(input_var.index_set(), within=pyo.Reals))
             output_var = getattr(M, output_var_name)
+            
+            setattr(M, output_var_name+"_constraints", pyo.ConstraintList())
+            ffn_constraints = getattr(M, output_var_name+"_constraints")
         else:
             raise ValueError('Attempting to overwrite variable')
         
@@ -630,12 +632,49 @@ class Transformer:
         input_bounds={0: (-100,100), 1: (-100,100), 2: (-100,100), 3:(-100,100), 4:(-100,100), 5: (-100,100), 6: (-100,100), 7: (-100,100), 8: (-100,100), 9: (-100,100)} ### fix input bounds
         net_relu = weights_to_NetDef(output_var_name, input_shape, model_parameters, input_bounds)
         NN_block.build_formulation(ReluBigMFormulation(net_relu))
-
-
-        for r, row in enumerate(M.time_input): 
-            for c, col in enumerate(M.model_dims): 
-                M.ffn_constraints.add(expr= input_var[row,col] == NN_block.inputs[c])
-                M.ffn_constraints.add(expr= output_var[row,col] == NN_block.outputs[c])
+        
+        # Set input constraints
+        input_indices_len, input_indices_attr = self.get_indices(M, input_var)
+        if input_indices_len == 1:
+            for i, index in  enumerate(input_indices_attr[0]):
+                ffn_constraints.add(expr= input_var[index] == NN_block.inputs[i])
+        elif input_indices_len == 2:
+            for i, i_index in  enumerate(input_indices_attr[0]):
+                for j, j_index in  enumerate(input_indices_attr[1]):
+                    ffn_constraints.add(expr= input_var[i_index, j_index] == NN_block.inputs[j])
+                    
+                    
+        # Set output constraints
+        output_indices_len, output_indices_attr = self.get_indices(M, output_var)
+        if output_indices_len == 1:
+            for i, index in  enumerate(output_indices_attr[0]):
+                ffn_constraints.add(expr= output_var[index] == NN_block.outputs[i])
+        elif output_indices_len == 2:
+            for i, i_index in  enumerate(output_indices_attr[0]):
+                for j, j_index in  enumerate(output_indices_attr[1]):
+                    ffn_constraints.add(expr= output_var[i_index, j_index] == NN_block.outputs[j])
+            
+        # for row, col in input_var.index_set():
+        #     ffn_constraints.add(expr= input_var[row,col] == NN_block.inputs[col])
+            #ffn_constraints.add(expr= output_var[row,col] == NN_block.outputs[col])
+            
+        # for r, row in enumerate(M.time_input): 
+        #     for c, col in enumerate(M.model_dims): 
+        #         ffn_constraints.add(expr= input_var[row,col] == NN_block.inputs[c])
+        #         ffn_constraints.add(expr= output_var[row,col] == NN_block.outputs[c])
+        
+    def get_indices(self, M, input_var):
+        # Get indices of var
+        indices = str(input_var.index_set()).split('*')
+        indices_len = len(indices)
+        indices_attr = []
+        for i in indices:
+            try: 
+                indices_attr += [getattr(M, i)]
+            except:
+                raise ValueError('Input variable not indexed by a pyomo Set')
+        
+        return indices_len, indices_attr
         
     def add_avg_pool(self,M, input_var_name, output_var_name):
         input_var = getattr(M, input_var_name)
@@ -643,7 +682,6 @@ class Transformer:
 
         # add new variable
         if not hasattr(M, output_var_name):
-            
             setattr(M, output_var_name, pyo.Var(M.model_dims, within=pyo.Reals))
             output_var = getattr(M, output_var_name)
         else:
