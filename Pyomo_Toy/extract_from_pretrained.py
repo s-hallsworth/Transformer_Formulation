@@ -42,6 +42,16 @@ def get_learned_parameters(model_path):
     transformer_weights, model = get_weights(model_path, save_json=False)
     model_layers = [x.name for x in model.layers if "dropout" not in x.name]
     model_outputs = [layer.output for layer in model.layers if "dropout" not in layer.name]
+    model_activations = []
+    for layer in model.layers:
+        if "dropout" in layer.name:
+            continue
+        
+        config = layer.get_config()
+        if 'activation' in config:
+            model_activations += [config['activation']]
+        else:
+            model_activations += [None]
 
     # create dictionary with parameters
     dict_transformer_params = {}
@@ -95,15 +105,17 @@ def get_learned_parameters(model_path):
             dict_transformer_params[(new_layer_name, 'W')] = parameters[0]
             dict_transformer_params[(new_layer_name, 'b')] = parameters[1] 
             
-        if 'DENSE' in layer_name.upper():  
-
-            if 'DENSE' in model_layers[i-1].upper():
+        if 'DENSE' in layer_name.upper(): 
+            
+            # if previous layer also dense, count as part of previous FFN
+            if 'DENSE' in model_layers[i-1].upper() and model_activations[i-1] == model_activations[i]: 
                 count_Layers += 1
                 #new_layer_name = 'dense_'+str(count_Layers)
                 
-                dict_transformer_params[NN_name] |= { layer_name: {'W': parameters[0], 'b': parameters[1]}}
-               
-            else:
+                dict_transformer_params[NN_name] |= { layer_name: {'W': parameters[0], 'b': parameters[1], 'activation': model_activations[i]}}
+            
+            # else create new ffn in dict 
+            else: 
                 count_Layers = 1
                 count_Dense += 1
                 NN_name = 'ffn_'+str(count_Dense)
@@ -112,7 +124,7 @@ def get_learned_parameters(model_path):
                
                 dict_transformer_params[NN_name] = {'input_shape': model_outputs[i-1].shape, 
                                                     'input': model_outputs[i-1],
-                                                     layer_name: {'W': parameters[0], 'b': parameters[1]}}  
+                                                     layer_name: {'W': parameters[0], 'b': parameters[1], 'activation': model_activations[i]}}  
             
         layer_names += [new_layer_name]
             

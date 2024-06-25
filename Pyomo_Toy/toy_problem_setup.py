@@ -7,7 +7,8 @@ import extract_from_pretrained as extract_from_pretrained
 Define toy problem parametrs and var then run from another script like toy_problem.py or transformer_test.py
 """
 ## read model weights
-model_path = "..\\Transformer_Toy\\transformer_small_2_TOY.keras" 
+model_path = "..\\Transformer_Toy\\transformer_small_relu_2_TOY.keras" 
+# model_path = "..\\Transformer_Toy\\transformer_small_2_TOY.keras" 
 #model_path = "..\\Transformer_Toy\\transformer_small_2-no_w_mha.keras" 
 layer_names, parameters, TNN_model = extract_from_pretrained.get_learned_parameters(model_path)
 
@@ -39,7 +40,6 @@ dict_beta1 = {(v): val for v,val in zip(model.variables,  parameters['layer_norm
 model.gamma1 = pyo.Param(model.variables, initialize = dict_gamma1)
 model.beta1 = pyo.Param(model.variables, initialize = dict_beta1)
 
-print("beta1", dict_beta1)
 
 dict_gamma2 = {(v): val for v,val in zip(model.variables, parameters['layer_normalization_2','gamma'])}
 dict_beta2 = {(v): val for v,val in zip(model.variables,  parameters['layer_normalization_2','beta'])}
