@@ -363,7 +363,7 @@ class Transformer:
                     )
                 
                 
-     def add_attention_approx(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):
+    def add_attention_approx(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):
         """
         Multihead attention between each element of embedded sequence
         
