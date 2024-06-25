@@ -8,7 +8,8 @@ from omlt import OmltBlock
 from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation
 from omlt.io.keras import keras_reader
 import omlt
-from OMLT_helper import weights_to_NetworkDefinition, weights_to_NetDef
+import OMLT_helper 
+import GUROBI_ML_helper
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
@@ -19,7 +20,7 @@ class Transformer:
         with open(config_file, "r") as file:
             config = json.load(file)
 
-        self.N = config['hyper_params']['N']
+        self.N = config['hyper_params']['N'] # sequence length
         self.d_model = config['hyper_params']['d_model'] # embedding dimensions of model
         self.d_k = config['hyper_params']['d_k']
         self.d_H = config['hyper_params']['d_H']
@@ -528,9 +529,6 @@ class Transformer:
                             == sum(M.Q[h, n, k] * (M.K[ h, p, k] )for k in M.k_dims)
                         )  
                         
-                        #M.attention_constraints.add(expr= pyo.exp(M.compatibility[h,n,p]) >= 0)#== M.compatibility_exp[h, n, p] )
-                        #print(M.compatibility.pprint())
-                        
                         
     # # #                 # power series approx for EXP
                         M.attention_constraints.add(expr= M.compatibility[h, n, p]**2 == M.compatibility_squ[h, n, p] )#problem for gurobi
@@ -566,6 +564,33 @@ class Transformer:
                         M.attention_constraints.add(
                             expr=M.attention_weight[h, n, n2] * M.compatibility_exp_sum[h, n]
                             == M.compatibility_exp[h, n, n2]) 
+                        
+        # multihead attention output constraint
+        for n in M.time_input:
+            for d in M.model_dims:
+                if b_o:
+                    M.attention_constraints.add(
+                        expr=M.attention_output[n, d]
+                        == sum(
+                            (sum(
+                            M.attention_score[h, n, k] * M.W_o[d,h, k]
+                            for k in M.k_dims
+                             ) )
+                        for h in M.heads
+                        
+                        ) + M.b_o[d]
+                    )
+                else:
+                    M.attention_constraints.add(
+                        expr=M.attention_output[n, d]
+                        == sum(
+                            (sum(
+                            M.attention_score[h, n, k] * M.W_o[d,h, k]
+                            for k in M.k_dims
+                             ) )
+                        for h in M.heads
+                        )
+                    )
 
     def add_residual_connection(self,M, input_1_name, input_2_name, output_var_name):
         # create constraint list
@@ -587,56 +612,96 @@ class Transformer:
                 M.residual_constraints.add(expr= residual_var[n,d] == input_1[n,d] + input_2[n,d])
 
     
-    def add_FFN_2D(self,M, input_var_name, output_var_name, input_value, model_parameters):
+    def add_FFN_2D(self,M, input_var_name, output_var_name, input_shape, model_parameters):
         input_var = getattr(M, input_var_name)
-        
-        # # define calculation variables
-        #     variance_name = 'variance_'+ layer_norm_var_name
-        #     setattr(M, variance_name, pyo.Var(M.time_input, within=pyo.Reals, bounds=(None,None)))
-        #     variance = getattr(M, variance_name)
-        
-        # create constraint list
-        # constraint_name = input_var_name + "_constraints"
-        # if not hasattr(M, constraint_name):
-        #     setattr(M, constraint_name, pyo.ConstraintList())
-        #     constraint_list = getattr(M, constraint_name)
-        #     constraint_list.pprint()
-        M.ffn_constraints = pyo.ConstraintList()
 
         # add new variable
-        if not hasattr(M, output_var_name):
-            setattr(M, output_var_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals))
+        if not hasattr(M, output_var_name + "_NN_Block"):
+            NN_name = output_var_name + "_NN_Block"
+            setattr(M, NN_name, OmltBlock())
+            NN_block = getattr(M, NN_name)
+            
+            setattr(M, output_var_name, pyo.Var(input_var.index_set(), within=pyo.Reals))
             output_var = getattr(M, output_var_name)
             
-            NN_block_list = []
-            for d in range(self.d_model):
-                NN_name = output_var_name + "_NN_Block_"+str(d)
-                setattr(M, NN_name, OmltBlock())
-                NN_block_list += [getattr(M, NN_name)]
-            
-            # NN_name = output_var_name + "_NN_Block_"+str(d)
-            # setattr(M, NN_name, OmltBlock())
-            # NN_block = [getattr(M, NN_name)]
-        
+            setattr(M, output_var_name+"_constraints", pyo.ConstraintList())
+            ffn_constraints = getattr(M, output_var_name+"_constraints")
         else:
             raise ValueError('Attempting to overwrite variable')
         
-        input_bounds={0: (-10,10), 1: (-10,10)} ### fix input bounds
-        net_relu = weights_to_NetDef(output_var_name, input_value, model_parameters, input_bounds)
-        #net_relu = weights_to_NetworkDefinition(output_var_name, model_parameters)
-  
-        #formulation_bigm = []
-        for i, net in enumerate(net_relu):
-            #formulation_bigm += [ReluBigMFormulation(net)]
-            NN_block_list[i].build_formulation(ReluBigMFormulation(net))
+        ###### GET BOUNDS
+        input_bounds={0: (-100,100), 1: (-100,100), 2: (-100,100), 3:(-100,100), 4:(-100,100), 5: (-100,100), 6: (-100,100), 7: (-100,100), 8: (-100,100), 9: (-100,100)} ### fix input bounds
+        net_relu = OMLT_helper.weights_to_NetDef(output_var_name, input_shape, model_parameters, input_bounds)
+        NN_block.build_formulation(ReluBigMFormulation(net_relu))
         
-        # for i,t in enumerate(M.time_input): 
-        #     for j,d in enumerate(M.model_dims): 
-        #         M.ffn_constraints.add(expr= input_var[t,d] == NN_block_list[j].inputs[i])
-        #         M.ffn_constraints.add(expr= output_var[t,d] == NN_block_list[j].outputs[i])
+        # Set input constraints
+        input_indices_len, input_indices_attr = self.get_indices(M, input_var)
+        if input_indices_len == 1:
+            for i, index in  enumerate(input_indices_attr[0]):
+                ffn_constraints.add(expr= input_var[index] == NN_block.inputs[i])
+        elif input_indices_len == 2:
+            for i, i_index in  enumerate(input_indices_attr[0]):
+                for j, j_index in  enumerate(input_indices_attr[1]):
+                    ffn_constraints.add(expr= input_var[i_index, j_index] == NN_block.inputs[j])
+                    
+                    
+        # Set output constraints
+        output_indices_len, output_indices_attr = self.get_indices(M, output_var)
+        if output_indices_len == 1:
+            for i, index in  enumerate(output_indices_attr[0]):
+                ffn_constraints.add(expr= output_var[index] == NN_block.outputs[i])
+        elif output_indices_len == 2:
+            for i, i_index in  enumerate(output_indices_attr[0]):
+                for j, j_index in  enumerate(output_indices_attr[1]):
+                    ffn_constraints.add(expr= output_var[i_index, j_index] == NN_block.outputs[j])
+            
+    def get_fnn(self,M, input_var_name, output_var_name, input_shape, model_parameters):
+        input_var = getattr(M, input_var_name)
+        
+        # add new variable
+        if not hasattr(M, output_var_name + "_NN_Block"):
+            
+            setattr(M, output_var_name, pyo.Var(input_var.index_set(), within=pyo.Reals))
+            output_var = getattr(M, output_var_name)
+            
+            setattr(M, output_var_name+"_constraints", pyo.ConstraintList())
+            ffn_constraints = getattr(M, output_var_name+"_constraints")
+        else:
+            raise ValueError('Attempting to overwrite variable')
+        
+        nn= GUROBI_ML_helper.weights_to_NetDef(output_var_name, input_shape, model_parameters)
+       
+        return nn, input_var, output_var
+            
+        
+    def get_indices(self, M, input_var):
+        # Get indices of var
+        indices = str(input_var.index_set()).split('*')
+        indices_len = len(indices)
+        indices_attr = []
+        for i in indices:
+            try: 
+                indices_attr += [getattr(M, i)]
+            except:
+                raise ValueError('Input variable not indexed by a pyomo Set')
+        
+        return indices_len, indices_attr
+        
+    def add_avg_pool(self,M, input_var_name, output_var_name):
+        input_var = getattr(M, input_var_name)
+        M.avg_pool_constraints = pyo.ConstraintList()
 
-        NN_block_list[0].pprint()
-        NN_block_list[1].pprint()
+        # add new variable
+        if not hasattr(M, output_var_name):
+            setattr(M, output_var_name, pyo.Var(M.model_dims, within=pyo.Reals))
+            output_var = getattr(M, output_var_name)
+        else:
+            raise ValueError('Attempting to overwrite variable')
+
+
+        for d in M.model_dims: 
+            M.avg_pool_constraints.add(expr= output_var[d] * self.N == sum(input_var[t,d] for t in M.time_input))
+        
     #def add_output_constraints(self, M, input_var):
         # if not hasattr(M, "output_constraints"):
         #     M.output_constraints = pyo.ConstraintList()
@@ -659,18 +724,3 @@ class Transformer:
 
 
 
-# transformer_pred = [0,0]
-# def _x_transformer(M, t):
-#     if t == M.time.first() :
-#         return pyo.Constraint.Skip
-#     if t <= 0.9:
-#         return M.x[t] == M.x_in[t]
-
-#     return M.x[t] == transformer_pred[0]
-
-# def _u_transformer(M, t):
-#     if t == M.time.first():
-#         return pyo.Constraint.Skip
-#     if t > 0.9
-#         return M.u[t] == M.u_in[t]
-#     return M.u[t] == transformer_pred[1]
