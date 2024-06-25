@@ -8,7 +8,8 @@ from omlt import OmltBlock
 from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation
 from omlt.io.keras import keras_reader
 import omlt
-from OMLT_helper import weights_to_NetworkDefinition, weights_to_NetDef
+import OMLT_helper 
+import GUROBI_ML_helper
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
@@ -630,7 +631,7 @@ class Transformer:
         
         ###### GET BOUNDS
         input_bounds={0: (-100,100), 1: (-100,100), 2: (-100,100), 3:(-100,100), 4:(-100,100), 5: (-100,100), 6: (-100,100), 7: (-100,100), 8: (-100,100), 9: (-100,100)} ### fix input bounds
-        net_relu = weights_to_NetDef(output_var_name, input_shape, model_parameters, input_bounds)
+        net_relu = OMLT_helper.weights_to_NetDef(output_var_name, input_shape, model_parameters, input_bounds)
         NN_block.build_formulation(ReluBigMFormulation(net_relu))
         
         # Set input constraints
@@ -654,14 +655,24 @@ class Transformer:
                 for j, j_index in  enumerate(output_indices_attr[1]):
                     ffn_constraints.add(expr= output_var[i_index, j_index] == NN_block.outputs[j])
             
-        # for row, col in input_var.index_set():
-        #     ffn_constraints.add(expr= input_var[row,col] == NN_block.inputs[col])
-            #ffn_constraints.add(expr= output_var[row,col] == NN_block.outputs[col])
+    def get_fnn(self,M, input_var_name, output_var_name, input_shape, model_parameters):
+        input_var = getattr(M, input_var_name)
+        
+        # add new variable
+        if not hasattr(M, output_var_name + "_NN_Block"):
             
-        # for r, row in enumerate(M.time_input): 
-        #     for c, col in enumerate(M.model_dims): 
-        #         ffn_constraints.add(expr= input_var[row,col] == NN_block.inputs[c])
-        #         ffn_constraints.add(expr= output_var[row,col] == NN_block.outputs[c])
+            setattr(M, output_var_name, pyo.Var(input_var.index_set(), within=pyo.Reals))
+            output_var = getattr(M, output_var_name)
+            
+            setattr(M, output_var_name+"_constraints", pyo.ConstraintList())
+            ffn_constraints = getattr(M, output_var_name+"_constraints")
+        else:
+            raise ValueError('Attempting to overwrite variable')
+        
+        nn= GUROBI_ML_helper.weights_to_NetDef(output_var_name, input_shape, model_parameters)
+       
+        return nn, input_var, output_var
+            
         
     def get_indices(self, M, input_var):
         # Get indices of var

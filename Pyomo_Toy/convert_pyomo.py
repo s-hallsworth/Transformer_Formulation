@@ -3,6 +3,8 @@ import pyomo.core.expr as pyo_expr
 import pyomo.core.base as pyo_base
 from pyomo import dae
 from gurobipy import Model, GRB
+import numpy as np
+import omlt
 
 def to_gurobi(pyomo_model, func_nonlinear=1):
     
@@ -12,59 +14,34 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
     
     # Mapping of Pyomo variables to Gurobi variables
     var_map = {}
-    
+        
     # Convert Vars and Params
     for attr in dir(pyomo_model):
         var = getattr(pyomo_model, attr)
         
-        # Variables
-        if isinstance(var, pyo.Var):
-            if var.is_indexed():
-                index_set = list(var.index_set().data())
-                vtype = get_gurobi_vtype(var[index_set[0]])
-                gurobi_var = gurobi_model.addVars(index_set, name=str(var), vtype=vtype)
-                
-                # add bounds
-                for index in index_set:
-                    pyomo_var = var[index]
-                    gurobi_var[index].lb = pyomo_var.lb if pyomo_var.lb is not None else -GRB.INFINITY
-                    gurobi_var[index].ub = pyomo_var.ub if pyomo_var.ub is not None else GRB.INFINITY
-                    var_map[pyomo_var.name] = gurobi_var[index] 
-            else:
-                lb = var.lb if var.lb is not None else -GRB.INFINITY
-                ub = var.ub if var.ub is not None else GRB.INFINITY
-                vtype = get_gurobi_vtype(var)
-                gurobi_var = gurobi_model.addVar(lb=lb, ub=ub, name=str(var), vtype=vtype)
-                var_map[var.name] = gurobi_var
-        
-        # Parameters   
-        elif isinstance(var, pyo.Param):
-            if var.is_indexed():
-                index_set = list(var.index_set().data())
-                vtype = get_gurobi_vtype(var[index_set[0]])
-                gurobi_var = gurobi_model.addVars(index_set, name=str(var), vtype=vtype)
-                var_map[var.name] = gurobi_var
-                
-                # add bounds
-                for index in index_set:
-                    pyomo_var = var[index]
+        if isinstance(var, (omlt.OmltBlock, pyo.Block)): # Check for Block()
+            if "NN" in str(var):
+                for attr in dir(var): # iterate over Block attributes
+                    block_attr = getattr(var, attr)
                     
-                    if isinstance(pyomo_var, (int, float)):
-                        gurobi_var[index].lb = pyomo_var
-                        gurobi_var[index].ub = pyomo_var
-                        var_map[var.name+str(list(index))] = gurobi_var[index] 
-                    else:
-                        gurobi_var[index].lb = pyomo_var.data()
-                        gurobi_var[index].ub = pyomo_var.data()
-                        var_map[pyomo_var.name] = gurobi_var[index] 
+                    # Handle OMLT NN Block layer
+                    if "NN_Block.layer" in str(block_attr):
                         
+                        if isinstance(block_attr, (omlt.OmltBlock, pyo.Block)):
+                            for attr2 in dir(block_attr): # iterate over Block attributes
+                                block_attr2 = getattr(block_attr, attr2)
+                                
+                                if isinstance(block_attr2, dict) and isinstance(list(block_attr2.keys())[0], int):
+                                    for index, obj in block_attr2.items():    
+                                        var_map = convert_block(obj, var_map, gurobi_model)      
+                    else:
+                        var_map = convert_block(var, var_map, gurobi_model)   
             else:
-                gurobi_var = gurobi_model.setParam( str(var), var.data())
-                var_map[var.name] = gurobi_var
-                
-        gurobi_model.update()
-        # else:
-        #     print(f"{attr} ({type(var)}): Attribute not included in gurobi model")
+                var_map = convert_block(var, var_map, gurobi_model)
+                         
+        else:  
+            # Map & convert model params and vars to gurobi vars  
+            var_map = create_gurobi_var(var, var_map, gurobi_model)
 
     
     # Convert objective
@@ -127,7 +104,7 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
                         gurobi_model.addConstr(lhs_gurobi_expr <= rhs_gurobi_expr)
     
             gurobi_model.update()
-    return gurobi_model
+    return gurobi_model, var_map
 
 def get_gurobi_vtype(pyomo_var):
     try:
@@ -144,19 +121,91 @@ def get_gurobi_vtype(pyomo_var):
     else:
         return GRB.CONTINUOUS  # Default to continuous if the domain is not specified or different
 
+def convert_block(var, var_map, gurobi_model):
+    for attr in dir(var): # iterate over Block attributes
+        block_attr = getattr(var, attr)
+        
+        # Map & convert block params and vars to gurobi vars
+        if isinstance(block_attr, (pyo.Var, pyo_base.var._GeneralVarData, pyo.Param)):
+            var_map = create_gurobi_var(block_attr, var_map, gurobi_model) 
+            
+        # Check for sub-block
+        elif isinstance(block_attr, (omlt.OmltBlock, pyo.Block)):
+            var_map = convert_block(block_attr, var_map, gurobi_model)
+
+    return var_map
+                    
+def create_gurobi_var(var, var_map, gurobi_model):
+    
+    # Variables
+    if isinstance(var, (pyo.Var,pyo_base.var._GeneralVarData)):
+        if var.is_indexed():
+            index_set = list(var.index_set().data())
+            vtype = get_gurobi_vtype(var[index_set[0]])
+            gurobi_var = gurobi_model.addVars(index_set, name=str(var), vtype=vtype)
+            
+            # add bounds
+            for index in index_set:
+                pyomo_var = var[index]
+                gurobi_var[index].lb = pyomo_var.lb if pyomo_var.lb is not None else -GRB.INFINITY
+                gurobi_var[index].ub = pyomo_var.ub if pyomo_var.ub is not None else GRB.INFINITY
+
+                var_map[pyomo_var.name] = gurobi_var[index] 
+        else:
+            lb = var.lb if var.lb is not None else -GRB.INFINITY
+            ub = var.ub if var.ub is not None else GRB.INFINITY
+            vtype = get_gurobi_vtype(var)
+            gurobi_var = gurobi_model.addVar(lb=lb, ub=ub, name=str(var), vtype=vtype)
+            var_map[var.name] = gurobi_var
+            
+        gurobi_model.update()
+        
+    # Parameters   
+    elif isinstance(var, pyo.Param):
+        if var.is_indexed():
+            index_set = list(var.index_set().data())
+            vtype = get_gurobi_vtype(var[index_set[0]])
+            gurobi_var = gurobi_model.addVars(index_set, name=str(var), vtype=vtype)
+            var_map[var.name] = gurobi_var
+            
+            # add bounds
+            for index in index_set:
+                pyomo_var = var[index]
+                
+                
+                if isinstance(pyomo_var, (int, float)):
+                    gurobi_var[index].lb = pyomo_var
+                    gurobi_var[index].ub = pyomo_var
+                    var_map[var.name+str(list(index))] = gurobi_var[index] 
+                    
+                elif isinstance(pyomo_var, pyo_base.param._ParamData):
+                    gurobi_var[index].lb = pyomo_var.value
+                    gurobi_var[index].ub = pyomo_var.value
+                    var_map[pyomo_var.name] = gurobi_var[index] 
+                else:
+                    gurobi_var[index].lb = pyomo_var.data()
+                    gurobi_var[index].ub = pyomo_var.data()
+                    var_map[pyomo_var.name] = gurobi_var[index] 
+        else:
+            gurobi_var = gurobi_model.setParam( str(var), var.data())
+            var_map[var.name] = gurobi_var
+            
+        gurobi_model.update()
+    return var_map
+                
 def expr_to_gurobi(expr, var_map, gurobi_model):
-    #print("expression", expr, type(expr))
+    # print("expression", expr, type(expr))
     
     ## INT
-    if isinstance(expr, int):
+    if isinstance(expr, (int, np.int32, np.int64 )):
         return expr, True
     
     ## FLOAT
-    elif isinstance(expr, float):
+    elif isinstance(expr, (float, np.float32, np.float64)):
         return expr, True
     
     ## PARAMETER
-    if isinstance(expr, pyo.Param):
+    if isinstance(expr, (pyo.Param, pyo_base.param._ParamData)):
         gurobi_var = var_map[expr.name]
         return  gurobi_var, True
     
@@ -168,9 +217,11 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
     ## LINEAR EXPR
     elif isinstance(expr, pyo_expr.numeric_expr.LinearExpression):
         gurobi_expr = 0.0
+        #print("lin expr: ", expr)
         for sub_expr in expr.args:
             sub_gurobi_expr, _ = expr_to_gurobi(sub_expr, var_map, gurobi_model)
             gurobi_expr += sub_gurobi_expr
+
         return gurobi_expr, True
     
     ## PRODUCT EXPR
@@ -178,7 +229,7 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
         gurobi_expr = 1.0
         for sub_expr in expr.args:
             sub_gurobi_expr, _ = expr_to_gurobi(sub_expr, var_map, gurobi_model)
-            gurobi_expr *= sub_gurobi_expr
+            gurobi_expr *= (sub_gurobi_expr)
         return gurobi_expr, True
     
     ## SUM EXPR
