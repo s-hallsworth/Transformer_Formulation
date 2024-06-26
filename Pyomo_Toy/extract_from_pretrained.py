@@ -159,6 +159,7 @@ def get_intermediate_values(model_path, sample_input, file_name=None):
         count = layer_names.count(layer_name) + 1
         layer_outputs_dict[layer_name+'_'+str(count)] = outputs_list[i]
         layer_names += [layer_name]
+        
 
     if file_name:
         with open(file_name, 'w') as file:

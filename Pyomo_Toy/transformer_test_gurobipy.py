@@ -10,6 +10,7 @@ from omlt import OmltBlock
 import convert_pyomo
 from gurobipy import Model, GRB
 from gurobi_ml import add_predictor_constr
+from GUROBI_ML_helper import get_inputs_gurobipy_FNN
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
@@ -566,14 +567,6 @@ class TestTransformer(unittest.TestCase):
         transformer.add_residual_connection(model,"residual_1", "ffn_1", "residual_2")  
         transformer.add_avg_pool(model, "residual_2", "avg_pool")
         nn2, input_nn2, output_nn2 = transformer.get_fnn(model, "avg_pool", "ffn_2", (1,2), tps.parameters)
-        #transformer.add_FFN_2D(model, "avg_pool", "ffn_2", (1,2), tps.parameters)
-        
-        # #Check  var and constraints created
-        # self.assertIn("ffn_2", dir(model))                 # check layer_norm created
-        # self.assertIsInstance(model.ffn_2, pyo.Var)        # check data type
-        # self.assertIsInstance(model.ffn_2_NN_Block, OmltBlock)
-        # self.assertTrue(hasattr(model, 'ffn_2_constraints'))      # check constraints created
-        
 
         # # Convert to gurobipy
         gurobi_model, map_var = convert_pyomo.to_gurobi(model)
@@ -612,37 +605,8 @@ class TestTransformer(unittest.TestCase):
         print("- FFN2 output formulation == FFN2 output model")   
         
 # -------- Helper functions ---------------------------------------------------------------------------------- 
-def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
-    inputs = []
-    outputs = []
-    prev_input = {}
-    prev_output = {}
-    for index, value in map_var.items():
-        
-        if str(index).split('[')[0] == input_nn.name:
-            
-            if "," in str(index):
-                try: 
-                    inputs += [ [prev_input[str(index).split(',')[0]], value]]
-                except:
-                    prev_input[str(index).split(',')[0]] = value
-            else:
-                inputs += [value]
-            
-            
-        elif str(index).split('[')[0] == output_nn.name:
-            if "," in str(index):
-                try: 
-                    outputs += [ [prev_output[str(index).split(',')[0]], value]]
-                except:
-                    prev_output[str(index).split(',')[0]] = value
-            else:
-                outputs += [value] 
-                
-    print(outputs)
-    print(inputs)  
-                
-    return inputs, outputs 
+
+
 def get_optimal_dict(result, model):
     optimal_parameters = {}
     if result.solver.status == 'ok' and result.solver.termination_condition == 'optimal':

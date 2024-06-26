@@ -36,3 +36,31 @@ def weights_to_NetDef(NN_name, input_shape, model_parameters
         nn.layers[i].set_weights(w)
         
     return nn
+
+def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
+    inputs = []
+    outputs = []
+    prev_input = {}
+    prev_output = {}
+    for index, value in map_var.items():
+        
+        if str(index).split('[')[0] == input_nn.name:
+            
+            if "," in str(index):
+                try: 
+                    inputs += [ [prev_input[str(index).split(',')[0]], value]]
+                except:
+                    prev_input[str(index).split(',')[0]] = value
+            else:
+                inputs += [value]
+            
+            
+        elif str(index).split('[')[0] == output_nn.name:
+            if "," in str(index):
+                try: 
+                    outputs += [ [prev_output[str(index).split(',')[0]], value]]
+                except:
+                    prev_output[str(index).split(',')[0]] = value
+            else:
+                outputs += [value]          
+    return inputs, outputs 

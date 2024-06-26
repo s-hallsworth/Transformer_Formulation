@@ -16,3 +16,15 @@ input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_drop
 "(10, 2)",4,12,10,1,[24],0.1,0.1,0.2,600,64,0.001,0.012291148561525998,0.006069392847215104,0.008147230394240272,0.00135809194133479,0.014349648720052585,0.045191486497080324,
 input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,rmse_u_1,rmse_u_2,rmse_u_3,transformer_small_relu_TOY_2.keras
 "(10, 2)",4,12,10,1,[10],0.1,0.1,0.2,600,64,0.001,0.05052943729809176,0.03379792562759641,0.0432619967791219,1.1081417997152592,0.2310075810222143,0.26234332289702067,
+input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,rmse_u_1,rmse_u_2,rmse_u_3,transformer_small_relu_TOY_2.keras
+"(10, 2)",4,12,32,1,[24],0.1,0.1,0.2,600,64,0.001,1.0379043978592537,0.299186784508221,0.21909356475676023,0.09377269749490866,0.02093325939204736,0.20535804596777682,
+input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,rmse_u_1,rmse_u_2,rmse_u_3,transformer_small_relu_TOY_2.keras
+"(10, 2)",4,12,32,1,[24],0.1,0.1,0.2,400,64,0.001,0.024464493225232597,0.04353194596741084,0.16215092479058146,0.007184778987240833,0.03592342975094007,0.1402518912630787,
+input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,rmse_u_1,rmse_u_2,rmse_u_3,transformer_small_relu_TOY_2.keras
+"(10, 2)",4,15,32,1,[24],0.1,0.1,0.2,400,64,0.001,0.02553082856963273,0.030464472407095464,0.11550514925579261,0.008525380504100937,0.04004063545718806,0.26197812876941406,
+input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,rmse_u_1,rmse_u_2,rmse_u_3,transformer_small_relu_TOY_2.keras
+"(10, 2)",4,12,32,1,[32],0.1,0.1,0.2,400,64,0.001,0.023905077035868645,0.0028052462881265564,0.00606958918375129,1.324136351539806,0.15226204416860814,0.1624954887617437,
+input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,rmse_u_1,rmse_u_2,rmse_u_3,transformer_small_relu_TOY_2.keras
+"(10, 2)",4,12,32,1,[64],0.1,0.1,0.2,400,64,0.001,0.0038722791127794756,0.0016224175494439865,0.06336152241957842,0.012528122105362367,0.00483193670815962,0.020745440658696834,
+input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,rmse_u_1,rmse_u_2,rmse_u_3,transformer_small_relu_TOY_2.keras
+"(10, 2)",4,12,10,1,[128],0.1,0.1,0.2,400,64,0.001,0.0018759313199121356,0.003771301111252962,0.005736092799462149,0.0030914845512802235,0.002311343847891795,0.011471088820289202,

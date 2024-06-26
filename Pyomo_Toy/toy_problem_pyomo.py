@@ -6,7 +6,7 @@ import extract_from_pretrained
 from toy_problem_setup import *
 
 """
-Add transformer instance/constraints to toy problem setup and solve
+Add transformer instance/constraints to toy problem setup and solve PYOMI MODEL
 
 # Commands:
 model.pprint() # view model

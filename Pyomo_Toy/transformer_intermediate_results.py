@@ -8,7 +8,7 @@ Get outputs from the layers of a transformer model specified by model_path
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 model_path = "..\\Transformer_Toy\\transformer_small_relu_2_TOY.keras" 
-# model_path = "..\\Transformer_Toy\\transformer_small_2_TOY.keras" 
+#model_path = "..\\Transformer_Toy\\transformer_small_2_TOY.keras" 
 #model_path = "..\\Transformer_Toy\\transformer_small_2-no_w_mha.keras" 
 
 # ## input to transformer
@@ -21,6 +21,7 @@ layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path,
 
 # for i, j in layer_outputs_dict.items():
 #     print(f"{i}:", j)
+
 # layer_outputs_dict['layer_normalization_2']
 #print(layer_outputs_dict)
 
