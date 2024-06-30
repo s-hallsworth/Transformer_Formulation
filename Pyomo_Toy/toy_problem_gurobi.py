@@ -8,9 +8,10 @@ import toy_problem_setup as tps
 import os
 from omlt import OmltBlock
 import convert_pyomo
-from gurobipy import Model, GRB
+from gurobipy import Model, GRB, GurobiError
 from gurobi_ml import add_predictor_constr
 from GUROBI_ML_helper import get_inputs_gurobipy_FNN
+from print_stats import solve_gurobipy
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
@@ -57,8 +58,23 @@ pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
 gurobi_model.update()
 #pred_constr.print_stats()
 
-## Optimizes
-gurobi_model.optimize()
+## Print Header
+print("------------------------------------------------------")
+print("                  SOLVE INFORMATION ")
+print("------------------------------------------------------")
+print()
+
+print(f"Problem: Toy Problem")
+print(f"Solver: Gurobi")
+print(f"Exp Approx: Dynamic Outer Bound")
+print(f"NN formulation: Gurobipy NN (using max constraint)")
+print("------------------------------------------------------")
+print()
+
+## Optimize
+#gurobi_model.params.SolutionLimit = 1
+time_limit = 21600
+solve_gurobipy(gurobi_model, time_limit) ## Solve and print
 
 ## Get optimal parameters
 if gurobi_model.status == GRB.OPTIMAL:
@@ -112,6 +128,7 @@ def get_optimal_dict(result, model):
         print("No optimal solution obtained.")
     
     return optimal_parameters
+
 
 # from pyomo.core import *
 # from pyomo.opt import SolverFactory # run with python3.10

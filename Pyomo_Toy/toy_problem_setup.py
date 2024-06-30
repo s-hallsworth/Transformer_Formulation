@@ -2,6 +2,7 @@ import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
 import extract_from_pretrained as extract_from_pretrained
+import data_gen
 
 """
 Define toy problem parametrs and var then run from another script like toy_problem.py or transformer_test.py
@@ -21,8 +22,15 @@ time = np.linspace(0, 1, num=T) # entire time t=0:1 including prediction times
 model.time_input = dae.ContinuousSet(initialize=time[:-1]) # t < prediction times
 model.time = dae.ContinuousSet(initialize=time)
 
-x_input = [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273] #, 2.125]
-u_input = [0.25, 0.26315789, 0.27777778, 0.29411765, 0.3125, 0.33333333, 0.35714286, 0.38461538, 0.41666667, 0.45454545] #, 0.5]
+# x_input = [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273] #, 2.125]
+# u_input = [0.25, 0.26315789, 0.27777778, 0.29411765, 0.3125, 0.33333333, 0.35714286, 0.38461538, 0.41666667, 0.45454545] #, 0.5]
+
+x_input = data_gen.x[0, -10:]
+u_input = data_gen.u[ 0, -10:]
+
+## USE last 10 of 9000 data points
+transformer_input = np.array([[ [x,u] for x,u in zip(x_input, u_input)]])
+
 
 set_variables = ['0','1'] ##--- NB: same order as trained input ---##
 model.variables = pyo.Set(initialize=set_variables)
@@ -60,8 +68,9 @@ b_o = parameters['multi_head_attention_1','b_o']
 # W_0 = np.zeros(np.shape(W_q)).tolist()
 # b_0 = np.zeros(np.shape(b_q)).tolist()
 
+""" REMOVE FOR TESTING OPTIMIZATION WITH WINDOW OF LAST 10  POINTS"""
 ## define constraints
-model.x_init_constr = pyo.Constraint(expr=model.input_var[min(model.time),'0'] == 1)
+#model.x_init_constr = pyo.Constraint(expr=model.input_var[min(model.time),'0'] == 1)
 
 input_array = []
 model.input_constraints = pyo.ConstraintList()

@@ -58,51 +58,51 @@ for t in range(T):
     x_prime_diff[:, t - 1] = (x[:, t] - x[:, t - 1]) / (time[t] - time[t - 1])  # dx/dt
 x_prime_u = 1 + u**2
 
-print(u.shape)
-print(x_prime_diff.shape)
-print(x_prime_u.shape)
+# print(u.shape)
+# print(x_prime_diff.shape)
+# print(x_prime_u.shape)
 
-print("time", time)
-print("optimal x", x[0])
-print("optimal u", u[0])
+# print("time", time)
+# print("optimal x", x[0])
+# print("optimal u", u[0])
 
-# Plotting
-plt.figure(1, figsize=(12, 8))
-markers = ["o-", "s-", "^-", "d-"]  # Different markers for each function
-for i in range(N):  # [0,2]: #
-    plt.plot(time, x[i, :], markers[i], label=f"x (Position) from Func {i+1}")
-    plt.plot(
-        time,
-        u[i, :],
-        markers[i],
-        linestyle="dashed",
-        label=f"u (Control Input) from Func {i+1}",
-    )
+# # Plotting
+# plt.figure(1, figsize=(12, 8))
+# markers = ["o-", "s-", "^-", "d-"]  # Different markers for each function
+# for i in range(N):  # [0,2]: #
+#     plt.plot(time, x[i, :], markers[i], label=f"x (Position) from Func {i+1}")
+#     plt.plot(
+#         time,
+#         u[i, :],
+#         markers[i],
+#         linestyle="dashed",
+#         label=f"u (Control Input) from Func {i+1}",
+#     )
 
-plt.title("Position and Control Input vs. Time for " + str(N) + " Functions")
-plt.xlabel("Time")
-plt.ylabel("Magnitude")
-plt.legend()
-plt.grid(True)
-plt.show()
+# plt.title("Position and Control Input vs. Time for " + str(N) + " Functions")
+# plt.xlabel("Time")
+# plt.ylabel("Magnitude")
+# plt.legend()
+# plt.grid(True)
+# plt.show()
 
-plt.figure(2, figsize=(12, 8))
-markers = ["o-", "s-", "^-", "d-"]  # Different markers for each function
-for i in range(N):  # [0,2]: #
-    plt.plot(
-        time,
-        x_prime_diff[i, :] - x_prime_u[i, :],
-        markers[i],
-        label=f"dx/dt - 1+u^2 from Func {i+1}",
-    )
-    # plt.plot(time, x_prime_u[i, :], markers[i], linestyle='dashed', label=f'1+u^2 from Func {i+1}')
+# plt.figure(2, figsize=(12, 8))
+# markers = ["o-", "s-", "^-", "d-"]  # Different markers for each function
+# for i in range(N):  # [0,2]: #
+#     plt.plot(
+#         time,
+#         x_prime_diff[i, :] - x_prime_u[i, :],
+#         markers[i],
+#         label=f"dx/dt - 1+u^2 from Func {i+1}",
+#     )
+#     # plt.plot(time, x_prime_u[i, :], markers[i], linestyle='dashed', label=f'1+u^2 from Func {i+1}')
 
-plt.title("Calculating dx/dt - (1- u(t)**2) (for " + str(N) + " Functions)")
-plt.xlabel("Time")
-plt.ylabel("Magnitude")
-plt.legend()
-plt.grid(True)
-plt.show()
+# plt.title("Calculating dx/dt - (1- u(t)**2) (for " + str(N) + " Functions)")
+# plt.xlabel("Time")
+# plt.ylabel("Magnitude")
+# plt.legend()
+# plt.grid(True)
+# plt.show()
 
 # Save data
 ID = []
@@ -120,7 +120,7 @@ data = {
 
 df = pd.DataFrame(data)
 df.to_csv("data_N200.csv", index=False)
-print(df.head())
+# print(df.head())
 
-print(u)
-print(x)
+# print(u)
+# print(x)
