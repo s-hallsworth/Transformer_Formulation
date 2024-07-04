@@ -72,7 +72,7 @@ print("------------------------------------------------------")
 print()
 
 ## Optimize
-#gurobi_model.params.SolutionLimit = 1
+gurobi_model.params.SolutionLimit = 1 ##
 time_limit = 21600
 solve_gurobipy(gurobi_model, time_limit) ## Solve and print
 

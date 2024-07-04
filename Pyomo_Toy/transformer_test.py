@@ -232,6 +232,7 @@ class TestTransformer(unittest.TestCase):
         self.assertIsNone(np.testing.assert_array_equal(Q.shape, Q_form.shape))
         self.assertIsNone(np.testing.assert_array_almost_equal( Q_form,Q, decimal =5))
         print("- Query formulation == Query model")
+        print("Q: ", Q_form)
         
         K_form, _ = reformat(optimal_parameters,"K") 
         self.assertIsNone(np.testing.assert_array_equal(K.shape, K_form.shape))

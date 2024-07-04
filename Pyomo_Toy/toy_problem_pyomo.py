@@ -4,6 +4,10 @@ import numpy as np
 import transformer
 import extract_from_pretrained
 from toy_problem_setup import *
+from pyomo.opt import SolverFactory 
+from print_stats import solve_pyomo
+import toy_problem_setup as tps
+from omlt import OmltBlock
 
 """
 Add transformer instance/constraints to toy problem setup and solve PYOMI MODEL
@@ -20,20 +24,24 @@ transformer = transformer.Transformer(model, ".\\data\\toy_config_relu_2.json")
 # add trnasformer layers and constraints
 transformer.embed_input(model, "input_param","input_embed", "variables")
 transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+transformer.add_attention_approx(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
+transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
+transformer.add_FFN_2D(model, "layer_norm_2", "ffn_1", (10,2), tps.parameters) 
+transformer.add_residual_connection(model,"residual_1", "ffn_1", "residual_2")  
+transformer.add_avg_pool(model, "residual_2", "avg_pool")
+transformer.add_FFN_2D(model, "avg_pool", "ffn_2", (1,2), tps.parameters)
 
-# transformer_input = np.array([[ [x,u] for x,u in zip(x_input, u_input)]])
-# layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path, transformer_input) 
-# transformer.add_FFN_2D(model, "layer_norm_2", "ffn_1", layer_outputs_dict['layer_normalization_2'], parameters)
-transformer.add_attention(model, "layer_norm", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
-# transformer.add_residual_connection(model, model.input_embed, model.layer_norm, "mha_residual")
-#transformer.add_output_constraints(model, model.mha_residual)
-
-
+        
 # Discretize model using Backward Difference method
 discretizer = pyo.TransformationFactory("dae.finite_difference")
 discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
 
 
+#Solve
+solver = SolverFactory('gurobi', solver_io='python')
+time_limit = 21600
+result = solve_pyomo(model, solver, time_limit)
 
 # # -------------------- SOLVE MODEL ----------------------------------- #
 
@@ -52,6 +60,11 @@ def get_optimal_dict(result, model):
     
     return optimal_parameters
 
+
+#----------------------------
+optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
+#print(optimal_parameters)  
+     
 # from pyomo.core import *
 # from pyomo.opt import SolverFactory # run with python3.10
 # keepfiles = False  # True prints intermediate file names (.nl,.sol,...)

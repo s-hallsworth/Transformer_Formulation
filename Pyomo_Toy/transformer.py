@@ -265,7 +265,7 @@ class Transformer:
             M.heads, M.time_input, M.k_dims, within=pyo.Reals
         )  # softmax ( (Q * K)/sqrt(d_k) ) * V
         M.attention_output = pyo.Var(
-            M.time_input, M.model_dims, within=pyo.Reals
+            M.time_input, M.model_dims, within=pyo.Reals, bounds=(-1,1)
         )  # concat heads and linear transform
 
         for h in M.heads:
@@ -468,7 +468,7 @@ class Transformer:
             M.heads, M.time_input, M.k_dims, within=pyo.Reals
         )  # softmax ( (Q * K)/sqrt(d_k) ) * V
         M.attention_output = pyo.Var(
-            M.time_input, M.model_dims, within=pyo.Reals
+            M.time_input, M.model_dims, within=pyo.Reals, bounds=(-1,1)
         )  # concat heads and linear transform
 
         for h in M.heads:

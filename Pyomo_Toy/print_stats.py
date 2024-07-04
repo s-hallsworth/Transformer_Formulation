@@ -1,4 +1,8 @@
 from gurobipy import Model, GRB, GurobiError
+from pyomo.environ import SolverFactory, value
+from pyomo.opt import TerminationCondition, SolverStatus
+import pyomo.environ as pyo
+import time
 
 def solve_gurobipy(model, time_limit):
     # Set a time limit
@@ -41,3 +45,59 @@ def solve_gurobipy(model, time_limit):
     print("------------------------------------------------------")
     print("------------------------------------------------------")
     print()
+    
+    
+def solve_pyomo(model, solver, time_limit):
+    
+    solver.options['TimeLimit'] = time_limit
+    print('Time Limit: ', time_limit)
+    print("------------------------------------------------------")
+    print()
+    
+    # Record start time
+    start_time = time.time()
+    
+    # Solve the model
+    results = solver.solve(model, tee=True)
+    
+    # Record end time
+    end_time = time.time()
+    
+    # Calculate runtime
+    runtime = end_time - start_time
+    
+    # Extract solver status and termination condition
+    solver_status = results.solver.status
+    termination_condition = results.solver.termination_condition
+    
+    # Print runtime
+    print(f"Runtime: {runtime} seconds")
+    
+    # Number of solutions found
+    if hasattr(results.solver, 'num_solutions'):
+        num_solutions = results.solver.num_solutions
+        print(f"Number of solutions: {num_solutions}")
+    else:
+        print("Number of solutions: N/A (Solver-specific feature)")
+    
+    # Optimality gap
+    if solver_status == SolverStatus.ok and termination_condition == TerminationCondition.optimal:
+        print("Optimal solution found.")
+        optimality_gap = 0.0
+    elif solver_status == SolverStatus.ok and termination_condition in [TerminationCondition.feasible, TerminationCondition.maxTimeLimit]:
+        # Extract the optimality gap
+        if 'MipGap' in results.solver:
+            optimality_gap = results.solver.MipGap
+        else:
+            optimality_gap = None  # This might vary depending on the solver
+        print(f"Optimality gap: {optimality_gap}")
+    else:
+        print(f"Solver status: {solver_status}")
+        print(f"Termination condition: {termination_condition}")
+        optimality_gap = None
+        
+    print("------------------------------------------------------")
+    print("------------------------------------------------------")
+    print()
+    
+    return results
