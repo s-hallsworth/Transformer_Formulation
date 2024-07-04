@@ -11,11 +11,11 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 model_path = "..\\Transformer_Toy\\transformer_small_relu_2_TOY.keras" 
 
 
-INIT_ONLY = False
+NOT_WARM = False
 
 
 ## input to transformer
-if INIT_ONLY:
+if NOT_WARM:
     x_input = data_gen.x[0, -10:]
     u_input = data_gen.u[ 0, -10:]
     ## USE last 10 of 9000 data points

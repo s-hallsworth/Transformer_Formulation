@@ -76,6 +76,10 @@ class Transformer:
             for s in set_var:
                 for t in M.time_input:
                     M.embed_constraints.add(embed_var[t, s] == input_var[t,s])
+                    if input_var[t,s].ub:
+                        embed_var[t, s].ub = input_var[t,s].ub
+                    if input_var[t,s].lb:
+                        embed_var[t, s].lb = input_var[t,s].lb
                     
         else: # create embedded var
             W_emb_dict = {
@@ -90,6 +94,11 @@ class Transformer:
                     M.embed_constraints.add(embed_var[t, d] 
                                             == sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
                                             )
+                    if input_var[t,s].ub:
+                        embed_var[t, s].ub = input_var[t,s].ub * set_var.dimen * max(M.W_emb)
+                    if input_var[t,s].lb:
+                        embed_var[t, s].lb = input_var[t,s].lb * set_var.dimen * min(M.W_emb)
+                
 
     def add_layer_norm(self, M, input_var_name, layer_norm_var_name, gamma, beta):  # non-linear
         """
@@ -108,35 +117,39 @@ class Transformer:
             
             # define calculation variables
             variance_name = 'variance_'+ layer_norm_var_name
-            setattr(M, variance_name, pyo.Var(M.time_input, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, variance_name, pyo.Var(M.time_input, within=pyo.Reals))
             variance = getattr(M, variance_name)
             
             div_name = 'div_'+ layer_norm_var_name
-            setattr(M, div_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, div_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals))
             div = getattr(M, div_name)
             
             denominator_name = 'denominator_'+ layer_norm_var_name
-            setattr(M, denominator_name, pyo.Var(M.time_input, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, denominator_name, pyo.Var(M.time_input, within=pyo.Reals))
             denominator = getattr(M, denominator_name)
             
-            denominator_abs_name = 'denominator_abs_'+ layer_norm_var_name
-            setattr(M, denominator_abs_name, pyo.Var(M.time_input, within=pyo.NonNegativeReals, bounds=(0,None)))
-            denominator_abs = getattr(M, denominator_abs_name)
+            denominator_pos_name = 'denominator_pos'+ layer_norm_var_name
+            setattr(M, denominator_pos_name, pyo.Var(M.time_input, within=pyo.NonNegativeReals))
+            denominator_pos = getattr(M, denominator_pos_name)
+            
+            denominator_neg_name = 'denominator_neg'+ layer_norm_var_name
+            setattr(M, denominator_neg_name, pyo.Var(M.time_input, within=pyo.NonNegativeReals))
+            denominator_neg = getattr(M, denominator_neg_name)
             
             numerator_name = 'numerator_'+ layer_norm_var_name
-            setattr(M, numerator_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, numerator_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals))
             numerator = getattr(M, numerator_name)
 
             numerator_scaled_name = 'numerator_scaled_'+ layer_norm_var_name
-            setattr(M, numerator_scaled_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, numerator_scaled_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals))
             numerator_scaled = getattr(M, numerator_scaled_name)
             
             numerator_squared_name = 'numerator_squared_'+ layer_norm_var_name
-            setattr(M, numerator_squared_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, numerator_squared_name, pyo.Var(M.time_input, M.model_dims, within=pyo.NonNegativeReals))
             numerator_squared = getattr(M, numerator_squared_name)
               
             numerator_squared_sum_name = 'numerator_squared_sum_'+ layer_norm_var_name
-            setattr(M, numerator_squared_sum_name, pyo.Var(M.time_input, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, numerator_squared_sum_name, pyo.Var(M.time_input, within=pyo.NonNegativeReals))
             numerator_squared_sum = getattr(M, numerator_squared_sum_name)
             
         else:
@@ -152,25 +165,40 @@ class Transformer:
             
             # Constraints for each element in sequence
             for d in M.model_dims:  
+                
+                    
                 M.layer_norm_constraints.add(expr= numerator[t,d] == input_var[t, d] - mean_t)
                 M.layer_norm_constraints.add(expr= numerator_squared[t,d] == numerator[t,d]**2)
-                
                 M.layer_norm_constraints.add(expr= numerator_squared_sum[t] == sum(numerator_squared[t,d_prime] for d_prime in M.model_dims))
                 M.layer_norm_constraints.add(expr= variance[t] * self.d_model == numerator_squared_sum[t])
                 
+                #Add bounds
+                if input_var[t,d].ub and input_var[t, d].lb:
+                    numerator[t,d].ub = input_var[t, d].ub - input_var[t, d].lb
+                    numerator[t,d].lb = input_var[t, d].lb - input_var[t, d].ub
+                    
+                    if abs(numerator[t,d].ub) > abs(numerator[t,d].lb):
+                        numerator_squared[t,d].ub = numerator[t,d].ub * numerator[t,d].ub
+                    else:
+                        numerator_squared[t,d].ub = numerator[t,d].lb * numerator[t,d].lb
+                        
+                    variance[t].ub = numerator_squared[t,d].ub 
+                    variance[t].lb = numerator_squared[t,d].lb
+                    
                 #M.layer_norm_constraints.add(expr= denominator[t] **2 == variance[t] )     ##IF SCIP SOLVER
-                
                 ## FOR SCIP or GUROBI: determine abs(denominator)
-                M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
-                M.layer_norm_constraints.add(expr= -denominator[t] <= denominator_abs[t]) 
-                M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
-                M.layer_norm_constraints.add(expr= variance[t] == denominator[t] * denominator_abs[t]) 
+                M.layer_norm_constraints.add(expr= denominator[t] == denominator_pos[t] - denominator_neg[t]) 
+                M.layer_norm_constraints.add(expr= variance[t] == (denominator_pos[t] **2 ) - (denominator_neg[t] **2)) 
                 
                 M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
+                div[t,d].ub = 4
+                div[t,d].lb = -4
+                
                 M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == getattr(M, gamma)[d] * div[t,d])
                 M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == numerator_scaled[t,d] + getattr(M, beta)[d])
+                layer_norm_var[t, d].ub = getattr(M, beta)[d] + 4*getattr(M, gamma)[d]
+                layer_norm_var[t, d].lb = getattr(M, beta)[d] - 4*getattr(M, gamma)[d]
                 
-
     def add_attention(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):
         """
         Multihead attention between each element of embedded sequence

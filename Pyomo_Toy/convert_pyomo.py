@@ -43,7 +43,7 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
             # Map & convert model params and vars to gurobi vars  
             var_map = create_gurobi_var(var, var_map, gurobi_model)
 
-    
+    gurobi_model.update()
     # Convert objective
     for obj in pyomo_model.component_objects(pyo.Objective, active=True):
         expr = obj.expr
@@ -103,7 +103,7 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
                     if con[index].has_ub():
                         gurobi_model.addConstr(lhs_gurobi_expr <= rhs_gurobi_expr)
     
-            gurobi_model.update()
+    gurobi_model.update()
     return gurobi_model, var_map
 
 def get_gurobi_vtype(pyomo_var):
@@ -157,8 +157,6 @@ def create_gurobi_var(var, var_map, gurobi_model):
             vtype = get_gurobi_vtype(var)
             gurobi_var = gurobi_model.addVar(lb=lb, ub=ub, name=str(var), vtype=vtype)
             var_map[var.name] = gurobi_var
-            
-        gurobi_model.update()
         
     # Parameters   
     elif isinstance(var, pyo.Param):
@@ -190,7 +188,6 @@ def create_gurobi_var(var, var_map, gurobi_model):
             gurobi_var = gurobi_model.setParam( str(var), var.data())
             var_map[var.name] = gurobi_var
             
-        gurobi_model.update()
     return var_map
                 
 def expr_to_gurobi(expr, var_map, gurobi_model):
