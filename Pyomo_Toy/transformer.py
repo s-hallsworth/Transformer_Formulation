@@ -123,16 +123,20 @@ class Transformer:
             layer_norm_var = getattr(M, layer_norm_var_name)
             
             # define calculation variables
+            sum_name = 'sum_'+ layer_norm_var_name
+            setattr(M, sum_name, pyo.Var(M.time_input, within=pyo.Reals))
+            sum_t = getattr(M, sum_name)
+            
             variance_name = 'variance_'+ layer_norm_var_name
-            setattr(M, variance_name, pyo.Var(M.time_input, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, variance_name, pyo.Var(M.time_input, within=pyo.Reals))
             variance = getattr(M, variance_name)
             
             div_name = 'div_'+ layer_norm_var_name
-            setattr(M, div_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, div_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals))
             div = getattr(M, div_name)
             
             denominator_name = 'denominator_'+ layer_norm_var_name
-            setattr(M, denominator_name, pyo.Var(M.time_input, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, denominator_name, pyo.Var(M.time_input, within=pyo.Reals))
             denominator = getattr(M, denominator_name)
             
             denominator_abs_name = 'denominator_abs_'+ layer_norm_var_name
@@ -140,19 +144,19 @@ class Transformer:
             denominator_abs = getattr(M, denominator_abs_name)
             
             numerator_name = 'numerator_'+ layer_norm_var_name
-            setattr(M, numerator_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, numerator_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals))
             numerator = getattr(M, numerator_name)
 
             numerator_scaled_name = 'numerator_scaled_'+ layer_norm_var_name
-            setattr(M, numerator_scaled_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, numerator_scaled_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals))
             numerator_scaled = getattr(M, numerator_scaled_name)
             
             numerator_squared_name = 'numerator_squared_'+ layer_norm_var_name
-            setattr(M, numerator_squared_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, numerator_squared_name, pyo.Var(M.time_input, M.model_dims, within=pyo.Reals, bounds=(0,None)))
             numerator_squared = getattr(M, numerator_squared_name)
               
             numerator_squared_sum_name = 'numerator_squared_sum_'+ layer_norm_var_name
-            setattr(M, numerator_squared_sum_name, pyo.Var(M.time_input, within=pyo.Reals, bounds=(None,None)))
+            setattr(M, numerator_squared_sum_name, pyo.Var(M.time_input, within=pyo.Reals, bounds=(0,None)))
             numerator_squared_sum = getattr(M, numerator_squared_sum_name)
             
         else:
@@ -163,12 +167,11 @@ class Transformer:
             return
             
         for t in M.time_input: 
-            sum_t = sum(input_var[t, d] for d in M.model_dims) 
-            mean_t = sum_t/ self.d_model
+            M.layer_norm_constraints.add(expr= sum_t[t] == sum(input_var[t, d] for d in M.model_dims) )
             
             # Constraints for each element in sequence
             for d in M.model_dims:  
-                M.layer_norm_constraints.add(expr= numerator[t,d] == input_var[t, d] - mean_t)
+                M.layer_norm_constraints.add(expr= numerator[t,d] == input_var[t, d] - ((1/ self.d_model) *sum_t[t]))
                 M.layer_norm_constraints.add(expr= numerator_squared[t,d] == numerator[t,d]**2)
                 
                 M.layer_norm_constraints.add(expr= numerator_squared_sum[t] == sum(numerator_squared[t,d_prime] for d_prime in M.model_dims))

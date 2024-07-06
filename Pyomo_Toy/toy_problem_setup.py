@@ -119,8 +119,11 @@ model.intX = dae.Integral(model.time, wrt=model.time, rule=_intX)
 model.intU = dae.Integral(model.time, wrt=model.time, rule=_intU)
 
 # bound integral of x and u
-model.input_constraints.add(expr= model.intX <= model.input_var[model.time.last(),'0'].ub * model.time.last())
-model.input_constraints.add(expr= model.intU <= model.input_var[model.time.last(),'1'].ub * model.time.last())
+model.intX.ub = model.input_var[model.time.first(),'0'].ub * model.time.last()
+model.intX.lb = model.input_var[model.time.first(),'0'].lb * model.time.last()
+
+model.intU.ub = model.input_var[model.time.first(),'1'].ub * model.time.last()
+model.intU.lb = model.input_var[model.time.first(),'1'].lb * model.time.last()
 
 # Set objective function
 model.obj = pyo.Objective(
