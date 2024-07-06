@@ -175,9 +175,7 @@ class Transformer:
                 M.layer_norm_constraints.add(expr= variance[t] * self.d_model == numerator_squared_sum[t])
                 
                 #Add bounds
-                if input_var[t,d].ub and input_var[t, d].lb:
-                    numerator[t,d].ub = input_var[t, d].ub 
-                    
+                numerator[t,d].ub = input_var[t, d].ub 
                 
                 #M.layer_norm_constraints.add(expr= denominator[t] **2 == variance[t] )     ##IF SCIP SOLVER
                 ## FOR SCIP or GUROBI: determine abs(denominator)
