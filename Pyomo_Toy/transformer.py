@@ -100,12 +100,12 @@ class Transformer:
                                             )
                     if isinstance(input_var, pyo.Var):
                         if input_var[t,s].ub:
-                            embed_var[t, s].ub = input_var[t,s].ub * set_var.dimen * M.W_emb[s,d]
+                            embed_var[t, s].ub = input_var[t,s].ub * set_var.dimen * max(M.W_emb)
                         if input_var[t,s].lb:
-                            embed_var[t, s].lb = input_var[t,s].lb * set_var.dimen * M.W_emb[s,d]
+                            embed_var[t, s].lb = input_var[t,s].lb * set_var.dimen * min(M.W_emb)
                     else:
-                        embed_var[t, s].ub = input_var[t,s]* set_var.dimen * M.W_emb[s,d]
-                        embed_var[t, s].lb = input_var[t,s]* set_var.dimen * M.W_emb[s,d]
+                        embed_var[t, s].ub = input_var[t,s]* set_var.dimen * max(M.W_emb)
+                        embed_var[t, s].lb = input_var[t,s]* set_var.dimen * min(M.W_emb)
 
     def add_layer_norm(self, M, input_var_name, layer_norm_var_name, gamma, beta):  # non-linear
         """
@@ -304,7 +304,7 @@ class Transformer:
                             )  
                             #Add bounds
                             if input_var[n,d].ub:
-                                M.Q[h, n, k].ub = (self.d_model*max(input_var).ub * M.W_q[d, h, k]) + M.b_q[h,k] 
+                                M.Q[h, n, k].ub = (self.d_model*max(input_var).ub* max(M.W_q)) + M.b_q[h,k] 
                                 
                                 M.attention_constraints.add(
                                     expr=M.Q[h, n, k] == M.Q_pos[h, n, k] - M.Q_neg[h, n, k] 
@@ -314,7 +314,7 @@ class Transformer:
                                     <= ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_q[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_q[h,k] 
                                     )  # Cauchy-Schwarz Inequality
                             if input_var[n, d].lb:
-                                M.Q[h, n, k].lb = (self.d_model*max(input_var).lb * M.W_q[d, h, k]) + M.b_q[h,k] 
+                                M.Q[h, n, k].lb = (self.d_model*min(input_var).lb* min(M.W_q)) + M.b_q[h,k] 
                                 
                         else: 
                             M.attention_constraints.add(
@@ -323,7 +323,7 @@ class Transformer:
                             )
                             #Add bounds
                             if input_var[n,d].ub:
-                                M.Q[h, n, k].ub = (self.d_model*max(input_var).ub * M.W_q[d, h, k])
+                                M.Q[h, n, k].ub = (self.d_model*max(input_var).ub* max(M.W_q))
                                 
                                 M.attention_constraints.add(
                                     expr=M.Q[h, n, k] == M.Q_pos[h, n, k] - M.Q_neg[h, n, k] 
@@ -333,7 +333,7 @@ class Transformer:
                                     <= ((sum(input_var[n,d]**2 for d in M.model_dims)**0.5) * (sum( M.W_q[d, h, k]**2 for d in M.model_dims)**0.5))
                                     )  # Cauchy-Schwarz Inequality
                             if input_var[n, d].lb:
-                                M.Q[h, n, k].lb = (self.d_model*max(input_var).lb * M.W_q[d, h, k])
+                                M.Q[h, n, k].lb = (self.d_model*min(input_var).lb* max(M.W_q))
                                 
                         # constraints for Key
                         if b_k:
@@ -343,7 +343,7 @@ class Transformer:
                             )  
                             #Add bounds
                             if input_var[n,d].ub:
-                                M.K[h, n, k].ub = (self.d_model*max(input_var).ub * M.W_k[d, h, k]) + M.b_k[h,k]
+                                M.K[h, n, k].ub = (self.d_model*max(input_var).ub* max(M.W_k)) + M.b_k[h,k]
                                 
                                 M.attention_constraints.add(
                                     expr=M.K[h, n, k] == M.K_pos[h, n, k] - M.K_neg[h, n, k] 
@@ -353,7 +353,7 @@ class Transformer:
                                     <= ((sum(input_var[n,d]**2 for d in M.model_dims)**0.5) * (sum( M.W_k[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_k[h,k] 
                                     )  # Cauchy-Schwarz Inequality
                             if input_var[n, d].lb:
-                                M.K[h, n, k].lb = (self.d_model*max(input_var).lb * M.W_k[d, h, k]) + M.b_k[h,k]
+                                M.K[h, n, k].lb = (self.d_model*min(input_var).lb* max(M.W_k)) + M.b_k[h,k]
                                 
                         else: 
                             M.attention_constraints.add(
@@ -362,7 +362,7 @@ class Transformer:
                             )
                             #Add bounds
                             if input_var[n,d].ub:
-                                M.K[h, n, k].ub = (self.d_model*max(input_var).ub * M.W_k[d, h, k])
+                                M.K[h, n, k].ub = (self.d_model*max(input_var).ub* max(M.W_k))
                                 
                                 M.attention_constraints.add(
                                     expr=M.K[h, n, k] == M.K_pos[h, n, k] - M.K_neg[h, n, k] 
@@ -372,7 +372,7 @@ class Transformer:
                                     <= ((sum(input_var[n,d]**2 for d in M.model_dims)**0.5) * (sum( M.W_k[d, h, k]**2 for d in M.model_dims)**0.5))
                                     )  # Cauchy-Schwarz Inequality
                             if input_var[n, d].lb:
-                                M.K[h, n, k].lb = (self.d_model*max(input_var).lb * M.W_k[d, h, k])
+                                M.K[h, n, k].lb = (self.d_model*min(input_var).lb* max(M.W_k))
                             
                         # constraints for Value    
                         if b_v:
@@ -382,7 +382,7 @@ class Transformer:
                             )  
                             #Add bounds
                             if input_var[n,d].ub:
-                                M.V[h, n, k].ub = (self.d_model*max(input_var).ub * M.W_v[d, h, k]) + M.b_v[h,k]
+                                M.V[h, n, k].ub = (self.d_model*max(input_var).ub* max(M.W_v)) + M.b_v[h,k]
                                 
                                 M.attention_constraints.add(
                                     expr=M.V[h, n, k] == M.V_pos[h, n, k] - M.V_neg[h, n, k] 
@@ -392,7 +392,7 @@ class Transformer:
                                     <= ((sum(input_var[n,d]**2 for d in M.model_dims)**0.5) * (sum( M.W_v[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_v[h,k] 
                                     )  # Cauchy-Schwarz Inequality
                             if input_var[n, d].lb:
-                                M.V[h, n, k].lb = (self.d_model*max(input_var).lb * M.W_v[d, h, k]) + M.b_v[h,k]
+                                M.V[h, n, k].lb = (self.d_model*min(input_var).lb* max(M.W_v)) + M.b_v[h,k]
                                 
                         else: 
                             M.attention_constraints.add(
@@ -401,7 +401,7 @@ class Transformer:
                             )
                             #Add bounds
                             if input_var[n,d].ub:
-                                M.V[h, n, k].ub = (self.d_model*max(input_var).ub * M.W_v[d, h, k])
+                                M.V[h, n, k].ub = (self.d_model*max(input_var).ub* max(M.W_v))
                                 
                                 M.attention_constraints.add(
                                     expr=M.V[h, n, k] == M.V_pos[h, n, k] - M.V_neg[h, n, k] 
@@ -411,7 +411,7 @@ class Transformer:
                                     <= ((sum(input_var[n,d]**2 for d in M.model_dims)**0.5) * (sum( M.W_v[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_v[h,k] 
                                     )  # Cauchy-Schwarz Inequality
                             if input_var[n, d].lb:
-                                M.V[h, n, k].lb = (self.d_model*max(input_var).lb * M.W_v[d, h, k])
+                                M.V[h, n, k].lb = (self.d_model*min(input_var).lb* min(M.W_v))
 
 
                         # attention score = sum(attention_weight * V)
@@ -436,11 +436,15 @@ class Transformer:
                         )  
                         
                         M.compatibility[h,n,p].ub = math.sqrt(self.d_H) * max(M.Q).ub * max(M.K).ub
-                        M.compatibility[h,n,p].ub = math.sqrt(self.d_H) * min(M.Q).ub * min(M.K).ub
+                        M.compatibility[h,n,p].lb = math.sqrt(self.d_H) * min(M.Q).lb * min(M.K).lb
                         
                         M.attention_constraints.add(expr= pyo.exp(M.compatibility[h,n,p]) == M.compatibility_exp[h, n, p] )
+                        M.compatibility_exp[h, n, p].lb = 1 + M.compatibility[h,n,p].lb + (0.5 * (M.compatibility[h,n,p].lb**2)) + (0.16667 *(M.compatibility[h,n,p].lb**3)) # power series(x) <= exp(x)
+                    
                     M.attention_constraints.add(expr= M.compatibility_exp_sum[h, n] == sum(M.compatibility_exp[h, n, p] for p in M.time_input))
-
+                    M.compatibility_exp_sum[h, n].ub = self.N * math.exp(M.compatibility[h,n,p].ub)
+                    M.compatibility_exp_sum[h, n].lb = self.N * math.exp(M.compatibility[h,n,p].lb)
+                    
                     for n2 in M.time_input:
 
                         # attention weights softmax(compatibility)
@@ -463,6 +467,9 @@ class Transformer:
                         
                         ) + M.b_o[d]
                     )
+                    
+                    M.attention_output[n, d].ub  = (self.H * self.d_k * max(M.attention_score).ub * max(M.W_o)) + M.b_o[d]
+                    M.attention_output[n, d].lb  = (self.H * self.d_k * min(M.attention_score).lb * min(M.W_o)) + M.b_o[d]
                 else:
                     M.attention_constraints.add(
                         expr=M.attention_output[n, d]
@@ -474,6 +481,9 @@ class Transformer:
                         for h in M.heads
                         )
                     )
+                    M.attention_output[n, d].ub  = (self.H * self.d_k * max(M.attention_score).ub * max(M.W_o))
+                    M.attention_output[n, d].lb  = (self.H * self.d_k * min(M.attention_score).lb * min(M.W_o))
+                
                 
                 
     def add_attention_approx(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):
