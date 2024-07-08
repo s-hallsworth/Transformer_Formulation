@@ -84,7 +84,10 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
 
                 elif func == 'log': #natural log
                     gurobi_model.addGenConstrLog(arg_gurobi, result)
-
+                    
+                elif func == 'abs': 
+                    gurobi_model.addGenConstrAbs(result, arg_gurobi )
+                    
                 else:
                     raise ValueError(f"Unsupported unary function: {func}")
                 

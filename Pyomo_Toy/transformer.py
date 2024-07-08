@@ -182,10 +182,8 @@ class Transformer:
                 
                 #M.layer_norm_constraints.add(expr= denominator[t] **2 == variance[t] )     ##IF SCIP SOLVER
                 ## FOR SCIP or GUROBI: determine abs(denominator)
-                M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
-                M.layer_norm_constraints.add(expr= -denominator[t] <= denominator_abs[t]) 
-                M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
                 M.layer_norm_constraints.add(expr= variance[t] == denominator[t] * denominator_abs[t]) 
+                M.layer_norm_constraints.add(expr=  denominator_abs[t] == abs(denominator[t]))
                 
                 M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
                 div[t,d].ub = 4
