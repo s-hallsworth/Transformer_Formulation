@@ -40,7 +40,7 @@ discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
 
 #Solve
 solver = SolverFactory('gurobi', solver_io='python')
-time_limit = 3000
+time_limit = 25
 result = solve_pyomo(model, solver, time_limit)
 
 # # -------------------- SOLVE MODEL ----------------------------------- #

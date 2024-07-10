@@ -12,7 +12,7 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
 import transformer as TNN
-import toy_problem_setup as tps
+import toy_problem_setup_test as tps
 import transformer_intermediate_results as tir
 
 """

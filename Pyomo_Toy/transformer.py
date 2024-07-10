@@ -28,12 +28,6 @@ class Transformer:
         
         file.close()
         
-        #self.W_emb = np.ones((self.input_dim, self.d_model))
-        # self.W_k = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
-        # self.W_q = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
-        # self.W_v = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
-        # self.W_o = np.ones((self.d_H, self.d_model, self.d_k))  # H x d_model x d_k
-        
         # additional parameters
         self.transformer_pred = [0, 0]
         self.input_array = []
@@ -76,14 +70,14 @@ class Transformer:
             for s in set_var:
                 for t in M.time_input:
                     M.embed_constraints.add(embed_var[t, s] == input_var[t,s])
-                    # if isinstance(input_var, pyo.Var):
-                    #     if input_var[t,s].ub:
-                    #         embed_var[t, s].ub = input_var[t,s].ub
-                    #     if input_var[t,s].lb:
-                    #         embed_var[t, s].lb = input_var[t,s].lb
-                    # else:
-                    #     embed_var[t, s].ub = input_var[t,s]
-                    #     embed_var[t, s].lb = input_var[t,s]
+                    if isinstance(input_var, pyo.Var):
+                        if input_var[t,s].ub:
+                            embed_var[t, s].ub = input_var[t,s].ub
+                        if input_var[t,s].lb:
+                            embed_var[t, s].lb = input_var[t,s].lb
+                    elif isinstance(input_var, pyo.Param):
+                        embed_var[t, s].ub = input_var[t,s]
+                        embed_var[t, s].lb = input_var[t,s]
                     
         else: # create embedded var
             W_emb_dict = {
@@ -98,14 +92,15 @@ class Transformer:
                     M.embed_constraints.add(embed_var[t, d] 
                                             == sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
                                             )
-                    # if isinstance(input_var, pyo.Var):
-                    #     if input_var[t,d].ub:
-                    #         embed_var[t, d].ub = input_var[t,set_var.first()].ub * len(set_var) * max(M.W_emb[:,d])
-                    #     if input_var[t,d].lb:
-                    #         embed_var[t, d].lb = input_var[t,set_var.first()].lb * len(set_var) * min(M.W_emb[:,d])
-                    # else:
-                    #     embed_var[t, d].ub = input_var[t,set_var.first()]* len(set_var) * max(M.W_emb[:,d])
-                    #     embed_var[t, d].lb = input_var[t,set_var.first()]* len(set_var) * min(M.W_emb[:,d])
+                    if isinstance(input_var, pyo.Var):
+                        if input_var[t,d].ub:
+                            embed_var[t, d].ub = input_var[t,set_var.first()].ub * len(set_var) * max(M.W_emb[:,d])
+                        if input_var[t,d].lb:
+                            embed_var[t, d].lb = input_var[t,set_var.first()].lb * len(set_var) * min(M.W_emb[:,d])
+                    
+                    elif isinstance(input_var, pyo.Param):
+                        embed_var[t, d].ub = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
+                        embed_var[t, d].lb = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
 
     def add_layer_norm(self, M, input_var_name, layer_norm_var_name, gamma, beta):  # non-linear
         """
@@ -197,13 +192,7 @@ class Transformer:
                 M.layer_norm_constraints.add(expr= variance[t] == denominator[t] * denominator_abs[t]) 
                
                 
-                # M.layer_norm_constraints.add(expr= denominator[t] == denominator_pos[t] - denominator_neg[t]) 
-                # M.layer_norm_constraints.add(expr= denominator_pos[t] * denominator_neg[t] == 0) 
-                # M.layer_norm_constraints.add(expr= variance[t] == (denominator_pos[t] **2 ) - (denominator_neg[t] **2)) 
-                # denominator_pos[t].lb = 0
-                # denominator_pos[t].ub = denominator[t].ub
-                # denominator_neg[t].lb = 0
-                # denominator_neg[t].ub = denominator[t].ub
+                
                 
                 M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
                 div[t,d].ub = 4
@@ -331,9 +320,9 @@ class Transformer:
                             M.attention_constraints.add(
                                 expr=M.Q[h, n, k] == M.Q_pos[h, n, k] - M.Q_neg[h, n, k] 
                             )
-                            # M.Q_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_q[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_q[h,k]  # Cauchy-Schwarz Inequality
-                            # M.Q_neg[h, n, k].ub = M.Q_pos[h, n, k].ub
-                            #M.Q[h, n, k].lb = sum(input_var[n,d].lb * M.W_q[d, h, k] for d in M.model_dims) + M.b_q[h,k] 
+                            M.Q_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_q[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_q[h,k]  # Cauchy-Schwarz Inequality
+                            M.Q_neg[h, n, k].ub = M.Q_pos[h, n, k].ub
+                            # M.Q[h, n, k].lb = sum(input_var[n,d].lb * M.W_q[d, h, k] for d in M.model_dims) + M.b_q[h,k] 
                                 
                         else: 
                             M.attention_constraints.add(

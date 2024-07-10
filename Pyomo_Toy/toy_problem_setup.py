@@ -52,9 +52,9 @@ else:
     for t, (u_val, x_val) in zip(model.time_input, zip(u_input, x_input)):
         dict_inputs[(t, '0')] = x_val
         dict_inputs[(t, '1')] = u_val
-    #model.input_param = pyo.Var(model.time_input, model.variables, initialize=dict_inputs, bounds=(LB_input, UB_input)) # t=0 to t=prediction time
+    model.input_param = pyo.Var(model.time_input, model.variables, initialize=dict_inputs, bounds=(LB_input, UB_input)) # t=0 to t=prediction time
     
-    model.input_param = pyo.Param(model.time_input, model.variables, initialize=dict_inputs) # t=0 to t=prediction time
+    #model.input_param = pyo.Param(model.time_input, model.variables, initialize=dict_inputs) # t=0 to t=prediction time
     
     X =  [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273, 1.4942082036615287]
     U =  [0.25, 0.26315789, 0.27777778, 0.29411765, 0.3125, 0.33333333, 0.35714286, 0.38461538, 0.41666667, 0.45454545, 0.33872010834609095]
