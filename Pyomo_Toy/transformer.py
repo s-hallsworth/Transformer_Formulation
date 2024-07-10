@@ -427,9 +427,9 @@ class Transformer:
                             == M.compatibility_exp[h, n, n2]) 
                         
             for n in M.time_input: 
-            # #     for k in M.k_dims:
-            # #         M.attention_score[h, n, k].lb = sum(M.attention_weight[h, n, n2].lb * M.V[h, n2, k].lb for n2 in M.time_input)
-            # #         M.attention_score[h, n, k].ub = sum(M.attention_weight[h, n, n2].ub * M.V[h, n2, k].ub for n2 in M.time_input)
+                # for k in M.k_dims:
+                #     M.attention_score[h, n, k].lb = sum(M.attention_weight[h, n, n2].lb * M.V[h, n2, k].lb for n2 in M.time_input)
+                #     M.attention_score[h, n, k].ub = sum(M.attention_weight[h, n, n2].ub * M.V[h, n2, k].ub for n2 in M.time_input)
                     
                     
                 for p in M.time_input:
@@ -448,9 +448,11 @@ class Transformer:
                                                             - (e_l * sum_e_u)
                                                             + (M.bound_var_compat[h,n])
                     )
-            #         M.compatibility_exp[h, n, p].lb = 1 + M.compatibility[h,n,p].lb + (0.5 * (M.compatibility[h,n,p].lb**2)) + (0.16667 *(M.compatibility[h,n,p].lb**3)) # power series(x) <= exp(x)
-            #         M.compatibility_exp_sum[h, n].ub = self.N * math.exp(M.compatibility[h,n,p].ub)
-            #         M.compatibility_exp_sum[h, n].lb = self.N * math.exp(M.compatibility[h,n,p].lb)
+                    
+                    
+                    M.compatibility_exp[h, n, p].lb = 1 + M.compatibility[h,n,p].lb + (0.5 * (M.compatibility[h,n,p].lb**2)) + (0.16667 *(M.compatibility[h,n,p].lb**3)) # power series(x) <= exp(x)
+                    M.compatibility_exp_sum[h, n].ub = self.N * math.exp(M.compatibility[h,n,p].ub)
+                    M.compatibility_exp_sum[h, n].lb = self.N * math.exp(M.compatibility[h,n,p].lb)
                     
         # multihead attention output constraint
         for n in M.time_input:
