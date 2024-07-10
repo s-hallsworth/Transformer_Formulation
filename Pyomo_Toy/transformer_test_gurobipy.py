@@ -25,40 +25,40 @@ Test each module of transformer
 # ------- Transformer Test Class ------------------------------------------------------------------------------------
 class TestTransformer(unittest.TestCase):    
 
-    # def test_pyomo_input(self): #, model, pyomo_input_name ,transformer_input):
-    #     # Define Test Case Params
-    #     model = tps.model.clone()
-    #     pyomo_input_name = "input_param"
+    def test_pyomo_input(self): #, model, pyomo_input_name ,transformer_input):
+        # Define Test Case Params
+        model = tps.model.clone()
+        pyomo_input_name = "input_param"
         
-    #     # Get input var
-    #     input_var = getattr(model, pyomo_input_name)
+        # Get input var
+        input_var = getattr(model, pyomo_input_name)
         
-    #     # Convert to gurobipy
-    #     gurobi_model, _ = convert_pyomo.to_gurobi(model)
-    #     parameters = {}
+        # Convert to gurobipy
+        gurobi_model, _ = convert_pyomo.to_gurobi(model)
+        parameters = {}
         
-    #     # Get input value (before solve)
-    #     for v in gurobi_model.getVars():
-    #         # print(f'var name: {v.varName}, var type {type(v)}')
-    #         # print(v.LB, v.UB)
-    #         if "[" in v.varName:
-    #             name = v.varname.split("[")[0]
-    #             if name in parameters.keys():
-    #                 parameters[name] += [v.LB]
-    #             else:
-    #                 parameters[name] = [v.LB]
-    #         else:    
-    #             parameters[v.varName] = v.LB
+        # Get input value (before solve)
+        for v in gurobi_model.getVars():
+            # print(f'var name: {v.varName}, var type {type(v)}')
+            # print(v.LB, v.UB)
+            if "[" in v.varName:
+                name = v.varname.split("[")[0]
+                if name in parameters.keys():
+                    parameters[name] += [v.LB]
+                else:
+                    parameters[name] = [v.LB]
+            else:    
+                parameters[v.varName] = v.LB
 
-    #     # model input
-    #     model_input = np.array(parameters[pyomo_input_name])
+        # model input
+        model_input = np.array(parameters[pyomo_input_name])
         
-    #     ## TNN outputs  
-    #     transformer_input = np.array(tir.layer_outputs_dict['input_layer_1']).flatten()
+        ## TNN outputs  
+        transformer_input = np.array(tir.layer_outputs_dict['input_layer_1']).flatten()
         
-    #     # Assertions
-    #     self.assertIsNone(np.testing.assert_array_equal(model_input.shape, transformer_input.shape)) # pyomo input data and transformer input data must be the same shape
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(model_input, transformer_input, decimal = 7))             # both inputs must be equal
+        # Assertions
+        self.assertIsNone(np.testing.assert_array_equal(model_input.shape, transformer_input.shape)) # pyomo input data and transformer input data must be the same shape
+        self.assertIsNone(np.testing.assert_array_almost_equal(model_input, transformer_input, decimal = 7))             # both inputs must be equal
         
         
     def test_no_embed_input(self):
@@ -131,9 +131,7 @@ class TestTransformer(unittest.TestCase):
                         optimal_parameters[name] = [v.x]
                 else:    
                     optimal_parameters[v.varName] = v.x
-        else:
-            print("No optimal solution found")
-            return
+            
         # model input
         embed_output = np.array(optimal_parameters["input_embed"])
         
@@ -234,9 +232,7 @@ class TestTransformer(unittest.TestCase):
                         optimal_parameters[name] = [v.x]
                 else:    
                     optimal_parameters[v.varName] = v.x
-        else:
-            print("No optimal found")
-            return
+
         # model output
         LN_output = np.array(optimal_parameters["layer_norm"])
         Q_form = np.array(optimal_parameters["Q"])
