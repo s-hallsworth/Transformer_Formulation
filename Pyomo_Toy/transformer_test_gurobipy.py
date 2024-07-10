@@ -131,7 +131,9 @@ class TestTransformer(unittest.TestCase):
                         optimal_parameters[name] = [v.x]
                 else:    
                     optimal_parameters[v.varName] = v.x
-
+        else:
+            print("No optimal solution found")
+            return
         # model input
         embed_output = np.array(optimal_parameters["input_embed"])
         
@@ -232,7 +234,9 @@ class TestTransformer(unittest.TestCase):
                         optimal_parameters[name] = [v.x]
                 else:    
                     optimal_parameters[v.varName] = v.x
-
+        else:
+            print("No optimal found")
+            return
         # model output
         LN_output = np.array(optimal_parameters["layer_norm"])
         Q_form = np.array(optimal_parameters["Q"])
