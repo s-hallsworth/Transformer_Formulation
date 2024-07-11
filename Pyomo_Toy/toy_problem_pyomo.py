@@ -32,7 +32,11 @@ transformer.add_residual_connection(model,"residual_1", "ffn_1", "residual_2")
 transformer.add_avg_pool(model, "residual_2", "avg_pool")
 transformer.add_FFN_2D(model, "avg_pool", "ffn_2", (1,2), tps.parameters)
 
-        
+# output constraints
+for enum_d, d in enumerate(model.variables):
+    model.input_constraints.add(expr=model.ffn_2[d] == model.input_var[model.time.last(),d])
+            
+                   
 # Discretize model using Backward Difference method
 discretizer = pyo.TransformationFactory("dae.finite_difference")
 discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
@@ -59,10 +63,12 @@ def get_optimal_dict(result, model):
         print("No optimal solution obtained.")
     
     return optimal_parameters
-
-
 #----------------------------
 optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
+
+input_var_soltuion = optimal_parameters["input_var"]
+print(input_var_soltuion)
+
 #print(optimal_parameters)  
      
 # from pyomo.core import *

@@ -430,6 +430,7 @@ class Transformer:
                             == M.compatibility_exp[h, n, n2]) 
                         
             for n in M.time_input:
+                # M.attention_score[h, n, k].ub = sum(M.attention_weight[h, n, n2].ub * M.V[h, n2, k].ub for n2 in M.time_input)
                 M.attention_constraints.add( expr= M.bound_var_MC_4[h,n] * M.compatibility_exp_sum[h, n] == 1)
                 M.attention_constraints.add( expr= M.bound_var_MC_3[h,n] * M.compatibility_exp_sum[h, n] == 1)
                 M.attention_constraints.add( expr= M.bound_var_MC_2[h,n] * M.compatibility_exp_sum[h, n] == 1)
@@ -885,8 +886,12 @@ class Transformer:
         for n in M.time_input:
             for d in M.model_dims:
                 M.residual_constraints.add(expr= residual_var[n,d] == input_1[n,d] + input_2[n,d])
-
-    
+                try:
+                    residual_var[n,d].ub == input_1[n,d].ub + input_2[n,d].ub
+                    residual_var[n,d].lb == input_1[n,d].lb + input_2[n,d].lb
+                except:
+                    continue
+                
     def add_FFN_2D(self,M, input_var_name, output_var_name, input_shape, model_parameters):
         input_var = getattr(M, input_var_name)
 
@@ -976,7 +981,12 @@ class Transformer:
 
         for d in M.model_dims: 
             M.avg_pool_constraints.add(expr= output_var[d] * self.N == sum(input_var[t,d] for t in M.time_input))
-        
+            
+            try:
+                output_var[d].ub  == sum(input_var[t,d].ub for t in M.time_input) / self.N
+                output_var[d].lb  == sum(input_var[t,d].lb for t in M.time_input) / self.N
+            except:
+                continue
     #def add_output_constraints(self, M, input_var):
         # if not hasattr(M, "output_constraints"):
         #     M.output_constraints = pyo.ConstraintList()
