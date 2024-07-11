@@ -102,7 +102,7 @@ class Transformer:
                         embed_var[t, d].ub = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
                         embed_var[t, d].lb = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
 
-    def add_layer_norm(self, M, input_var_name, layer_norm_var_name, gamma, beta):  # non-linear
+    def add_layer_norm(self, M, input_var_name, layer_norm_var_name, gamma, beta, std=None):  # non-linear
         """
         Normalization over the sequennce of input
         """
@@ -178,11 +178,13 @@ class Transformer:
                 #M.layer_norm_constraints.add(expr= denominator[t] **2 == variance[t] )     ##IF SCIP SOLVER
                 ## FOR SCIP or GUROBI: determine abs(denominator)
                 M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
-                M.layer_norm_constraints.add(expr= -denominator[t] <= denominator_abs[t]) 
                 M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
                 
                 M.layer_norm_constraints.add(expr= variance[t] == denominator[t] * denominator_abs[t]) 
-
+                if std:
+                    denominator[t].ub = std
+                    denominator[t].lb = -std
+                
                 M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
                 div[t,d].ub = 4
                 div[t,d].lb = -4
@@ -293,7 +295,7 @@ class Transformer:
             M.heads, M.time_input, M.k_dims, within=pyo.Reals
         )  # softmax ( (Q * K)/sqrt(d_k) ) * V
         M.attention_output = pyo.Var(
-            M.time_input, M.model_dims, within=pyo.Reals #, bounds=(-1,1)
+            M.time_input, M.model_dims, within=pyo.Reals , bounds=(-1,1)
         )  # concat heads and linear transform
 
         for h in M.heads:
@@ -438,7 +440,7 @@ class Transformer:
                     
                     
                 for p in M.time_input:
-                    M.compatibility[h,n,p].ub = (1/scale ) * sum(M.Q[h, n, k].ub * (M.K[ h, p, k].ub )for k in M.k_dims)
+                    M.compatibility[h,n,p].ub = (1/scale ) * (sum( (M.Q[h, n, k].ub)**2 for k in M.k_dims)**0.5) * (sum( (M.K[h, n, k].ub)**2 for k in M.k_dims)**0.5)
                     M.compatibility[h,n,p].lb = (-1/scale ) * sum(M.Q_pos[h, n, k].ub * (M.K_pos[ h, p, k].ub )for k in M.k_dims)
 
                 for p in M.time_input:
@@ -477,10 +479,10 @@ class Transformer:
                     )
                     
                     
-                    M.compatibility_exp_sum[h, n].ub = self.N * math.exp(M.compatibility[h,n,p].ub)
-                    M.compatibility_exp_sum[h, n].lb = self.N * math.exp(M.compatibility[h,n,p].lb)
-                    M.compatibility_exp[h, n, p].lb = 1 + M.compatibility[h,n,p].lb + (0.5 * (M.compatibility[h,n,p].lb**2)) + (0.16667 *(M.compatibility[h,n,p].lb**3)) # power series(x) <= exp(x)
-                    
+                    M.compatibility_exp_sum[h, n].ub = self.N * e_u
+                    M.compatibility_exp_sum[h, n].lb = self.N * e_l
+                    M.compatibility_exp[h, n, p].lb = math.exp(M.compatibility[h,n,p].lb)
+                    M.compatibility_exp[h, n, p].ub = math.exp(M.compatibility[h,n,p].ub)
                     
         # multihead attention output constraint
         for n in M.time_input:
@@ -800,7 +802,7 @@ class Transformer:
                     
                     
                 for p in M.time_input:
-                    M.compatibility[h,n,p].ub = (1/scale ) * sum(M.Q[h, n, k].ub * (M.K[ h, p, k].ub )for k in M.k_dims)
+                    M.compatibility[h,n,p].ub = (1/scale ) * (sum( (M.Q[h, n, k].ub)**2 for k in M.k_dims)**0.5) * (sum( (M.K[h, n, k].ub)**2 for k in M.k_dims)**0.5)
                     M.compatibility[h,n,p].lb = (-1/scale ) * sum(M.Q_pos[h, n, k].ub * (M.K_pos[ h, p, k].ub )for k in M.k_dims)
 
                 for p in M.time_input:
@@ -838,9 +840,11 @@ class Transformer:
                                                             - (e_l * sum_e_l)
                     )
                     
-
-                    M.compatibility_exp_sum[h, n].ub = self.N * math.exp(M.compatibility[h,n,p].ub)
-                    M.compatibility_exp_sum[h, n].lb = self.N * math.exp(M.compatibility[h,n,p].lb)                
+                    
+                    M.compatibility_exp_sum[h, n].ub = self.N * e_u
+                    M.compatibility_exp_sum[h, n].lb = self.N * e_l
+                    M.compatibility_exp[h, n, p].lb = math.exp(M.compatibility[h,n,p].lb)
+                    M.compatibility_exp[h, n, p].ub = math.exp(M.compatibility[h,n,p].ub)                
         # multihead attention output constraint
         for n in M.time_input:
             for d in M.model_dims:
