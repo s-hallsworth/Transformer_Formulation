@@ -74,7 +74,7 @@ print()
 ## Optimize
 gurobi_model.params.SolutionLimit = 1 ##
 gurobi_model.params.MIPFocus = 1 ## focus on finding feasible solution
-time_limit = 25
+time_limit = 86400 # 24 hrs
 solve_gurobipy(gurobi_model, time_limit) ## Solve and print
 
 ## Get optimal parameters

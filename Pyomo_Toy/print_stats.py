@@ -48,8 +48,8 @@ def solve_gurobipy(model, time_limit):
     
     
 def solve_pyomo(model, solver, time_limit):
-    
-    solver.options['TimeLimit'] = time_limit
+    if time_limit is not None:
+        solver.options['timelimit'] = time_limit
     print('Time Limit: ', time_limit)
     print("------------------------------------------------------")
     print()
@@ -59,7 +59,7 @@ def solve_pyomo(model, solver, time_limit):
     
     # Solve the model
     results = solver.solve(model, tee=True)
-    
+
     # Record end time
     end_time = time.time()
     
