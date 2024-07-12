@@ -181,6 +181,7 @@ class Transformer:
                 if std:
                     denominator[t].ub = std
                     denominator[t].lb = -std
+                    
                 
                 M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
                 div[t,d].ub = 4
@@ -199,9 +200,15 @@ class Transformer:
                     
                 #Add bounds
                 if input_var[t, d].ub and input_var[t, d].lb:
-                    numerator[t,d].ub = input_var[t, d].ub
-                    numerator[t,d].lb = input_var[t, d].lb - (sum(input_var[t, d_prime].ub for d_prime in M.model_dims)/ self.d_model )
+                    mean_u = (sum(input_var[t, d_prime].ub for d_prime in M.model_dims)/ self.d_model )
+                    mean_l = (sum(input_var[t, d_prime].lb for d_prime in M.model_dims)/ self.d_model )
+                    numerator[t,d].ub = input_var[t, d].ub - mean_l
+                    numerator[t,d].lb = input_var[t, d].lb - mean_u
                     numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
+                    
+                    if not std :
+                        denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))
+                        denominator[t].lb = - denominator[t].ub 
                 numerator_squared[t,d].lb = 0
             if input_var[t, d].ub and input_var[t, d].lb:
                 numerator_squared_sum[t].ub = 2 * (sum( (numerator_squared[t,d_prime].ub)**2  for d_prime in M.model_dims)**0.5) 
