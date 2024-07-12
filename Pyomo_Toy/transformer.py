@@ -172,15 +172,6 @@ class Transformer:
                 M.layer_norm_constraints.add(expr= numerator_squared_sum[t] == sum(numerator_squared[t,d_prime] for d_prime in M.model_dims))
                 M.layer_norm_constraints.add(expr= variance[t] * self.d_model == numerator_squared_sum[t])
                 
-                #Add bounds
-                if input_var[t, d].ub and input_var[t, d].lb:
-                    numerator[t,d].ub = input_var[t, d].ub
-                    numerator[t,d].lb = input_var[t, d].lb - (sum(input_var[t, d_prime].ub for d_prime in M.model_dims)/ self.d_model )
-                    # numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
-                    # numerator_squared_sum[t].ub = 2 * (sum( (numerator_squared[t,d].ub)**2  for d_prime in M.model_dims)**0.5) 
-                numerator_squared[t,d].lb = 0
-                numerator_squared_sum[t].lb = 0
-                
                 #M.layer_norm_constraints.add(expr= denominator[t] **2 == variance[t] )     ##IF SCIP SOLVER
                 ## FOR SCIP or GUROBI: determine abs(denominator)
                 M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
@@ -192,19 +183,29 @@ class Transformer:
                     denominator[t].lb = -std
                 
                 M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
-                # div[t,d].ub = 5
-                # div[t,d].lb = -5
+                div[t,d].ub = 4
+                div[t,d].lb = -4
                 
                 if gamma and beta:
                     M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == getattr(M, gamma)[d] * div[t,d])
                     M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == numerator_scaled[t,d] + getattr(M, beta)[d])
-                    # layer_norm_var[t, d].ub = getattr(M, beta)[d] + 5*getattr(M, gamma)[d]
-                    # layer_norm_var[t, d].lb = getattr(M, beta)[d] - 5*getattr(M, gamma)[d]
+                    layer_norm_var[t, d].ub = getattr(M, beta)[d] + 4*getattr(M, gamma)[d]
+                    layer_norm_var[t, d].lb = getattr(M, beta)[d] - 4*getattr(M, gamma)[d]
                 else: 
                     M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == div[t,d])
                     M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == numerator_scaled[t,d])
-                    # layer_norm_var[t, d].ub = 5
-                    # layer_norm_var[t, d].lb = - 5
+                    layer_norm_var[t, d].ub = 4
+                    layer_norm_var[t, d].lb = -4
+                    
+                #Add bounds
+                if input_var[t, d].ub and input_var[t, d].lb:
+                    numerator[t,d].ub = input_var[t, d].ub
+                    numerator[t,d].lb = input_var[t, d].lb - (sum(input_var[t, d_prime].ub for d_prime in M.model_dims)/ self.d_model )
+                    numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
+                numerator_squared[t,d].lb = 0
+            if input_var[t, d].ub and input_var[t, d].lb:
+                numerator_squared_sum[t].ub = 2 * (sum( (numerator_squared[t,d_prime].ub)**2  for d_prime in M.model_dims)**0.5) 
+            numerator_squared_sum[t].lb = 0
 
     def add_attention(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):
         """
