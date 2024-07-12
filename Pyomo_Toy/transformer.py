@@ -322,14 +322,14 @@ class Transformer:
                             == sum(input_var[n,d] * M.W_q[d, h, k] for d in M.model_dims) + M.b_q[h,k] 
                             )  
                             #Add bounds
-                            # M.attention_constraints.add(
-                            #     expr=M.Q[h, n, k] == M.Q_pos[h, n, k] - M.Q_neg[h, n, k] 
-                            # )
-                            # M.Q_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_q[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_q[h,k]  # Cauchy-Schwarz Inequality
-                            # M.Q_neg[h, n, k].ub = M.Q_pos[h, n, k].ub
+                            M.attention_constraints.add(
+                                expr=M.Q[h, n, k] == M.Q_pos[h, n, k] - M.Q_neg[h, n, k] 
+                            )
+                            M.Q_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_q[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_q[h,k]  # Cauchy-Schwarz Inequality
+                            M.Q_neg[h, n, k].ub = M.Q_pos[h, n, k].ub
                             
-                            # M.Q[h, n, k].ub = M.Q_pos[h, n, k].ub
-                            # M.Q[h, n, k].lb = -M.Q_pos[h, n, k].ub
+                            M.Q[h, n, k].ub = M.Q_pos[h, n, k].ub
+                            M.Q[h, n, k].lb = -M.Q_pos[h, n, k].ub
   
                         else: 
                             M.attention_constraints.add(
@@ -337,15 +337,15 @@ class Transformer:
                                 == sum(input_var[n, d] * M.W_q[d, h, k] for d in M.model_dims)
                             )
                             #Add bounds
-                            # M.attention_constraints.add(
-                            #     expr=M.Q[h, n, k] == M.Q_pos[h, n, k] - M.Q_neg[h, n, k] 
-                            # )
+                            M.attention_constraints.add(
+                                expr=M.Q[h, n, k] == M.Q_pos[h, n, k] - M.Q_neg[h, n, k] 
+                            )
              
-                            # M.Q_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_q[d, h, k]**2 for d in M.model_dims)**0.5)) # Cauchy-Schwarz Inequality
-                            # M.Q_neg[h, n, k].ub = M.Q_pos[h, n, k].ub
+                            M.Q_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_q[d, h, k]**2 for d in M.model_dims)**0.5)) # Cauchy-Schwarz Inequality
+                            M.Q_neg[h, n, k].ub = M.Q_pos[h, n, k].ub
                             
-                            # M.Q[h, n, k].ub = M.Q_pos[h, n, k].ub
-                            # M.Q[h, n, k].lb = -M.Q_pos[h, n, k].ub
+                            M.Q[h, n, k].ub = M.Q_pos[h, n, k].ub
+                            M.Q[h, n, k].lb = -M.Q_pos[h, n, k].ub
                               
                         # constraints for Key
                         if b_k:
@@ -353,31 +353,31 @@ class Transformer:
                             expr=M.K[h, n, k]
                             == sum(input_var[n, d] * M.W_k[d, h, k] for d in M.model_dims) + M.b_k[h,k]
                             )  
-                            # #Add bounds
-                            # M.attention_constraints.add(
-                            #     expr=M.K[h, n, k] == M.K_pos[h, n, k] - M.K_neg[h, n, k] 
-                            # )
-                            # M.K_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_k[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_k[h,k] # Cauchy-Schwarz Inequality
-                            # M.K_neg[h, n, k].ub = M.K_pos[h, n, k].ub
+                            #Add bounds
+                            M.attention_constraints.add(
+                                expr=M.K[h, n, k] == M.K_pos[h, n, k] - M.K_neg[h, n, k] 
+                            )
+                            M.K_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_k[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_k[h,k] # Cauchy-Schwarz Inequality
+                            M.K_neg[h, n, k].ub = M.K_pos[h, n, k].ub
                             
-                            # M.K[h, n, k].ub = M.K_pos[h, n, k].ub
-                            # M.K[h, n, k].lb = -M.K_pos[h, n, k].ub
+                            M.K[h, n, k].ub = M.K_pos[h, n, k].ub
+                            M.K[h, n, k].lb = -M.K_pos[h, n, k].ub
                             
                         else: 
                             M.attention_constraints.add(
                                 expr=M.K[h, n, k]
                                 == sum(input_var[n, d] * M.W_k[d, h, k] for d in M.model_dims)
                             )
-                            # #Add bounds
-                            # M.attention_constraints.add(
-                            #     expr=M.K[h, n, k] == M.K_pos[h, n, k] - M.K_neg[h, n, k] 
-                            # )
+                            #Add bounds
+                            M.attention_constraints.add(
+                                expr=M.K[h, n, k] == M.K_pos[h, n, k] - M.K_neg[h, n, k] 
+                            )
    
-                            # M.K_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_k[d, h, k]**2 for d in M.model_dims)**0.5)) # Cauchy-Schwarz Inequality
-                            # M.K_neg[h, n, k].ub = M.K_pos[h, n, k].ub
+                            M.K_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_k[d, h, k]**2 for d in M.model_dims)**0.5)) # Cauchy-Schwarz Inequality
+                            M.K_neg[h, n, k].ub = M.K_pos[h, n, k].ub
                             
-                            # M.K[h, n, k].ub = M.K_pos[h, n, k].ub
-                            # M.K[h, n, k].lb = -M.K_pos[h, n, k].ub
+                            M.K[h, n, k].ub = M.K_pos[h, n, k].ub
+                            M.K[h, n, k].lb = -M.K_pos[h, n, k].ub
                             
                         # constraints for Value    
                         if b_v:
@@ -385,33 +385,33 @@ class Transformer:
                             expr=M.V[h, n, k]
                             == sum(input_var[n, d] * M.W_v[d, h, k] for d in M.model_dims) + M.b_v[h,k]
                             )  
-                            # #Add bounds
+                            #Add bounds
                             
-                            # M.attention_constraints.add(
-                            #     expr=M.V[h, n, k] == M.V_pos[h, n, k] - M.V_neg[h, n, k] 
-                            # )
-                            # M.V_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_v[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_v[h,k] # Cauchy-Schwarz Inequality
-                            # M.V_neg[h, n, k].ub = M.V_pos[h, n, k].ub
+                            M.attention_constraints.add(
+                                expr=M.V[h, n, k] == M.V_pos[h, n, k] - M.V_neg[h, n, k] 
+                            )
+                            M.V_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_v[d, h, k]**2 for d in M.model_dims)**0.5)) + M.b_v[h,k] # Cauchy-Schwarz Inequality
+                            M.V_neg[h, n, k].ub = M.V_pos[h, n, k].ub
                             
-                            # M.V[h, n, k].ub = M.V_pos[h, n, k].ub
-                            # M.V[h, n, k].lb = -M.V_pos[h, n, k].ub
+                            M.V[h, n, k].ub = M.V_pos[h, n, k].ub
+                            M.V[h, n, k].lb = -M.V_pos[h, n, k].ub
                             
                         else: 
                             M.attention_constraints.add(
                                 expr=M.V[h, n, k]
                                 == sum(input_var[n, d] * M.W_v[d, h, k] for d in M.model_dims) 
                             )
-                            # #Add bounds
+                            #Add bounds
                             
-                            # M.attention_constraints.add(
-                            #     expr=M.V[h, n, k] == M.V_pos[h, n, k] - M.V_neg[h, n, k] 
-                            # )
+                            M.attention_constraints.add(
+                                expr=M.V[h, n, k] == M.V_pos[h, n, k] - M.V_neg[h, n, k] 
+                            )
 
-                            # M.V_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_v[d, h, k]**2 for d in M.model_dims)**0.5)) # Cauchy-Schwarz Inequality
-                            # M.V_neg[h, n, k].ub = M.V_pos[h, n, k].ub      
+                            M.V_pos[h, n, k].ub = ((sum(input_var[n,d].ub**2 for d in M.model_dims)**0.5) * (sum( M.W_v[d, h, k]**2 for d in M.model_dims)**0.5)) # Cauchy-Schwarz Inequality
+                            M.V_neg[h, n, k].ub = M.V_pos[h, n, k].ub      
                             
-                            # M.V[h, n, k].ub = M.V_pos[h, n, k].ub
-                            # M.V[h, n, k].lb = -M.V_pos[h, n, k].ub 
+                            M.V[h, n, k].ub = M.V_pos[h, n, k].ub
+                            M.V[h, n, k].lb = -M.V_pos[h, n, k].ub 
 
                         # attention score = sum(attention_weight * V)
                         M.attention_constraints.add(
