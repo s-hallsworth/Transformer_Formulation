@@ -41,9 +41,6 @@ nn2, input_nn2, output_nn2 = transformer.get_fnn(model, "avg_pool", "ffn_2", (1,
 model.input_var_constraints = pyo.ConstraintList()
 
 for d in model.model_dims:
-    for t in model.time_input:
-        model.input_var_constraints.add(expr=model.input_var[t,d] == model.input_param[t,d])
-        
     model.input_var_constraints.add(expr=model.input_var[model.time.last(),d] == model.ffn_2[d])
 
 # # Convert to gurobipy
@@ -90,6 +87,16 @@ if gurobi_model.status == GRB.OPTIMAL:
                 optimal_parameters[name] = [v.x]
         else:    
             optimal_parameters[v.varName] = v.x
+            
+##
+try:
+    print(
+    "objective value:", gurobi_model.getObjective().getValue()
+    )
+except:
+    gurobi_model.computeIIS()
+    gurobi_model.write("model.ilp")            
+            
 
 ## Print Objective Value
 print(
