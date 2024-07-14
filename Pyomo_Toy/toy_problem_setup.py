@@ -52,19 +52,20 @@ else:
     for t, (u_val, x_val) in zip(model.time_input, zip(u_input, x_input)):
         dict_inputs[(t, '0')] = x_val
         dict_inputs[(t, '1')] = u_val
-    model.input_param = pyo.Var(model.time_input, model.variables, initialize=dict_inputs, bounds=(LB_input, UB_input)) # t=0 to t=prediction time
+        
+    # model.input_param = pyo.Param(model.time_input, model.variables, initialize=dict_inputs)
+    model.input_param = pyo.Var(model.time_input, model.variables, bounds=(LB_input, UB_input)) # t=0 to t=prediction time
     
     model.input_param_fixed = pyo.Param(model.time_input, model.variables, initialize=dict_inputs) # t=0 to t=prediction time
-    
+    model.x_param_fix_constraints = pyo.ConstraintList()  
+    for t in model.time_input:
+        for d in model.variables:
+            if t < 0.9:
+                model.x_param_fix_constraints.add(expr=model.input_param[t,d] == model.input_param_fixed[t,d])
+
     X =  [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273, 1.4942082707791076]
     U =  [0.25, 0.26315789, 0.27777778, 0.29411765, 0.3125, 0.33333333, 0.35714286, 0.38461538, 0.41666667, 0.45454545, 0.33872000390697854]
-    
-    for t in model.time:
-        for d in model.variables:
-            if t < 0.6:
-                model.x_param_fix = pyo.Constraint(expr=model.input_param[t,d] == model.input_param_fixed[t,d])
-    
-    
+
     #X = data_gen.x[0, -3:]
     # U = data_gen.u[0, -3:]
     
@@ -105,31 +106,38 @@ b_o = parameters['multi_head_attention_1','b_o']
 ## define constraints
 model.input_constraints = pyo.ConstraintList()      
 if NOT_WARM:
-    model.x_init_constr_x = pyo.Constraint(expr=model.input_param[min(model.time),'0'] == x_input[0])
-    model.x_init_constr_u = pyo.Constraint(expr=model.input_param[min(model.time),'1'] == u_input[0])
-
-    for t in model.time:
-        if t <= 0.9:
-            # add constraints that x,u = x,u input values
-            model.input_constraints.add(expr=model.input_var[t,'0'] == model.input_param[t,'0'])
-            model.input_constraints.add(expr=model.input_var[t,'1'] == model.input_param[t,'1'])
-              
-else:  
-    model.x_init_constr = pyo.Constraint(expr=model.input_var[min(model.time),'0'] == 1)
     
     for t_index, t in enumerate(model.time):
         if t == model.time.first():
+            model.x_init_constr_x = pyo.Constraint(expr=model.input_param[t,'0'] == x_input[0])
+            model.x_init_constr_u = pyo.Constraint(expr=model.input_param[t,'1'] == u_input[0])
+            
+        elif t < model.time.last():
+            # add constraints that x,u = x,u input values
+            model.input_constraints.add(expr=model.input_var[t,'0'] == model.input_param[t,'0'])
+            model.input_constraints.add(expr=model.input_var[t,'1'] == model.input_param[t,'1'])
+            
+            # increasing var with time
+            model.input_constraints.add(expr=model.input_var[t,'0'] >= model.input_var[model.time.at(t_index ),'0'])
+            model.input_constraints.add(expr=model.input_var[t,'1'] >= model.input_var[model.time.at(t_index ),'1']) 
+              
+else:  
+    
+    
+    for t_index, t in enumerate(model.time):
+        if t == model.time.first():
+            model.x_init_constr = pyo.Constraint(expr=model.input_var[t,'0'] == 1)
             model.input_constraints.add(expr=model.input_var[t,'1'] == model.input_param[t,'1'])
             
         # create arrays for input x and u values
-        if t <= 0.9:
+        elif t < model.time.last():
             # add constraints that x,u = x,u input values
             model.input_constraints.add(expr=model.input_var[t,'0'] == model.input_param[t,'0'])
             model.input_constraints.add(expr=model.input_var[t,'1'] == model.input_param[t,'1'])  
             
-        # increasing var with time
-        model.input_constraints.add(expr=model.input_var[t,'0'] <= model.input_var[model.time.at(t_index + 1),'0'])
-        model.input_constraints.add(expr=model.input_var[t,'1'] <= model.input_var[model.time.at(t_index + 1),'1'])    
+            # increasing var with time
+            model.input_constraints.add(expr=model.input_var[t,'0'] >= model.input_var[model.time.at(t_index ),'0'])
+            model.input_constraints.add(expr=model.input_var[t,'1'] >= model.input_var[model.time.at(t_index ),'1'])    
     
 # define integral constraints
 def _intX(m, t):

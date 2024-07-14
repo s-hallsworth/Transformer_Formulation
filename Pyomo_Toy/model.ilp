@@ -1,0 +1,106 @@
+\ Model '(TOY_TEST)'_copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+Minimize
+  0 compatibility[12,0.4,0.1]
+Subject To
+ R3194: - compatibility_exp[12,0.4,0.0] - compatibility_exp[12,0.4,0.1]
+   - compatibility_exp[12,0.4,0.2]
+   - compatibility_exp[12,0.4,0.30000000000000004]
+   - compatibility_exp[12,0.4,0.4] - compatibility_exp[12,0.4,0.5]
+   - compatibility_exp[12,0.4,0.6000000000000001]
+   - compatibility_exp[12,0.4,0.7000000000000001]
+   - compatibility_exp[12,0.4,0.8] - compatibility_exp[12,0.4,0.9]
+   + compatibility_exp_sum[12,0.4] = 0
+ qc0: attention_score[6,0.0,3] + [
+   - V[6,0.0,3] * attention_weight[6,0.0,0.0]
+   - V[6,0.1,3] * attention_weight[6,0.0,0.1]
+   - V[6,0.2,3] * attention_weight[6,0.0,0.2]
+   - V[6,0.30000000000000004,3] * attention_weight[6,0.0,0.30000000000000004]
+   - V[6,0.4,3] * attention_weight[6,0.0,0.4]
+   - V[6,0.5,3] * attention_weight[6,0.0,0.5]
+   - V[6,0.6000000000000001,3] * attention_weight[6,0.0,0.6000000000000001]
+   - V[6,0.7000000000000001,3] * attention_weight[6,0.0,0.7000000000000001]
+   - V[6,0.8,3] * attention_weight[6,0.0,0.8]
+   - V[6,0.9,3] * attention_weight[6,0.0,0.9] ] = 0
+ qc1: attention_score[6,0.1,3] + [
+   - V[6,0.0,3] * attention_weight[6,0.1,0.0]
+   - V[6,0.1,3] * attention_weight[6,0.1,0.1]
+   - V[6,0.2,3] * attention_weight[6,0.1,0.2]
+   - V[6,0.30000000000000004,3] * attention_weight[6,0.1,0.30000000000000004]
+   - V[6,0.4,3] * attention_weight[6,0.1,0.4]
+   - V[6,0.5,3] * attention_weight[6,0.1,0.5]
+   - V[6,0.6000000000000001,3] * attention_weight[6,0.1,0.6000000000000001]
+   - V[6,0.7000000000000001,3] * attention_weight[6,0.1,0.7000000000000001]
+   - V[6,0.8,3] * attention_weight[6,0.1,0.8]
+   - V[6,0.9,3] * attention_weight[6,0.1,0.9] ] = 0
+ qc2: attention_score[12,0.4,2] + [
+   - V[12,0.0,2] * attention_weight[12,0.4,0.0]
+   - V[12,0.1,2] * attention_weight[12,0.4,0.1]
+   - V[12,0.2,2] * attention_weight[12,0.4,0.2]
+   - V[12,0.30000000000000004,2] * attention_weight[12,0.4,0.30000000000000004]
+   - V[12,0.4,2] * attention_weight[12,0.4,0.4]
+   - V[12,0.5,2] * attention_weight[12,0.4,0.5]
+   - V[12,0.6000000000000001,2] * attention_weight[12,0.4,0.6000000000000001]
+   - V[12,0.7000000000000001,2] * attention_weight[12,0.4,0.7000000000000001]
+   - V[12,0.8,2] * attention_weight[12,0.4,0.8]
+   - V[12,0.9,2] * attention_weight[12,0.4,0.9] ] = 0
+ qc3: - compatibility_exp[12,0.4,0.8] + [
+   attention_weight[12,0.4,0.8] * compatibility_exp_sum[12,0.4] ] = 0
+ qc4: - compatibility_exp[12,0.4,0.9] + [
+   attention_weight[12,0.4,0.9] * compatibility_exp_sum[12,0.4] ] = 0
+Bounds
+ V[6,0.0,3] free
+ V[6,0.1,3] free
+ V[6,0.2,3] free
+ V[6,0.30000000000000004,3] free
+ V[6,0.4,3] free
+ V[6,0.5,3] free
+ V[6,0.6000000000000001,3] free
+ V[6,0.7000000000000001,3] free
+ V[6,0.8,3] free
+ V[6,0.9,3] free
+ -1.05520442782406 <= V[12,0.0,2] <= 1.05520442782406
+ V[12,0.1,2] >= -1.05520442782406
+ V[12,0.2,2] >= -1.05520442782406
+ -infinity <= V[12,0.30000000000000004,2] <= 1.05520442782406
+ V[12,0.4,2] >= -1.05520442782406
+ V[12,0.5,2] free
+ V[12,0.6000000000000001,2] free
+ V[12,0.7000000000000001,2] free
+ V[12,0.8,2] free
+ -1.05520442782406 <= V[12,0.9,2] <= 1.05520442782406
+ attention_score[6,0.0,3] free
+ attention_score[6,0.1,3] free
+ attention_score[12,0.4,2] free
+ attention_weight[6,0.0,0.0] free
+ attention_weight[6,0.0,0.1] free
+ attention_weight[6,0.0,0.2] free
+ attention_weight[6,0.0,0.30000000000000004] free
+ attention_weight[6,0.0,0.4] free
+ attention_weight[6,0.0,0.5] free
+ attention_weight[6,0.0,0.6000000000000001] free
+ attention_weight[6,0.0,0.7000000000000001] free
+ attention_weight[6,0.0,0.8] free
+ attention_weight[6,0.0,0.9] free
+ attention_weight[6,0.1,0.0] free
+ attention_weight[6,0.1,0.1] free
+ attention_weight[6,0.1,0.2] free
+ attention_weight[6,0.1,0.30000000000000004] free
+ attention_weight[6,0.1,0.4] free
+ attention_weight[6,0.1,0.5] free
+ attention_weight[6,0.1,0.6000000000000001] free
+ attention_weight[6,0.1,0.7000000000000001] free
+ attention_weight[6,0.1,0.8] free
+ attention_weight[6,0.1,0.9] free
+ attention_weight[12,0.4,0.1] <= 1
+ attention_weight[12,0.4,0.30000000000000004] <= 1
+ attention_weight[12,0.4,0.5] <= 1
+ attention_weight[12,0.4,0.6000000000000001] <= 1
+ attention_weight[12,0.4,0.8] free
+ attention_weight[12,0.4,0.9] <= 1
+ compatibility[12,0.4,0.1] free
+ compatibility_exp[12,0.4,0.1] free
+ compatibility_exp_sum[12,0.4] free
+General Constraints
+ GC1141: compatibility_exp[12,0.4,0.1] = EXP ( compatibility[12,0.4,0.1] )
+End
