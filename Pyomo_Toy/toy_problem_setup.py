@@ -60,7 +60,7 @@ else:
     model.x_param_fix_constraints = pyo.ConstraintList()  
     for t in model.time_input:
         for d in model.variables:
-            if t < 1:
+            if t < 1 :
                 model.x_param_fix_constraints.add(expr=model.input_param[t,d] == model.input_param_fixed[t,d])
 
     X =  [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273, 1.4942082707791076]
