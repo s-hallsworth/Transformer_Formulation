@@ -305,7 +305,7 @@ class Transformer:
         M.tie_point_cc_prime = pyo.Var(M.heads, M.time_input, M.time_input)
         M.tie_point_cv_prime = pyo.Var(M.heads, M.time_input, M.time_input)
         M.cv_prime_exp = pyo.Var(M.heads, M.time_input, M.time_input, bounds=(0,None))
-         
+        
         BigM_s = 0.5
         BigM_t = 1
         M.tp_cv =pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Binary)
@@ -504,12 +504,15 @@ class Transformer:
                     M.compatibility_exp[h,n,p].ub = math.exp(M.compatibility[h,n,p].ub)
                     M.compatibility_exp[h,n,p].lb = math.exp(M.compatibility[h,n,p].lb)
                     
+                    # define M.tie_point_cv_prime[h, n, p]
                     M.attention_constraints.add(
                         expr=  M.attention_weight[h, n, p].ub - M.attention_weight_cv[h, n, p] == M.tp_numerator[h, n, p]
                     )
                     M.attention_constraints.add(
                         expr= M.compatibility[h,n,p].ub - M.tie_point_cv_prime[h, n, p] == M.tp_denominator[h, n, p]
                     )
+                    
+                    
 
                 M.compatibility_exp_sum[h, n].ub = sum( M.compatibility_exp[h,n,p].ub for p in M.time_input) 
                 M.compatibility_exp_sum[h, n].lb = sum( M.compatibility_exp[h,n,p].lb for p in M.time_input) 
@@ -539,29 +542,23 @@ class Transformer:
                     
                     
                     ## x <= x_cv_m -> convex zone
-                    
-                    # define M.tie_point_cv_prime[h, n, p]
-                    
-                    
                     # M.tie_point_cv[h, n, p] = max(M.tie_point_cv_prime[h, n, p], M.compatibility[h,n,p].lb  )
-                    # M.attention_constraints.add(
-                    #     M.tie_point_cv_prime[h, n, p] - M.compatibility[h,n,p].lb <= M.tp_cv[h,n,p]
-                    # )
-                    # M.attention_constraints.add(
-                    #     M.tie_point_cv_prime[h, n, p] - M.compatibility[h,n,p].lb <= 1 - M.tp_cv[h,n,p]
-                    # )
-                    # M.attention_constraints.add(
-                    #     M.tie_point_cv[h, n, p]  <= M.tie_point_cv_prime[h, n, p] + (1 - M.tp_cv[h,n,p]) 
-                    # )
-                    # M.attention_constraints.add(
-                    #     M.tie_point_cv[h, n, p]  <= M.compatibility[h,n,p].lb + M.tp_cv[h,n,p]
-                    # )
-                    # M.attention_constraints.add(
-                    #     M.tie_point_cv[h, n, p]  >= M.tie_point_cv_prime[h, n, p]
-                    # )
-                    # M.attention_constraints.add(
-                    #     M.tie_point_cv[h, n, p]  >= M.compatibility[h,n,p].lb 
-                    # )
+                    BigM_cv_prime = sum( M.compatibility[h,n,p_prime].ub for p_prime in M.time_input)
+                    M.attention_constraints.add(
+                        M.tie_point_cv_prime[h, n, p] - M.compatibility[h,n,p].lb <= BigM_cv_prime * M.tp_cv[h,n,p]
+                    )
+                    M.attention_constraints.add(
+                        M.tie_point_cv[h, n, p]  <= M.tie_point_cv_prime[h, n, p] + (BigM_cv_prime * (1 - M.tp_cv[h,n,p]) )
+                    )
+                    M.attention_constraints.add(
+                        M.tie_point_cv[h, n, p]  <= M.compatibility[h,n,p].lb + (BigM_cv_prime * M.tp_cv[h,n,p])
+                    )
+                    M.attention_constraints.add(
+                        M.tie_point_cv[h, n, p]  >= M.tie_point_cv_prime[h, n, p]
+                    )
+                    M.tie_point_cv[h, n, p].lb  == M.compatibility[h,n,p].lb 
+
+                   
                     
                     # #
                     # M.attention_constraints.add(
