@@ -13,6 +13,20 @@ import GUROBI_ML_helper
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
+def activate_envelope_att(model):
+        if model.s_cv == 0: # --> convex
+            model.constr_convex.activate()
+            model.constr_concave.deactivate() 
+            model.constr_convex_other.deactivate()
+        elif model.s_cc == 0: # --> concave
+            model.constr_convex.deactivate()
+            model.constr_concave.activate() 
+            model.constr_convex_other.deactivate()
+        else: # in both regions
+            model.constr_convex.deactivate()
+            model.constr_concave.deactivate() 
+            model.constr_convex_other.activate()
+
 class Transformer:
     def __init__(self, M, config_file):
         
@@ -224,8 +238,9 @@ class Transformer:
         """
         if not hasattr(M, "attention_constraints"):
             M.attention_constraints = pyo.ConstraintList()
-            M.f_convex = pyo.ConstraintList()
-            M.F_convex = pyo.ConstraintList()
+            M.constr_convex = pyo.ConstraintList()
+            M.constr_concave = pyo.ConstraintList()
+            M.constr_convex_other = pyo.ConstraintList()
             
         input_var = getattr(M, input_var_name)
 
@@ -565,7 +580,12 @@ class Transformer:
                     )
                     M.tie_point_cv[h, n, p].lb  == M.compatibility[h,n,p].lb 
                     
-                    # f(x) >= f_cv(x)
+                    # x <= x_tie_point_cv ? --> convex zone
+                    M.attention_constraints.add(
+                        expr=  M.tie_point_cv[h, n, p] - M.compatibility[h,n,p] <= BigM_cv_prime * (1-M.t_cv[h,n,p])
+                    )
+                    
+                    # f(x) <= f_cv(x)
                     M.attention_constraints.add(
                         M.attention_weight[h, n, p]  >= M.attention_weight_cv[h, n, p]
                     )
@@ -579,20 +599,20 @@ class Transformer:
 
                     
                     # # Add convex function constraints
-                    # M.f_constraint.add( # when f(UB) <= 0.5
-                    #     M.attention_weight_cv[h, n, p] == M.attention_weight[h, n, p]
-                    # )
-                    # M.f_constraint.add( # when f(LB) >= 0
-                    #     M.attention_weight_cv[h, n, p] == M.sct[h, n, p] 
-                    # )
-                    # M.f_constraint.add( # otherwise
-                    #     M.attention_weight_cv[h, n, p] == M.attention_weight_FCV[h, n, p]
-                    # )
+                    M.constr_convex.add( # when f(UB) <= 0.5 
+                        M.attention_weight_cv[h, n, p] == M.attention_weight[h, n, p]
+                    )
+                    M.constr_concave.add( # when f(LB) >= 0
+                        M.attention_weight_cv[h, n, p] == M.sct[h, n, p] 
+                    )
+                    M.constr_convex_other.add( # otherwise
+                        M.attention_weight_cv[h, n, p] == M.attention_weight_FCV[h, n, p]
+                    )
                     
-                    
-                
-            
-                    
+                    M.constr_convex.deactivate() #deactivate all F_convex constraints
+                    M.constr_concave.deactivate() 
+                    M.constr_convex_other.deactivate()
+   
         # multihead attention output constraint
         for n in M.time_input:
             for d in M.model_dims:
@@ -623,8 +643,9 @@ class Transformer:
                     )
                     # M.attention_output[n, d].ub  = (self.d_H * sum(M.attention_score[h, n, k].ub * M.W_o[d,h, k] for k in M.k_dims))
                     # M.attention_output[n, d].lb  = (self.d_H * sum(M.attention_score[h, n, k].lb * M.W_o[d,h, k] for k in M.k_dims))
-                
-                
+        
+        # activate softmax envelope constraints              
+        M.activate_constraints = pyo.BuildAction(rule=activate_envelope_att)            
                 
     # def add_attention_approx(self, M, input_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None):
     #     """
