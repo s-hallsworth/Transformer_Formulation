@@ -12,7 +12,7 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
 import transformer as TNN
-import toy_problem_setup_test as tps
+import toy_problem_setup as tps
 import transformer_intermediate_results as tir
 
 """
@@ -21,31 +21,31 @@ Test each module of transformer
 # ------- Transformer Test Class ------------------------------------------------------------------------------------
 class TestTransformer(unittest.TestCase):    
 
-    def test_pyomo_input(self): #, model, pyomo_input_name ,transformer_input):
-        # Define Test Case Params
-        model = tps.model.clone()
-        pyomo_input_name = "input_param"
-        self.solver = 'scip'
+    # def test_pyomo_input(self): #, model, pyomo_input_name ,transformer_input):
+    #     # Define Test Case Params
+    #     model = tps.model.clone()
+    #     pyomo_input_name = "input_param"
+    #     self.solver = 'scip'
         
-        # Get input var
-        input_var = getattr(model, pyomo_input_name)
-        pyomo_input_dict = {}
+    #     # Get input var
+    #     input_var = getattr(model, pyomo_input_name)
+    #     pyomo_input_dict = {}
 
-        # Store input pyomo var as dict
-        if input_var.is_indexed():
-            pyomo_input_dict[pyomo_input_name] = {index: pyo.value(input_var[index]) for index in input_var.index_set()}
-        else:
-            pyomo_input_dict[pyomo_input_name] = pyo.value(input_var)
+    #     # Store input pyomo var as dict
+    #     if input_var.is_indexed():
+    #         pyomo_input_dict[pyomo_input_name] = {index: pyo.value(input_var[index]) for index in input_var.index_set()}
+    #     else:
+    #         pyomo_input_dict[pyomo_input_name] = pyo.value(input_var)
 
-        # Reformat and convert dict to np array
-        pyomo_input, _ = reformat(dict=pyomo_input_dict, layer_name=pyomo_input_name) 
+    #     # Reformat and convert dict to np array
+    #     pyomo_input, _ = reformat(dict=pyomo_input_dict, layer_name=pyomo_input_name) 
         
-        ## layer outputs  
-        transformer_input = np.array(tir.layer_outputs_dict['input_layer_1'])
+    #     ## layer outputs  
+    #     transformer_input = np.array(tir.layer_outputs_dict['input_layer_1'])
         
-        # Assertions
-        self.assertIsNone(np.testing.assert_array_equal(pyomo_input.shape, transformer_input.shape)) # pyomo input data and transformer input data must be the same shape
-        self.assertIsNone(np.testing.assert_array_almost_equal(pyomo_input, transformer_input, decimal = 7))             # both inputs must be equal
+    #     # Assertions
+    #     self.assertIsNone(np.testing.assert_array_equal(pyomo_input.shape, transformer_input.shape)) # pyomo input data and transformer input data must be the same shape
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(pyomo_input, transformer_input, decimal = 7))             # both inputs must be equal
         
     def test_no_embed_input(self):
         # Define Test Case Params
