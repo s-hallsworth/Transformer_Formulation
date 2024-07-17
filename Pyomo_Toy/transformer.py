@@ -224,6 +224,8 @@ class Transformer:
         """
         if not hasattr(M, "attention_constraints"):
             M.attention_constraints = pyo.ConstraintList()
+            M.f_convex = pyo.ConstraintList()
+            M.F_convex = pyo.ConstraintList()
             
         input_var = getattr(M, input_var_name)
 
@@ -314,8 +316,13 @@ class Transformer:
         M.s_cv= pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Binary)
         M.t_cc= pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Binary)
         M.t_cv= pyo.Var(M.heads, M.time_input, M.time_input, within=pyo.Binary)
+        
+        M.sct = pyo.Var(M.heads, M.time_input, M.time_input)
+        
         M.attention_weight_cc = pyo.Var(M.heads, M.time_input, M.time_input, bounds=(0,1))
         M.attention_weight_cv = pyo.Var(M.heads, M.time_input, M.time_input, bounds=(0,1))
+        M.attention_weight_cv_prime = pyo.Var(M.heads, M.time_input, M.time_input, bounds=(0,1))
+        M.attention_weight_FCV = pyo.Var(M.heads, M.time_input, M.time_input, bounds=(0,1))
         M.attention_weight = pyo.Var(M.heads, M.time_input, M.time_input, bounds=(0,1))  # softmax ( (Q * K)/sqrt(d_k) )
         
         M.tp_grad_cv = pyo.Var(M.heads, M.time_input, M.time_input)
@@ -460,7 +467,7 @@ class Transformer:
                             expr=   pyo.exp(M.tie_point_cv_prime[h, n, p]) == M.cv_prime_exp[h, n, p] 
                         )
                         M.attention_constraints.add(
-                            expr= M.attention_weight_cv[h, n, p] * ( 1 - M.attention_weight_cv[h, n, p]) == M.tp_grad_cv[h, n, p]
+                            expr= M.attention_weight_cv_prime[h, n, p] * ( 1 - M.attention_weight_cv_prime[h, n, p]) == M.tp_grad_cv[h, n, p]
                         )
                         
                     M.attention_constraints.add(expr= M.compatibility_exp_sum[h, n] == sum(M.compatibility_exp[h, n, p] for p in M.time_input))
@@ -476,7 +483,7 @@ class Transformer:
                         )
                         
                         M.attention_constraints.add(
-                            expr=  M.attention_weight_cv[h, n, n2] * M.compatibility_exp_sum[h, n] == M.cv_prime_exp[h, n, n2]
+                            expr=  M.attention_weight_cv_prime[h, n, n2] * M.compatibility_exp_sum[h, n] == M.cv_prime_exp[h, n, n2]
                         )
 
 
@@ -506,7 +513,7 @@ class Transformer:
                     
                     # define M.tie_point_cv_prime[h, n, p]
                     M.attention_constraints.add(
-                        expr=  M.attention_weight[h, n, p].ub - M.attention_weight_cv[h, n, p] == M.tp_numerator[h, n, p]
+                        expr=  M.attention_weight[h, n, p].ub - M.attention_weight_cv_prime[h, n, p] == M.tp_numerator[h, n, p]
                     )
                     M.attention_constraints.add(
                         expr= M.compatibility[h,n,p].ub - M.tie_point_cv_prime[h, n, p] == M.tp_denominator[h, n, p]
@@ -557,12 +564,29 @@ class Transformer:
                         M.tie_point_cv[h, n, p]  >= M.tie_point_cv_prime[h, n, p]
                     )
                     M.tie_point_cv[h, n, p].lb  == M.compatibility[h,n,p].lb 
-
-                   
                     
-                    # #
-                    # M.attention_constraints.add(
-                    #     expr= M.attention_weight[h, n, p] <=  M.tie_point_cv[h, n, p]  + (BigM_t *  M.t_cv[h,n,p])
+                    # f(x) >= f_cv(x)
+                    M.attention_constraints.add(
+                        M.attention_weight[h, n, p]  >= M.attention_weight_cv[h, n, p]
+                    )
+                    
+                    # sct(x)
+                    A = ((M.attention_weight[h, n, p].ub - M.attention_weight[h, n, p].lb) / (M.compatibility[h,n,p].ub - M.compatibility[h,n,p].lb )) 
+                    b = ( (M.compatibility[h,n,p].ub * M.attention_weight[h, n, p].lb) - (M.compatibility[h,n,p].lb * M.attention_weight[h, n, p].ub)) /(M.compatibility[h,n,p].ub - M.compatibility[h,n,p].lb )
+                    M.attention_constraints.add(
+                        M.sct[h, n, p]   == (A *  M.compatibility[h,n,p]) - b
+                    )
+
+                    
+                    # # Add convex function constraints
+                    # M.f_constraint.add( # when f(UB) <= 0.5
+                    #     M.attention_weight_cv[h, n, p] == M.attention_weight[h, n, p]
+                    # )
+                    # M.f_constraint.add( # when f(LB) >= 0
+                    #     M.attention_weight_cv[h, n, p] == M.sct[h, n, p] 
+                    # )
+                    # M.f_constraint.add( # otherwise
+                    #     M.attention_weight_cv[h, n, p] == M.attention_weight_FCV[h, n, p]
                     # )
                     
                     
