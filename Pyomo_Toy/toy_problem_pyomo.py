@@ -25,6 +25,8 @@ transformer = transformer.Transformer(model, ".\\data\\toy_config_relu_2.json")
 transformer.embed_input(model, "input_param","input_embed", "variables")
 transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1", std=0.774)
 #transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+
+
 transformer.add_attention_approx(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
 transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
 transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
@@ -44,13 +46,13 @@ discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
 
 
 #Solve
-solver = pyo.SolverFactory("gurobi")
-# solver = pyo.SolverFactory('mindtpy').solve(model,
-#                                    strategy='FP',
-#                                    mip_solver='cplex',
-#                                    nlp_solver='ipopt',
-#                                    tee=True
-#                                    )
+# solver = pyo.SolverFactory("gurobi")
+solver = pyo.SolverFactory('mindtpy').solve(model,
+                                   strategy='FP',
+                                   mip_solver='cplex',
+                                   nlp_solver='ipopt',
+                                   tee=True
+                                   )
 #solver = SolverFactory('gurobi', solver_io='python')
 time_limit = None
 result = solve_pyomo(model, solver, time_limit)

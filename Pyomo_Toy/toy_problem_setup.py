@@ -18,7 +18,7 @@ layer_names, parameters, TNN_model = extract_from_pretrained.get_learned_paramet
 model = pyo.ConcreteModel(name="(TOY_TEST)")
 
 ## define problem sets, vars, params
-T = 3 #11
+T = 2 #11
 T_input = 0
 
 time = np.linspace(0, 1, num=T) # entire time t=0:1 including prediction times
@@ -39,6 +39,8 @@ if NOT_WARM:
     #
     x_input = data_gen.x[0, -T:]
     u_input = data_gen.u[0, -T:]
+    print("X: ", x_input)
+    print("U: ", u_input)
     
     model.input_param = pyo.Var(model.time_input, model.variables, bounds=(LB_input, UB_input))
     model.input_var = pyo.Var(model.time, model.variables, bounds=(LB_input, UB_input)) #t = 0 to t=1

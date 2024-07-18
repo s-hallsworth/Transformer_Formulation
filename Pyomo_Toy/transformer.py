@@ -230,7 +230,7 @@ class Transformer:
                     numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
                     
                     if not std :
-                        denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))
+                        denominator[t].ub = abs( max(input_var[:,:].ub) - min(input_var[:,:].lb)) #####
                         denominator[t].lb = - denominator[t].ub 
                 numerator_squared[t,d].lb = 0
             if input_var[t, d].ub and input_var[t, d].lb:
