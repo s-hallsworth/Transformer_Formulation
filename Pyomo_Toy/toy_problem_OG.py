@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
-
+from print_stats import solve_pyomo
 # from amplpy import AMPL
 """
 close but not exactly the same as analytical solution
@@ -18,7 +18,7 @@ model.time = dae.ContinuousSet(initialize=time)
 # define variables
 model.x = pyo.Var(model.time, bounds=(0, 10))
 model.u = pyo.Var(model.time, bounds=(0, 10))
-model.dxdt = dae.DerivativeVar(model.x, wrt=(model.time), initialize=0)
+model.dxdt = dae.DerivativeVar(model.x, wrt=(model.time), initialize=1)
 
 # define constraints
 model.x_init = pyo.Constraint(expr=model.x[0] == 1)
@@ -56,6 +56,31 @@ discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
 
 # view model
 model.pprint()  # pyomo solve test.py --solver=gurobi --stream-solver --summary
+
+solver = pyo.SolverFactory("gurobi")
+time_limit = None
+result = solve_pyomo(model, solver, time_limit)
+
+def get_optimal_dict(result, model):
+    optimal_parameters = {}
+    if result.solver.status == 'ok' and result.solver.termination_condition == 'optimal':
+        for varname, var in model.component_map(pyo.Var).items():
+            # Check if the variable is indexed
+            if var.is_indexed():
+                optimal_parameters[varname] = {index: pyo.value(var[index]) for index in var.index_set()}
+            else:
+                optimal_parameters[varname] = pyo.value(var)
+        #print("Optimal Parameters:", optimal_parameters)
+    else:
+        print("No optimal solution obtained.")
+    
+    return optimal_parameters
+#----------------------------
+optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
+
+
+print(optimal_parameters['x'])
+print(optimal_parameters['u'])
 
 # from pyomo.environ import SolverFactory
 # solver = SolverFactory('scip')

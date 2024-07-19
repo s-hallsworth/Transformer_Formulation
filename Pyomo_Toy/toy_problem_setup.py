@@ -10,7 +10,7 @@ Define toy problem parametrs and var then run from another script like toy_probl
 
 NOT_WARM = True
 ## read model weights
-model_path = "..\\Transformer_Toy\\transformer_small_seqlen_1.keras"
+model_path = "..\\Transformer_Toy\\transformer_small_relu_2_seqlen_2.keras"
 #model_path = "..\\Transformer_Toy\\transformer_small_relu_2_TOY.keras" 
 layer_names, parameters, TNN_model = extract_from_pretrained.get_learned_parameters(model_path)
 
@@ -18,11 +18,11 @@ layer_names, parameters, TNN_model = extract_from_pretrained.get_learned_paramet
 model = pyo.ConcreteModel(name="(TOY_TEST)")
 
 ## define problem sets, vars, params
-T = 2 #11
-T_input = 0
+T = 3 #11
+T_input = 2
 
 time = np.linspace(0, 1, num=T) # entire time t=0:1 including prediction times
-model.time_input = dae.ContinuousSet(initialize=time[T_input]) # t < prediction times
+model.time_input = dae.ContinuousSet(initialize=time[0:T_input]) # t < prediction times
 model.time = dae.ContinuousSet(initialize=time)
 set_variables = ['0','1'] ##--- NB: same order as trained input ---##
 model.variables = pyo.Set(initialize=set_variables)
@@ -42,7 +42,14 @@ if NOT_WARM:
     print("X: ", x_input)
     print("U: ", u_input)
     
-    model.input_param = pyo.Var(model.time_input, model.variables, bounds=(LB_input, UB_input))
+    dict_inputs = {}
+    for t, (u_out, x_out) in zip(model.time_input, zip(u_input, x_input)):
+        dict_inputs[(t, '0')] = x_out
+        dict_inputs[(t, '1')] = u_out
+    
+    model.input_param = pyo.Var(model.time_input, model.variables, initialize=dict_inputs, bounds=(LB_input, UB_input))
+    #model.input_param = pyo.Param(model.time_input, model.variables, initialize=dict_inputs)#, bounds=(LB_input, UB_input))
+    
     model.input_var = pyo.Var(model.time, model.variables, bounds=(LB_input, UB_input)) #t = 0 to t=1
     
 else:
@@ -81,13 +88,17 @@ if NOT_WARM:
     
     for t_index, t in enumerate(model.time):
         if t == model.time.first():
-            model.x_init_constr_x = pyo.Constraint(expr=model.input_param[t,'0'] == x_input[0])
-            model.x_init_constr_u = pyo.Constraint(expr=model.input_param[t,'1'] == u_input[0])
+            model.x_init_constr_x = pyo.Constraint(expr=model.input_var[t,'0'] == x_input[0])
+            model.x_init_constr_u = pyo.Constraint(expr=model.input_var[t,'1'] == u_input[0])
             
-        elif t <= model.time.last():
-            # increasing var with time
-            model.input_constraints.add(expr=model.input_var[t,'0'] >= model.input_var[model.time.at(t_index ),'0'])
-            model.input_constraints.add(expr=model.input_var[t,'1'] >= model.input_var[model.time.at(t_index ),'1']) 
+        if t < model.time.last():
+            
+            model.input_constraints.add(expr=model.input_param[t,'0'] == model.input_var[t,'0'])
+            model.input_constraints.add(expr=model.input_param[t,'1'] == model.input_var[t,'1'])
+            
+            # # increasing var with time
+            # model.input_constraints.add(expr=model.input_var[t,'0'] <= model.input_var[model.time.at(t_index + 2),'0'])
+            # model.input_constraints.add(expr=model.input_var[t,'1'] <= model.input_var[model.time.at(t_index + 2 ),'1']) 
               
 else:  
     
@@ -102,11 +113,11 @@ model.intX = dae.Integral(model.time, wrt=model.time, rule=_intX)
 model.intU = dae.Integral(model.time, wrt=model.time, rule=_intU)
 
 # bound integral of x and u
-model.intX.ub = model.input_var[model.time.last(),'0'].ub * model.time.last()
-model.intX.lb = model.input_var[model.time.first(),'0'].lb * model.time.last()
+# model.intX.ub = model.input_var[model.time.last(),'0'].ub * model.time.last()
+# model.intX.lb = model.input_var[model.time.first(),'0'].lb * model.time.last()
 
-model.intU.ub = model.input_var[model.time.last(),'1'].ub * model.time.last()
-model.intU.lb = model.input_var[model.time.first(),'1'].lb * model.time.last()
+# model.intU.ub = model.input_var[model.time.last(),'1'].ub * model.time.last()
+# model.intU.lb = model.input_var[model.time.first(),'1'].lb * model.time.last()
 
 # Set objective function
 model.obj = pyo.Objective(

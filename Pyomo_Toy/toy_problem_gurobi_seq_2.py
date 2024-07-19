@@ -23,14 +23,14 @@ Add transformer instance/constraints to toy problem setup and solve GUROBIPY Mod
 
 # create transformer instance   
 model = tps.model  
-config_file = '.\\data\\toy_config_relu_seqlen_1.json' 
+config_file = '.\\data\\toy_config_relu_2_seqlen_2.json' 
 transformer = TNN.Transformer(model, config_file)      
         
 # Define tranformer layers
 std=0.774
 
 transformer.embed_input(model, "input_param","input_embed", "variables")
-transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1", std)
+transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
 
 
 transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
@@ -73,24 +73,24 @@ print("------------------------------------------------------")
 print()
 
 ## Optimize
-gurobi_model.params.SolutionLimit = 1 ##
+# gurobi_model.params.SolutionLimit = 10 ##
 gurobi_model.params.MIPFocus = 1 ## focus on finding feasible solution
 time_limit = 86400 # 24 hrs
 solve_gurobipy(gurobi_model, time_limit) ## Solve and print
 
 ## Get optimal parameters
-if gurobi_model.status == GRB.OPTIMAL:
-    optimal_parameters = {}
-    for v in gurobi_model.getVars():
-        #print(f'var name: {v.varName}, var type {type(v)}')
-        if "[" in v.varName:
-            name = v.varname.split("[")[0]
-            if name in optimal_parameters.keys():
-                optimal_parameters[name] += [v.x]
-            else:
-                optimal_parameters[name] = [v.x]
-        else:    
-            optimal_parameters[v.varName] = v.x
+#if gurobi_model.status == GRB.OPTIMAL:
+optimal_parameters = {}
+for v in gurobi_model.getVars():
+    #print(f'var name: {v.varName}, var type {type(v)}')
+    if "[" in v.varName:
+        name = v.varname.split("[")[0]
+        if name in optimal_parameters.keys():
+            optimal_parameters[name] += [v.x]
+        else:
+            optimal_parameters[name] = [v.x]
+    else:    
+        optimal_parameters[v.varName] = v.x
             
 ##
 try:

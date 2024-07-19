@@ -1,126 +1,28 @@
 \ Model '(TOY_TEST)'_copy
 \ LP format - for model browsing. Use MPS format to capture full model detail.
 Minimize
-  0 tie_point_cv_prime[4,0.5,0.0]
+ 
 Subject To
- R4823: - attention_weight_x_cv_prime[4,0.5,0.8] - tp_numerator[4,0.5,0.8]
-   = -1
- R4853: - attention_weight[4,0.5,0.30000000000000004]
-   + attention_weight_cv[4,0.5,0.30000000000000004] <= 0
- R16791: - tp_sct_frac[4,0.5,0.30000000000000004]
-   + tp_sct_frac_scaled[4,0.5,0.30000000000000004] = 0
- R17051: attention_weight_cv[4,0.5,0.30000000000000004]
-   - tp_sct_frac_scaled[4,0.5,0.30000000000000004] = 0.9067617541993016
- R17052: tie_point_cv[4,0.5,0.30000000000000004]
-   + tp_sct_denominator[4,0.5,0.30000000000000004] = 2.235973164312504
- qc0: 2 compatibility[1,0.0,0.7000000000000001] + [
-   - K[1,0.7000000000000001,1] * Q[1,0.0,1]
-   - K[1,0.7000000000000001,2] * Q[1,0.0,2]
-   - K[1,0.7000000000000001,3] * Q[1,0.0,3]
-   - K[1,0.7000000000000001,4] * Q[1,0.0,4] ] = 0
- qc1: 2 compatibility[1,0.0,0.8] + [ - K[1,0.8,1] * Q[1,0.0,1]
-   - K[1,0.8,2] * Q[1,0.0,2] - K[1,0.8,3] * Q[1,0.0,3]
-   - K[1,0.8,4] * Q[1,0.0,4] ] = 0
- qc2: 2 compatibility[1,0.6000000000000001,0.0] + [
-   - K[1,0.0,1] * Q[1,0.6000000000000001,1]
-   - K[1,0.0,2] * Q[1,0.6000000000000001,2]
-   - K[1,0.0,3] * Q[1,0.6000000000000001,3]
-   - K[1,0.0,4] * Q[1,0.6000000000000001,4] ] = 0
- qc3: 2 compatibility[1,0.6000000000000001,0.4] + [
-   - K[1,0.4,1] * Q[1,0.6000000000000001,1]
-   - K[1,0.4,2] * Q[1,0.6000000000000001,2]
-   - K[1,0.4,3] * Q[1,0.6000000000000001,3]
-   - K[1,0.4,4] * Q[1,0.6000000000000001,4] ] = 0
- qc4: 2 compatibility[1,0.8,0.0] + [ - K[1,0.0,1] * Q[1,0.8,1]
-   - K[1,0.0,2] * Q[1,0.8,2] - K[1,0.0,3] * Q[1,0.8,3]
-   - K[1,0.0,4] * Q[1,0.8,4] ] = 0
- qc5: 2 compatibility[1,0.8,0.7000000000000001] + [
-   - K[1,0.7000000000000001,1] * Q[1,0.8,1]
-   - K[1,0.7000000000000001,2] * Q[1,0.8,2]
-   - K[1,0.7000000000000001,3] * Q[1,0.8,3]
-   - K[1,0.7000000000000001,4] * Q[1,0.8,4] ] = 0
- qc6: - tp_numerator[4,0.5,0.8] + [
-   tp_denominator[4,0.5,0.8] * tp_grad_cv[4,0.5,0.8] ] = 0
- qc7: - cv_prime_exp[4,0.5,0.0] + [
-   attention_weight_x_cv_prime[4,0.5,0.0] * compatibility_exp_sum[4,0.5] ]
+ R25: - numerator_squared_layer_norm[0.5,0]
+   - numerator_squared_layer_norm[0.5,1]
+   + numerator_squared_sum_layer_norm[0.5] = 0
+ R32: - numerator_squared_sum_layer_norm[0.5] + 2 variance_layer_norm[0.5]
    = 0
- qc8: - compatibility_exp[4,0.5,0.30000000000000004] + [
-   attention_weight[4,0.5,0.30000000000000004] * compatibility_exp_sum[4,0.5]
-   ] = 0
- qc9: - cv_prime_exp[4,0.5,0.8] + [
-   attention_weight_x_cv_prime[4,0.5,0.8] * compatibility_exp_sum[4,0.5] ]
-   = 0
- qc10: tie_point_cv[4,0.5,0.30000000000000004]
-   - tie_point_cv_prime[4,0.5,0.30000000000000004]
-   + 2.235973164312504 tp_cv[4,0.5,0.30000000000000004] + [
-   tie_point_cv_prime[4,0.5,0.30000000000000004] * tp_cv[4,0.5,0.30000000000000004]
-   ] <= 0
- qc11: tie_point_cv[4,0.5,0.8] - tie_point_cv_prime[4,0.5,0.8]
-   + 2.235973164312504 tp_cv[4,0.5,0.8] + [
-   tie_point_cv_prime[4,0.5,0.8] * tp_cv[4,0.5,0.8] ] <= 0
- qc12: [
-   tp_sct_denominator[4,0.5,0.30000000000000004] * tp_sct_frac[4,0.5,0.30000000000000004]
-   - tp_sct_diff[4,0.5,0.30000000000000004] * tp_sct_numerator[4,0.5,0.30000000000000004]
-   ] = 0
+ qc0: numerator_squared_layer_norm[0.5,0] + [
+   - numerator_layer_norm[0.5,0] ^2 ] = 0
+ qc1: numerator_squared_layer_norm[0.5,1] + [
+   - numerator_layer_norm[0.5,1] ^2 ] = 0
+ qc2: [ - denominator_abs_layer_norm[0.5] ^2
+   + denominator_layer_norm[0.5] ^2 ] = 0
+ qc3: variance_layer_norm[0.5] + [
+   - denominator_abs_layer_norm[0.5] * denominator_layer_norm[0.5] ] = 0
 Bounds
- K[1,0.0,1] free
- K[1,0.0,2] free
- K[1,0.0,3] free
- K[1,0.0,4] free
- K[1,0.4,1] free
- K[1,0.4,2] free
- K[1,0.4,3] free
- K[1,0.4,4] free
- K[1,0.7000000000000001,1] free
- K[1,0.7000000000000001,2] free
- K[1,0.7000000000000001,3] free
- K[1,0.7000000000000001,4] free
- K[1,0.8,1] free
- K[1,0.8,2] free
- K[1,0.8,3] free
- K[1,0.8,4] free
- Q[1,0.0,1] free
- Q[1,0.0,2] free
- Q[1,0.0,3] free
- Q[1,0.0,4] free
- Q[1,0.6000000000000001,1] free
- Q[1,0.6000000000000001,2] free
- Q[1,0.6000000000000001,3] free
- Q[1,0.6000000000000001,4] free
- Q[1,0.8,1] free
- Q[1,0.8,2] free
- Q[1,0.8,3] free
- Q[1,0.8,4] free
- attention_weight[4,0.5,0.30000000000000004] >= 0.00126784134654417
- attention_weight_cv[4,0.5,0.30000000000000004] free
- attention_weight_x_cv_prime[4,0.5,0.0] free
- -infinity <= attention_weight_x_cv_prime[4,0.5,0.8] <= 1
- compatibility[1,0.0,0.7000000000000001] free
- compatibility[1,0.0,0.8] free
- compatibility[1,0.6000000000000001,0.0] free
- compatibility[1,0.6000000000000001,0.4] free
- compatibility[1,0.8,0.0] free
- compatibility[1,0.8,0.7000000000000001] free
- compatibility_exp[4,0.5,0.30000000000000004] free
- compatibility_exp_sum[4,0.5] >= 1.068880595775751
- cv_prime_exp[4,0.5,0.0] free
- cv_prime_exp[4,0.5,0.8] free
- tie_point_cv[4,0.5,0.30000000000000004] free
- tie_point_cv[4,0.5,0.8] free
- tie_point_cv_prime[4,0.5,0.0] free
- tie_point_cv_prime[4,0.5,0.30000000000000004] free
- tie_point_cv_prime[4,0.5,0.8] free
- tp_denominator[4,0.5,0.8] free
- tp_grad_cv[4,0.5,0.8] free
- tp_numerator[4,0.5,0.8] free
- tp_sct_denominator[4,0.5,0.30000000000000004] free
- tp_sct_diff[4,0.5,0.30000000000000004] free
- tp_sct_frac[4,0.5,0.30000000000000004] free
- tp_sct_frac_scaled[4,0.5,0.30000000000000004] free
- tp_sct_numerator[4,0.5,0.30000000000000004] free
-Binaries
- tp_cv[4,0.5,0.30000000000000004] tp_cv[4,0.5,0.8]
-General Constraints
- GC701: cv_prime_exp[4,0.5,0.0] = EXP ( tie_point_cv_prime[4,0.5,0.0] )
- GC717: cv_prime_exp[4,0.5,0.8] = EXP ( tie_point_cv_prime[4,0.5,0.8] )
+ denominator_abs_layer_norm[0.5] free
+ -0.774 <= denominator_layer_norm[0.5] <= 0.774
+ numerator_layer_norm[0.5,0] >= 0.8124583271598078
+ -infinity <= numerator_layer_norm[0.5,1] <= -0.8124583271598078
+ numerator_squared_layer_norm[0.5,0] free
+ numerator_squared_layer_norm[0.5,1] free
+ numerator_squared_sum_layer_norm[0.5] free
+ variance_layer_norm[0.5] free
 End

@@ -19,7 +19,7 @@ pyomo solve toy_problem.py --solver=gurobi --stream-solver --summary # run model
 """
 
 # create transformer instance     
-transformer = transformer.Transformer(model, ".\\data\\toy_config_relu_2.json")
+transformer = transformer.Transformer(model, '.\\data\\toy_config_relu_2_seqlen_2.json' )# ".\\data\\toy_config_relu_2.json")
 
 # add trnasformer layers and constraints
 transformer.embed_input(model, "input_param","input_embed", "variables")
@@ -46,13 +46,13 @@ discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
 
 
 #Solve
-# solver = pyo.SolverFactory("gurobi")
-solver = pyo.SolverFactory('mindtpy').solve(model,
-                                   strategy='FP',
-                                   mip_solver='cplex',
-                                   nlp_solver='ipopt',
-                                   tee=True
-                                   )
+solver = pyo.SolverFactory("gurobi")
+# solver = pyo.SolverFactory('mindtpy').solve(model,
+#                                    strategy='FP',
+#                                    mip_solver='cplex',
+#                                    nlp_solver='ipopt',
+#                                    tee=True
+#                                    )
 #solver = SolverFactory('gurobi', solver_io='python')
 time_limit = None
 result = solve_pyomo(model, solver, time_limit)
