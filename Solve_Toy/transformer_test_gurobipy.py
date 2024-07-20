@@ -252,9 +252,9 @@ class TestTransformer(unittest.TestCase):
         K = np.dot( transformer_input, np.transpose(np.array(tps.W_k),(1,0,2))) 
         V = np.dot( transformer_input, np.transpose(np.array(tps.W_v),(1,0,2))) 
 
-        Q = np.transpose(Q,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_q),axis=1),10 ,axis=1)
-        K = np.transpose(K,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_k),axis=1),10 ,axis=1)
-        V = np.transpose(V,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_v),axis=1),10 ,axis=1)
+        Q = np.transpose(Q,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_q),axis=1), transformer.N ,axis=1)
+        K = np.transpose(K,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_k),axis=1), transformer.N ,axis=1)
+        V = np.transpose(V,(1,0,2)) + np.repeat(np.expand_dims(np.array(tps.b_v),axis=1), transformer.N ,axis=1)
         
         Q = Q.flatten()
         K = K.flatten()
