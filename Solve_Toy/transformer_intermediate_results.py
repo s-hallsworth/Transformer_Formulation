@@ -10,16 +10,15 @@ Get outputs from the layers of a transformer model specified by model_path
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 #model_path = "..\\Transformer_Toy\\transformer_small_relu_2_TOY.keras" 
-model_path = tps.model_paths
+model_path = tps.model_path
 
-NOT_WARM = False
+define = True
 
 
 ## input to transformer
-if NOT_WARM:
-    x_input = data_gen.x[0, -10:]
-    u_input = data_gen.u[ 0, -10:]
-    ## USE last 10 of 9000 data points
+if define:
+    x_input = data_gen.x[0, -tps.T:-1]
+    u_input = data_gen.u[0, -tps.T:-1]
     transformer_input = np.array([[ [x,u] for x,u in zip(x_input, u_input)]])
 else:
     x_input_10 = [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273]
