@@ -51,10 +51,10 @@ def weights_to_NetworkDefinition(NN_name, model_parameters,
 
     return net
 
-def weights_to_NetDef(NN_name, input_shape, model_parameters,input_bounds
+def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters,input_bounds=None
 ):
     input_shape = np.array(input_shape)
-    nn = Sequential(name=NN_name)
+    nn = Sequential(name=new_name)
     nn.add(Input(input_shape))
     weights_list = [ ]
     

@@ -6,10 +6,10 @@ import keras
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import Dense, Input
 
-def weights_to_NetDef(NN_name, input_shape, model_parameters
+def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
 ):
     input_shape = np.array(input_shape)
-    nn = Sequential(name=NN_name)
+    nn = Sequential(name=new_name)
     nn.add(Input(input_shape))
     weights_list = [ ]
     

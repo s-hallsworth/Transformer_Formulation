@@ -129,7 +129,7 @@ def convert_block(var, var_map, gurobi_model):
         block_attr = getattr(var, attr)
         
         # Map & convert block params and vars to gurobi vars
-        if isinstance(block_attr, (pyo.Var, pyo_base.var._GeneralVarData, pyo.Param)):
+        if isinstance(block_attr, (pyo.Var, pyo_base.var.VarData, pyo.Param)):
             var_map = create_gurobi_var(block_attr, var_map, gurobi_model) 
             
         # Check for sub-block
@@ -141,7 +141,7 @@ def convert_block(var, var_map, gurobi_model):
 def create_gurobi_var(var, var_map, gurobi_model):
     
     # Variables
-    if isinstance(var, (pyo.Var,pyo_base.var._GeneralVarData)):
+    if isinstance(var, (pyo.Var,pyo_base.var.VarData)):
         if var.is_indexed():
             index_set = list(var.index_set().data())
             vtype = get_gurobi_vtype(var[index_set[0]])
@@ -179,7 +179,7 @@ def create_gurobi_var(var, var_map, gurobi_model):
                     gurobi_var[index].ub = pyomo_var
                     var_map[var.name+str(list(index))] = gurobi_var[index] 
                     
-                elif isinstance(pyomo_var, pyo_base.param._ParamData):
+                elif isinstance(pyomo_var, pyo_base.param.ParamData):
                     gurobi_var[index].lb = pyomo_var.value
                     gurobi_var[index].ub = pyomo_var.value
                     var_map[pyomo_var.name] = gurobi_var[index] 
@@ -205,13 +205,15 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
         return expr, True
     
     ## PARAMETER
-    if isinstance(expr, (pyo.Param, pyo_base.param._ParamData)):
+    if isinstance(expr, (pyo.Param, pyo_base.param.ParamData)):
         gurobi_var = var_map[expr.name]
         return  gurobi_var, True
     
     ## VARIABLE
-    elif isinstance(expr, (pyo.Var,pyo_base.var._GeneralVarData)):
+    elif isinstance(expr, (pyo.Var,pyo_base.var.VarData)):
+        
         gurobi_var = var_map[expr.name]
+            
         return gurobi_var , True
     
     ## LINEAR EXPR

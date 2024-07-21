@@ -19,10 +19,11 @@ layer_names, parameters, TNN_model = extract_from_pretrained.get_learned_paramet
 model = pyo.ConcreteModel(name="(TOY_TEST)")
 
 ## define problem sets, vars, params
-T = 3 #11
+T = 4 #11
 T_input = 2
 
-time = np.linspace(0, 1, num=T) # entire time t=0:1 including prediction times
+time_full = np.linspace(0, 1, num= 9000) # entire time t=0:1 including prediction times
+time = time_full[-T:]
 model.time_input = dae.ContinuousSet(initialize=time[0:T_input]) # t < prediction times
 model.time = dae.ContinuousSet(initialize=time)
 set_variables = ['0','1'] ##--- NB: same order as trained input ---##
@@ -89,12 +90,12 @@ b_o = parameters['multi_head_attention_1','b_o']
 model.input_constraints = pyo.ConstraintList()      
 if NOT_WARM:
     
-    for t_index, t in enumerate(model.time):
-        if t == model.time.first():
+    for t_index, t in enumerate(model.time_input):
+        if t == model.time_input.first():
             model.x_init_constr_x = pyo.Constraint(expr=model.input_var[t,'0'] == x_input[0])
             model.x_init_constr_u = pyo.Constraint(expr=model.input_var[t,'1'] == u_input[0])
             
-        if t < model.time.last():
+        else:
             
             model.input_constraints.add(expr=model.input_param[t,'0'] == model.input_var[t,'0'])
             model.input_constraints.add(expr=model.input_param[t,'1'] == model.input_var[t,'1'])

@@ -21,10 +21,9 @@ Add transformer instance/constraints to toy problem setup and solve GUROBIPY Mod
 
 """
 
-   
-model = tps.model 
-
-# create transformer instance 
+# create transformer instance   
+model = tps.model  
+#config_file = '.\\data\\toy_config_relu_2_seqlen_2.json' 
 transformer = TNN.Transformer(model, tps.config_file, "time_input")      
         
 # Define tranformer layers
@@ -32,6 +31,7 @@ std=0.774
 
 transformer.embed_input(model, "input_param","input_embed", "variables")
 transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+
 
 transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
 transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
@@ -41,48 +41,22 @@ transformer.add_residual_connection(model,"residual_1", "FFN_1", "residual_2")
 transformer.add_avg_pool(model, "residual_2", "avg_pool")
 nn2, input_nn2, output_nn2 = transformer.get_fnn(model, "avg_pool", "FFN_2", "ffn_2", (1,2), tps.parameters)
 
-  
-        
-# Create transformer 2
-model.time_input2 = dae.ContinuousSet(initialize=tps.time[tps.T_input-1:tps.T_input+1])
-model.input_2 = pyo.Var(model.time_input2, model.variables, bounds=(tps.LB_input, tps.UB_input))
-
-transformer2 = TNN.Transformer(model, tps.config_file, "time_input2")  
-transformer2.embed_input(model, "input_2","input_embed2", "variables")
-transformer2.add_layer_norm(model, "input_embed2", "layer_norm2", "gamma1", "beta1")
-transformer2.add_attention(model, "layer_norm2", "attention_output2" , tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
-transformer2.add_residual_connection(model,"input_embed2", "attention_output2", "residual_12")
-transformer2.add_layer_norm(model, "residual_12", "layer_norm_22", "gamma2", "beta2")
-nn21, input_nn21, output_nn21 = transformer2.get_fnn(model, "layer_norm_22", "FFN_12", "ffn_1", (10,2), tps.parameters)
-transformer2.add_residual_connection(model,"residual_12", "FFN_12", "residual_22")  
-transformer2.add_avg_pool(model, "residual_22", "avg_pool22")
-nn22, input_nn22, output_nn22 = transformer2.get_fnn(model, "avg_pool22", "FFN_22", "ffn_2", (1,2), tps.parameters)
-
-
 ## Add constraint to input_var
 model.input_var_constraints = pyo.ConstraintList()
 
-last_time_1 = False
-last_time_2 = False
+next = False
 for d in model.variables:
     
     for t in model.time:
         
         if t == model.time_input.last():
-            last_time_1  = True
-            model.input_var_constraints.add(expr=model.input_2[t,d] == model.input_var[t,d]) #first value of input 2
+            next = True
+            continue
             
-        elif last_time_1 :
+        if next:
             model.input_var_constraints.add(expr=model.input_var[t,d] == model.FFN_2[d])
-            last_time_1  = False
-            
-        elif t == model.time_input2.last():
-            last_time_2  = True
-            model.input_var_constraints.add(expr=model.input_2[t,d] == model.FFN_2[d]) # second value of input 2
-            
-        elif last_time_2:
-            last_time_2  = False
-            model.input_var_constraints.add(expr=model.input_var[t,d] == model.FNN_22[d])
+            next = False
+
     
 # # Convert to gurobipy
 gurobi_model, map_var = convert_pyomo.to_gurobi(model)
@@ -93,12 +67,6 @@ pred_constr1 = add_predictor_constr(gurobi_model, nn, inputs_1, outputs_1)
 
 inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
 pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
-
-# inputs_21, outputs_21 = get_inputs_gurobipy_FNN(input_nn21, output_nn21, map_var)
-# pred_constr21 = add_predictor_constr(gurobi_model, nn21, inputs_21, outputs_21)
-
-# inputs_22, outputs_22 = get_inputs_gurobipy_FNN(input_nn22, output_nn22, map_var)
-# pred_constr22 = add_predictor_constr(gurobi_model, nn22, inputs_22, outputs_22)
 gurobi_model.update()
 #pred_constr.print_stats()
 
@@ -146,21 +114,18 @@ else:
     "objective value:", gurobi_model.getObjective().getValue()
     )
 
-       
-            
+## Print X, U --> input var, control var 
+input_var_soltuion = np.array(optimal_parameters["input_var"])
 
-    ## Print X, U --> input var, control var 
-    input_var_soltuion = np.array(optimal_parameters["input_var"])
-
-    x = []
-    u = []
-    for i in range(len(input_var_soltuion)):
-        if i % 2 == 0:
-            x += [input_var_soltuion[i]]
-        else: 
-            u += [input_var_soltuion[i]]
-    print("X: ", x )
-    print("U: ", u )
+x = []
+u = []
+for i in range(len(input_var_soltuion)):
+    if i % 2 == 0:
+        x += [input_var_soltuion[i]]
+    else: 
+        u += [input_var_soltuion[i]]
+print("X: ", x )
+print("U: ", u )
 
 print("actual X: ", tps.x_input)
 print("actual U: ", tps.u_input)
