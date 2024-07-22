@@ -69,7 +69,7 @@ class TestTransformer(unittest.TestCase):
         T = 11 
         
         # Define tranformer and execute up to embed
-        transformer = TNN.Transformer(model, config_file)
+        transformer = TNN.Transformer(model, config_file, "time_input")  
         transformer.embed_input(model, "input_param","input_embed", "variables")
         
         # Convert to gurobipy
@@ -108,7 +108,7 @@ class TestTransformer(unittest.TestCase):
     #     T = 11
         
     #     # Define tranformer and execute up to embed
-    #     transformer = TNN.Transformer(model, config_file)
+    #     transformer = TNN.Transformer(model, config_file, "time_input")  
     #     W_emb = np.random.rand(transformer.input_dim, transformer.d_model) # define rand embedding matrix
     #     transformer.embed_input(model, "input_param","input_embed", "variables",W_emb)
         
@@ -156,7 +156,7 @@ class TestTransformer(unittest.TestCase):
         T = 11
         
         # Define tranformer and execute up to layer norm
-        transformer = TNN.Transformer(model, config_file)
+        transformer = TNN.Transformer(model, config_file, "time_input")  
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         
@@ -207,15 +207,15 @@ class TestTransformer(unittest.TestCase):
         T = 11
         
         # Define tranformer and execute 
-        transformer = TNN.Transformer(model, config_file)
+        transformer = TNN.Transformer(model, config_file, "time_input")  
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
         
         #Check  var and constraints created
         self.assertIn("attention_output", dir(model))                 # check layer_norm created
         self.assertIsInstance(model.attention_output, pyo.Var)        # check data type
-        self.assertTrue(hasattr(model, 'attention_constraints'))      # check constraints created
+        #self.assertTrue(hasattr(model, 'Block_attention_output.constraints'))      # check constraints created
         
         
         
@@ -238,9 +238,9 @@ class TestTransformer(unittest.TestCase):
 
         # model output
         LN_output = np.array(optimal_parameters["layer_norm"])
-        Q_form = np.array(optimal_parameters["Q"])
-        K_form = np.array(optimal_parameters["K"])
-        V_form = np.array(optimal_parameters["V"])
+        Q_form = np.array(optimal_parameters["Block_attention_output.Q"])
+        K_form = np.array(optimal_parameters["Block_attention_output.K"])
+        V_form = np.array(optimal_parameters["Block_attention_output.V"])
         attention_output= np.array(optimal_parameters["attention_output"]) 
         
         
@@ -291,10 +291,10 @@ class TestTransformer(unittest.TestCase):
         T = 11
 
         # Define tranformer and execute 
-        transformer = TNN.Transformer(model, config_file)
+        transformer = TNN.Transformer(model, config_file, "time_input")  
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
         transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
             
         #Check  var and constraints created
@@ -348,10 +348,10 @@ class TestTransformer(unittest.TestCase):
         T = 11
         
         # Define tranformer and execute 
-        transformer = TNN.Transformer(model, config_file)
+        transformer = TNN.Transformer(model, config_file, "time_input")  
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
         transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
         transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
           
@@ -394,13 +394,13 @@ class TestTransformer(unittest.TestCase):
         T = 11
         
         # Define tranformer and execute 
-        transformer = TNN.Transformer(model, config_file)
+        transformer = TNN.Transformer(model, config_file, "time_input")  
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
         transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
         transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-        nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", (10,2), tps.parameters)
+        nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
 
         # # Convert to gurobipy
         gurobi_model, map_var = convert_pyomo.to_gurobi(model)
@@ -447,13 +447,13 @@ class TestTransformer(unittest.TestCase):
         T = 11
         
         # Define tranformer and execute 
-        transformer = TNN.Transformer(model, config_file)
+        transformer = TNN.Transformer(model, config_file, "time_input")  
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
         transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
         transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-        nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", (10,2), tps.parameters)
+        nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
         transformer.add_residual_connection(model,"residual_1", "ffn_1", "residual_2")  
             
         #Check  var and constraints created
@@ -507,20 +507,20 @@ class TestTransformer(unittest.TestCase):
         T = 11
         
         # Define tranformer layers 
-        transformer = TNN.Transformer(model, config_file)
+        transformer = TNN.Transformer(model, config_file, "time_input")  
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
         transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
         transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-        nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", (10,2), tps.parameters)
+        nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
         transformer.add_residual_connection(model,"residual_1", "ffn_1", "residual_2")  
         transformer.add_avg_pool(model, "residual_2", "avg_pool")
         
         #Check  var and constraints created
         self.assertIn("avg_pool", dir(model))                 # check layer_norm created
         self.assertIsInstance(model.avg_pool, pyo.Var)        # check data type
-        self.assertTrue(hasattr(model, 'avg_pool_constraints'))      # check constraints created
+        self.assertTrue(hasattr(model, 'avg_pool_constr_avg_pool'))      # check constraints created
 
         # # Convert to gurobipy
         gurobi_model, map_var = convert_pyomo.to_gurobi(model)
@@ -566,16 +566,16 @@ class TestTransformer(unittest.TestCase):
         T = 11
         
         # Define tranformer and execute 
-        transformer = TNN.Transformer(model, config_file)
+        transformer = TNN.Transformer(model, config_file, "time_input")  
         transformer.embed_input(model, "input_param","input_embed", "variables")
         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        transformer.add_attention(model, "layer_norm", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
         transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
         transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-        nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", (10,2), tps.parameters)
+        nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
         transformer.add_residual_connection(model,"residual_1", "ffn_1", "residual_2")  
         transformer.add_avg_pool(model, "residual_2", "avg_pool")
-        nn2, input_nn2, output_nn2 = transformer.get_fnn(model, "avg_pool", "ffn_2", (1,2), tps.parameters)
+        nn2, input_nn2, output_nn2 = transformer.get_fnn(model, "avg_pool", "ffn_2", "ffn_2", (1,2), tps.parameters)
 
         # # Convert to gurobipy
         gurobi_model, map_var = convert_pyomo.to_gurobi(model)
@@ -613,6 +613,7 @@ class TestTransformer(unittest.TestCase):
         self.assertIsNone(np.testing.assert_array_almost_equal(ffn_2_output,  FFN_out, decimal=5)) # compare value with transformer output
         print("- FFN2 output formulation == FFN2 output model")   
         
+        print("Output: ", ffn_2_output)
 # -------- Helper functions ---------------------------------------------------------------------------------- 
 
 

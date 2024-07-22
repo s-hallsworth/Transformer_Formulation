@@ -1,7 +1,6 @@
 import extract_from_pretrained 
 import numpy as np 
 import os
-import data_gen
 import toy_problem_setup as tps
 
 """
@@ -17,8 +16,8 @@ define = True
 
 ## input to transformer
 if define:
-    x_input = data_gen.x[0, -tps.T:-1]
-    u_input = data_gen.u[0, -tps.T:-1]
+    x_input = tps.x_input
+    u_input =  tps.u_input
     transformer_input = np.array([[ [x,u] for x,u in zip(x_input, u_input)]])
 else:
     x_input_10 = [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273]

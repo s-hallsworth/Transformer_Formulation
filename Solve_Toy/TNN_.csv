@@ -5,3 +5,9 @@ input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_drop
 "(10, 2)",5,12,10,1,[28],0.05,0.05,0.2,1000,10,1e-07,0.3696922485727112,0.3069132645189953,0.4884307183977582,
 input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,rmse_u_1,rmse_u_2,rmse_u_3,TNN_1.keras
 "(10, 2)",2,5,10,1,[28],0.05,0.05,0.2,1000,10,1e-07,1.9470521358137047,2.0674582338619225,2.717623733348016,
+input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,rmse_u_1,rmse_u_2,rmse_u_3,TNN_1.keras
+"(10, 2)",2,5,15,1,[48],0.05,0.05,0.2,1000,10,1e-07,0.22575066437802382,0.20661394385372703,0.38100025701282425,
+input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,rmse_u_1,rmse_u_2,rmse_u_3,TNN_1.keras
+"(10, 2)",2,5,15,1,[48],0.05,0.05,0.2,1000,5,1e-07,0.18046700917546074,0.179578413650148,0.4724842019077216,
+input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,rmse_u_1,rmse_u_2,rmse_u_3,TNN_1.keras
+"(10, 2)",2,5,15,1,[48],0.05,0.05,0.2,1000,64,1e-07,0.3997887667064824,0.4926109772026148,1.031783662425684,

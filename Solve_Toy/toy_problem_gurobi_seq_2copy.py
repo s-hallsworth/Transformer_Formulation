@@ -36,7 +36,7 @@ transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1"
 transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
 transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
 transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "FFN_1", "ffn_1", (10,2), tps.parameters)
+nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "FFN_1", "ffn_1", (2,2), tps.parameters)
 transformer.add_residual_connection(model,"residual_1", "FFN_1", "residual_2")  
 transformer.add_avg_pool(model, "residual_2", "avg_pool")
 nn2, input_nn2, output_nn2 = transformer.get_fnn(model, "avg_pool", "FFN_2", "ffn_2", (1,2), tps.parameters)
@@ -130,6 +130,7 @@ print("U: ", u )
 print("actual X: ", tps.x_input)
 print("actual U: ", tps.u_input)
 
+print((optimal_parameters))
 ## Expected values:
 # x_input = [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273, 2.125]
 # u_input = [0.25, 0.26315789, 0.27777778, 0.29411765, 0.3125, 0.33333333, 0.35714286, 0.38461538, 0.41666667, 0.45454545, 0.5]

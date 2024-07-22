@@ -260,7 +260,7 @@ class Transformer:
             setattr(M, "Block_"+output_var_name, pyo.Block())
             MHA_Block  = getattr(M, "Block_"+output_var_name)
             
-            MHA_Block.attention_constraints = pyo.ConstraintList()
+            MHA_Block.constraints = pyo.ConstraintList()
             MHA_Block.constr_convex = pyo.ConstraintList()
             MHA_Block.constr_concave = pyo.ConstraintList()
             MHA_Block.constr_convex_tp = pyo.ConstraintList()
@@ -1218,8 +1218,8 @@ class Transformer:
         
         # add new variable
         if not hasattr(M, output_var_name):
-            setattr(M, "avg_pool_constr"+output_var_name, pyo.ConstraintList())
-            constraints = getattr(M, "avg_pool_constr"+output_var_name) 
+            setattr(M, "avg_pool_constr_"+output_var_name, pyo.ConstraintList())
+            constraints = getattr(M, "avg_pool_constr_"+output_var_name) 
             
             setattr(M, output_var_name, pyo.Var(M.model_dims, within=pyo.Reals))
             output_var = getattr(M, output_var_name)

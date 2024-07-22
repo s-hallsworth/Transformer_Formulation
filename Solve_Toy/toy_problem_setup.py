@@ -2,7 +2,7 @@ import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
 import extract_from_pretrained as extract_from_pretrained
-import data_gen
+from data_gen import gen_x_u
 
 """
 Define toy problem parametrs and var then run from another script like toy_problem.py or transformer_test.py
@@ -19,12 +19,14 @@ layer_names, parameters, TNN_model = extract_from_pretrained.get_learned_paramet
 model = pyo.ConcreteModel(name="(TOY_TEST)")
 
 ## define problem sets, vars, params
-T = 4 #11
-T_input = 2
+T = 9000 #11
+seq_len = 2
+window = 3
 
-time_full = np.linspace(0, 1, num= 9000) # entire time t=0:1 including prediction times
-time = time_full[-T:]
-model.time_input = dae.ContinuousSet(initialize=time[0:T_input]) # t < prediction times
+x_input, u_input, _,_ = gen_x_u(T)
+time_full = np.linspace(0, 1, num= T) # entire time t=0:1 including prediction times
+time = time_full[-window:]
+model.time_input = dae.ContinuousSet(initialize=time[0:seq_len]) # t < prediction times
 model.time = dae.ContinuousSet(initialize=time)
 set_variables = ['0','1'] ##--- NB: same order as trained input ---##
 model.variables = pyo.Set(initialize=set_variables)
@@ -35,22 +37,19 @@ LB_input = 0
 
 # Define inputs
 if NOT_WARM:
-    ## USE last 10 of 9000 data points
-    # x_input = data_gen.x[0, -10:]
-    # u_input = data_gen.u[0, -10:]
-    #
-    x_input = data_gen.x[0, -T:]
-    u_input = data_gen.u[0, -T:]
-    print("X: ", x_input)
-    print("U: ", u_input)
+
+    x_input = x_input[0, -window : -window + seq_len ]
+    u_input = u_input[0, -window : -window + seq_len ]
+    print(x_input)
+    print(u_input)
     
-    dict_inputs = {}
+    dicseq_lens = {}
     for t, (u_out, x_out) in zip(model.time_input, zip(u_input, x_input)):
-        dict_inputs[(t, '0')] = x_out
-        dict_inputs[(t, '1')] = u_out
+        dicseq_lens[(t, '0')] = x_out
+        dicseq_lens[(t, '1')] = u_out
     
-    #model.input_param = pyo.Var(model.time_input, model.variables, initialize=dict_inputs, bounds=(LB_input, UB_input))
-    model.input_param = pyo.Param(model.time_input, model.variables, initialize=dict_inputs)#, bounds=(LB_input, UB_input))
+    #model.input_param = pyo.Var(model.time_input, model.variables, initialize=dicseq_lens, bounds=(LB_input, UB_input))
+    model.input_param = pyo.Param(model.time_input, model.variables, initialize=dicseq_lens)#, bounds=(LB_input, UB_input))
     
     model.input_var = pyo.Var(model.time, model.variables, bounds=(LB_input, UB_input)) #t = 0 to t=1
     
@@ -91,23 +90,13 @@ model.input_constraints = pyo.ConstraintList()
 if NOT_WARM:
     
     for t_index, t in enumerate(model.time_input):
-        if t == model.time_input.first():
-            model.x_init_constr_x = pyo.Constraint(expr=model.input_var[t,'0'] == x_input[0])
-            model.x_init_constr_u = pyo.Constraint(expr=model.input_var[t,'1'] == u_input[0])
             
-        else:
-            
-            model.input_constraints.add(expr=model.input_param[t,'0'] == model.input_var[t,'0'])
-            model.input_constraints.add(expr=model.input_param[t,'1'] == model.input_var[t,'1'])
-            
-            # # increasing var with time
-            # model.input_constraints.add(expr=model.input_var[t,'0'] <= model.input_var[model.time.at(t_index + 2),'0'])
-            # model.input_constraints.add(expr=model.input_var[t,'1'] <= model.input_var[model.time.at(t_index + 2 ),'1']) 
-              
+        model.input_constraints.add(expr=model.input_param[t,'0'] == model.input_var[t,'0'])
+        model.input_constraints.add(expr=model.input_param[t,'1'] == model.input_var[t,'1'])
+                       
 else:  
-    
-    
     print("error")
+    
 # define integral constraints
 def _intX(m, t):
     return m.input_var[t,'0']

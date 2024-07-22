@@ -21,39 +21,42 @@ Add transformer instance/constraints to toy problem setup and solve GUROBIPY Mod
 
 """
 
-   
+# Define pyomo model 
 model = tps.model 
 
-# create transformer instance 
+# Define time sets
+Time_end = tps.seq_len - 1
+
+model.time_input_2 = dae.ContinuousSet(initialize=tps.time[Time_end : Time_end + tps.seq_len])
+model.input_2 = pyo.Var(model.time_input_2, model.variables, bounds=(tps.LB_input, tps.UB_input))
+
+# Define transformers 
 transformer = TNN.Transformer(model, tps.config_file, "time_input")      
+transformer2 = TNN.Transformer(model, tps.config_file, "time_input_2")
+
+# Initialise transformers
+Pred_window = 2
         
-# Define tranformer layers
-std=0.774
-
-transformer.embed_input(model, "input_param","input_embed", "variables")
-transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-
+transformer.embed_input(model, "input_param", "input_embed", "variables")
+transformer.add_layer_norm(model,"input_embed", "layer_norm", "gamma1", "beta1")
 transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
 transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
 transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "FFN_1", "ffn_1", (10,2), tps.parameters)
+nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "FFN_1", "ffn_1", (tps.seq_len,2), tps.parameters)
 transformer.add_residual_connection(model,"residual_1", "FFN_1", "residual_2")  
 transformer.add_avg_pool(model, "residual_2", "avg_pool")
 nn2, input_nn2, output_nn2 = transformer.get_fnn(model, "avg_pool", "FFN_2", "ffn_2", (1,2), tps.parameters)
 
-  
-        
-# Create transformer 2
-model.time_input2 = dae.ContinuousSet(initialize=tps.time[tps.T_input-1:tps.T_input+1])
-model.input_2 = pyo.Var(model.time_input2, model.variables, bounds=(tps.LB_input, tps.UB_input))
+     
+# Define transformer 2
 
-transformer2 = TNN.Transformer(model, tps.config_file, "time_input2")  
+  
 transformer2.embed_input(model, "input_2","input_embed2", "variables")
 transformer2.add_layer_norm(model, "input_embed2", "layer_norm2", "gamma1", "beta1")
 transformer2.add_attention(model, "layer_norm2", "attention_output2" , tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
 transformer2.add_residual_connection(model,"input_embed2", "attention_output2", "residual_12")
 transformer2.add_layer_norm(model, "residual_12", "layer_norm_22", "gamma2", "beta2")
-nn21, input_nn21, output_nn21 = transformer2.get_fnn(model, "layer_norm_22", "FFN_12", "ffn_1", (10,2), tps.parameters)
+nn21, input_nn21, output_nn21 = transformer2.get_fnn(model, "layer_norm_22", "FFN_12", "ffn_1", (tps.seq_len,2), tps.parameters)
 transformer2.add_residual_connection(model,"residual_12", "FFN_12", "residual_22")  
 transformer2.add_avg_pool(model, "residual_22", "avg_pool22")
 nn22, input_nn22, output_nn22 = transformer2.get_fnn(model, "avg_pool22", "FFN_22", "ffn_2", (1,2), tps.parameters)
@@ -67,6 +70,8 @@ last_time_2 = False
 for d in model.variables:
     
     for t in model.time:
+        print("-----")
+        print(t)
         
         if t == model.time_input.last():
             last_time_1  = True
@@ -74,15 +79,13 @@ for d in model.variables:
             
         elif last_time_1 :
             model.input_var_constraints.add(expr=model.input_var[t,d] == model.FFN_2[d])
+            model.input_var_constraints.add(expr=model.input_2[t,d] == model.FFN_2[d])  # second value of input 2
             last_time_1  = False
-            
-        elif t == model.time_input2.last():
             last_time_2  = True
-            model.input_var_constraints.add(expr=model.input_2[t,d] == model.FFN_2[d]) # second value of input 2
             
-        elif last_time_2:
+        elif last_time_2 :
+            model.input_var_constraints.add(expr=model.input_var[t,d] == model.FFN_22[d])
             last_time_2  = False
-            model.input_var_constraints.add(expr=model.input_var[t,d] == model.FNN_22[d])
     
 # # Convert to gurobipy
 gurobi_model, map_var = convert_pyomo.to_gurobi(model)
@@ -94,11 +97,11 @@ pred_constr1 = add_predictor_constr(gurobi_model, nn, inputs_1, outputs_1)
 inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
 pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
 
-# inputs_21, outputs_21 = get_inputs_gurobipy_FNN(input_nn21, output_nn21, map_var)
-# pred_constr21 = add_predictor_constr(gurobi_model, nn21, inputs_21, outputs_21)
+inputs_21, outputs_21 = get_inputs_gurobipy_FNN(input_nn21, output_nn21, map_var)
+pred_constr21 = add_predictor_constr(gurobi_model, nn21, inputs_21, outputs_21)
 
-# inputs_22, outputs_22 = get_inputs_gurobipy_FNN(input_nn22, output_nn22, map_var)
-# pred_constr22 = add_predictor_constr(gurobi_model, nn22, inputs_22, outputs_22)
+inputs_22, outputs_22 = get_inputs_gurobipy_FNN(input_nn22, output_nn22, map_var)
+pred_constr22 = add_predictor_constr(gurobi_model, nn22, inputs_22, outputs_22)
 gurobi_model.update()
 #pred_constr.print_stats()
 
@@ -164,6 +167,12 @@ else:
 
 print("actual X: ", tps.x_input)
 print("actual U: ", tps.u_input)
+
+print(optimal_parameters["input_2"])
+print(optimal_parameters["FFN_22"])
+print(optimal_parameters)
+# print("-----------------------------")
+# print(optimal_parameters)
 
 ## Expected values:
 # x_input = [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273, 2.125]
