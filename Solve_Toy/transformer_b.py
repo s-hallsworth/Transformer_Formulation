@@ -81,11 +81,11 @@ class Transformer:
         if not hasattr(M, embed_var_name):
             init_array = 0.5 * np.ones((self.N, self.d_model)) #randomly initialize embed array to create pyo.Var
             dict_embed = {}
-            for t in range(len(self.time_input)):
-                for s in range(len(set_var)):
-                    dict_embed[(self.time_input.at(t+1), set_var.at(s+1))] = init_array[t,s]
+            for t_index, t in enumerate(self.time_input):
+                for s_index, s in enumerate(set_var):
+                    dict_embed[(t, s)] = init_array[t_index,s_index]
                 
-            setattr(M, embed_var_name, pyo.Var(self.time_input, M.model_dims, initialize=dict_embed))
+            setattr(M, embed_var_name, pyo.Var(self.time_input, M.model_dims, within=pyo.Reals, initialize=dict_embed))
 
             embed_var = getattr(M, embed_var_name)
         else:
@@ -232,13 +232,14 @@ class Transformer:
                     numerator[t,d].ub = input_var[t, d].ub - mean_l
                     numerator[t,d].lb = input_var[t, d].lb - mean_u
                     numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
+                    numerator_squared[t,d].lb = 0
                     
                     if not std :
-                        denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) #####
+                        denominator[t].ub = ( max(input_var[t,:].ub) - min(input_var[t,:].lb))/8
                         denominator[t].lb = - denominator[t].ub 
                 numerator_squared[t,d].lb = 0
             if input_var[t, d].ub and input_var[t, d].lb:
-                numerator_squared_sum[t].ub = 2 * (sum( (numerator_squared[t,d_prime].ub)**2  for d_prime in M.model_dims)**0.5) 
+                numerator_squared_sum[t].ub = sum( (numerator_squared[t,d_prime].ub) for d_prime in M.model_dims) 
             numerator_squared_sum[t].lb = 0
             
     
@@ -338,17 +339,17 @@ class Transformer:
         MHA_Block.V = pyo.Var(MHA_Block.heads, self.time_input, MHA_Block.k_dims, within=pyo.Reals) 
 
         MHA_Block.compatibility = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals) 
-        MHA_Block.compatibility_pos = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,None)) 
-        MHA_Block.compatibility_neg = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,None)) 
+        MHA_Block.compatibility_pos = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.NonNegativeReals, bounds=(0,None)) 
+        MHA_Block.compatibility_neg = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.NonNegativeReals, bounds=(0,None)) 
         
-        MHA_Block.compatibility_exp = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,None)) # range: 0-->inf, initialize=init_compatibility_exp)
-        MHA_Block.compatibility_exp_sum = pyo.Var(MHA_Block.heads, self.time_input, bounds=(0,None)) #, initialize=init_compatibility_sum)
-        # MHA_Block.tie_point_cc = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
-        # MHA_Block.tie_point_cv = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
-        # MHA_Block.tie_point_cc_prime = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
-        # MHA_Block.tie_point_cv_prime = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
-        # MHA_Block.cv_prime_exp = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,None))
-        # MHA_Block.cv_exp = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,None))
+        MHA_Block.compatibility_exp = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.NonNegativeReals, bounds=(0,None)) # range: 0-->inf, initialize=init_compatibility_exp)
+        MHA_Block.compatibility_exp_sum = pyo.Var(MHA_Block.heads, self.time_input, within=pyo.NonNegativeReals, bounds=(0,None)) #, initialize=init_compatibility_sum)
+        # MHA_Block.tie_point_cc = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
+        # MHA_Block.tie_point_cv = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
+        # MHA_Block.tie_point_cc_prime = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
+        # MHA_Block.tie_point_cv_prime = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
+        # MHA_Block.cv_prime_exp = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals, bounds=(0,None))
+        # MHA_Block.cv_exp = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals, bounds=(0,None))
         
         # BigM_s = 0.5
         # BigM_t = 1
@@ -361,24 +362,24 @@ class Transformer:
         
         # MHA_Block.sct = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
         
-        # MHA_Block.attention_weight_cc = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,1))
-        # MHA_Block.attention_weight_x_cc_prime = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,1))
-        # MHA_Block.attention_weight_x_cc= pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,1))
+        # MHA_Block.attention_weight_cc = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals, bounds=(0,1))
+        # MHA_Block.attention_weight_x_cc_prime = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals, bounds=(0,1))
+        # MHA_Block.attention_weight_x_cc= pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals, bounds=(0,1))
         
-        # MHA_Block.attention_weight_cv = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,1))
-        # MHA_Block.attention_weight_x_cv_prime = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,1))
-        # MHA_Block.attention_weight_x_cv = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,1))
+        # MHA_Block.attention_weight_cv = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals, bounds=(0,1))
+        # MHA_Block.attention_weight_x_cv_prime = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals, bounds=(0,1))
+        # MHA_Block.attention_weight_x_cv = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals, bounds=(0,1))
         
-        MHA_Block.attention_weight = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,1))  # softmax ( (Q * K)/sqrt(d_k) )
+        MHA_Block.attention_weight = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.NonNegativeReals, bounds=(0,1))  # softmax ( (Q * K)/sqrt(d_k) )
         
-        # MHA_Block.tp_grad_cv = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
-        # MHA_Block.tp_numerator = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
-        # MHA_Block.tp_denominator = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
-        # MHA_Block.tp_sct_numerator = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
-        # MHA_Block.tp_sct_denominator = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
-        # MHA_Block.tp_sct_frac = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
-        # MHA_Block.tp_sct_frac_scaled = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
-        # MHA_Block.tp_sct_diff = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
+        # MHA_Block.tp_grad_cv = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
+        # MHA_Block.tp_numerator = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
+        # MHA_Block.tp_denominator = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
+        # MHA_Block.tp_sct_numerator = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
+        # MHA_Block.tp_sct_denominator = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
+        # MHA_Block.tp_sct_frac = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
+        # MHA_Block.tp_sct_frac_scaled = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
+        # MHA_Block.tp_sct_diff = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
         
         MHA_Block.attention_score = pyo.Var(
             MHA_Block.heads, self.time_input, MHA_Block.k_dims, within=pyo.Reals
@@ -403,12 +404,7 @@ class Transformer:
                             else:
                                 MHA_Block.Q[h, n, k].ub = q_bound_1
                                 MHA_Block.Q[h, n, k].lb = q_bound_2
-                                
-                            # print("bounds")
-                            # print("--", input_var[n,'0'].lb, input_var[n,'0'].ub, MHA_Block.W_q['0', h, k])
-                            # print("--", input_var[n,'1'].lb, input_var[n,'1'].ub, MHA_Block.W_q['1', h, k])
-                            # print(q_bound_1, q_bound_2)
-                            # print(MHA_Block.Q_pos[h, n, k].ub)
+
 
                         else: 
                             MHA_Block.attention_constraints.add(
@@ -543,6 +539,7 @@ class Transformer:
                         )
                         
                         
+                        
                         # # att(cv_prime)
                         # MHA_Block.attention_constraints.add(
                         #     expr=  MHA_Block.attention_weight_x_cv_prime[h, n, n2] * MHA_Block.compatibility_exp_sum[h, n] == MHA_Block.cv_prime_exp[h, n, n2]
@@ -597,7 +594,7 @@ class Transformer:
                 for p in self.time_input:    
                     MHA_Block.attention_weight[h, n, p].ub = MHA_Block.compatibility_exp[h,n,p].ub / (MHA_Block.compatibility_exp_sum[h, n].lb  - MHA_Block.compatibility_exp[h,n,p].lb + MHA_Block.compatibility_exp[h,n,p].ub  + 0.00000001)
                     MHA_Block.attention_weight[h, n, p].lb = max(0, MHA_Block.compatibility_exp[h,n,p].lb / (MHA_Block.compatibility_exp_sum[h, n].ub - MHA_Block.compatibility_exp[h,n,p].ub + MHA_Block.compatibility_exp[h,n,p].lb + 0.00000001))
-                    # print("compat", MHA_Block.compatibility[h,n,p].ub)
+                #     # print("compat", MHA_Block.compatibility[h,n,p].ub)
                     # print("1:", MHA_Block.compatibility_exp[h,n,p].ub , MHA_Block.compatibility_exp_sum[h, n].ub)
                     # print(MHA_Block.attention_weight[h, n, p].ub)
                     # print("compat l", MHA_Block.compatibility[h,n,p].lb)
@@ -847,8 +844,8 @@ class Transformer:
         MHA_Block.compatibility_10 = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
         MHA_Block.compatibility_11 = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
         
-        MHA_Block.compatibility_pos = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,None)) 
-        MHA_Block.compatibility_neg = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,None)) 
+        MHA_Block.compatibility_pos = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.NonNegativeReals, bounds=(0,None)) 
+        MHA_Block.compatibility_neg = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.NonNegativeReals, bounds=(0,None)) 
         
         # MHA_Block.tie_point_cc = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
         # MHA_Block.tie_point_cv = pyo.Var(MHA_Block.heads, self.time_input, self.time_input)
@@ -861,7 +858,7 @@ class Transformer:
         # MHA_Block.attention_weight_cc = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,1))
         # MHA_Block.attention_weight_cv = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,1))
 
-        MHA_Block.attention_weight = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, bounds=(0,1))  # softmax ( (Q * K)/sqrt(d_k) )
+        MHA_Block.attention_weight = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.NonNegativeReals, bounds=(0,1))  # softmax ( (Q * K)/sqrt(d_k) )
         MHA_Block.attention_score = pyo.Var(
             MHA_Block.heads, self.time_input, MHA_Block.k_dims, within=pyo.Reals
         )  # softmax ( (Q * K)/sqrt(d_k) ) * V
@@ -1125,8 +1122,7 @@ class Transformer:
         input_1 = getattr(M, input_1_name)
         input_2 = getattr(M, input_2_name)
         
-        print(output_var_name)
-        print(residual_var.index_set())
+        
         for n in self.time_input:
             for d in M.model_dims:
                 M.residual_constraints.add(expr= residual_var[n,d] == input_1[n,d] + input_2[n,d])

@@ -98,12 +98,16 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
                 rhs_gurobi_expr, add_constraint = expr_to_gurobi(rhs, var_map, gurobi_model)
                     
             if add_constraint :
+                
                 if con[index].equality:
+                    
                     gurobi_model.addConstr(lhs_gurobi_expr == rhs_gurobi_expr)
                 else:
                     if con[index].has_lb():
+                        
                         gurobi_model.addConstr(lhs_gurobi_expr >= rhs_gurobi_expr)
                     if con[index].has_ub():
+                        
                         gurobi_model.addConstr(lhs_gurobi_expr <= rhs_gurobi_expr)
     
     gurobi_model.update()

@@ -1,9 +1,9 @@
 import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
-import transformer
+
 import extract_from_pretrained
-import transformer as TNN
+import transformer_b as TNN
 import toy_problem_setup as tps
 import os
 from omlt import OmltBlock
@@ -36,9 +36,9 @@ transformer2 = TNN.Transformer(model, tps.config_file, "time_input_2")
 
 # Initialise transformers
 Pred_window = 2
-        
+std = 0.82
 transformer.embed_input(model, "input_param", "input_embed", "variables")
-transformer.add_layer_norm(model,"input_embed", "layer_norm", "gamma1", "beta1")
+transformer.add_layer_norm(model,"input_embed", "layer_norm", "gamma1", "beta1", std)
 transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
 transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
 transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
@@ -70,8 +70,6 @@ last_time_2 = False
 for d in model.variables:
     
     for t in model.time:
-        print("-----")
-        print(t)
         
         if t == model.time_input.last():
             last_time_1  = True
@@ -120,8 +118,8 @@ print()
 
 ## Optimize
 # gurobi_model.params.SolutionLimit = 10 ##
-gurobi_model.params.MIPFocus = 1 ## focus on finding feasible solution
-time_limit = 86400 # 24 hrs
+# gurobi_model.params.MIPFocus = 1 ## focus on finding feasible solution
+time_limit = 21600 # 24 hrs
 solve_gurobipy(gurobi_model, time_limit) ## Solve and print
 
 if gurobi_model.status == GRB.INFEASIBLE:
@@ -165,12 +163,13 @@ else:
     print("X: ", x )
     print("U: ", u )
 
-print("actual X: ", tps.x_input)
-print("actual U: ", tps.u_input)
 
-print(optimal_parameters["input_2"])
-print(optimal_parameters["FFN_22"])
-print(optimal_parameters)
+print("actual X: ", tps.gen_x[0, -tps.window :])
+print("actual U: ", tps.gen_u[0, -tps.window :])
+
+# print(optimal_parameters["input_2"])
+# print(optimal_parameters["FFN_22"])
+# print(optimal_parameters)
 # print("-----------------------------")
 # print(optimal_parameters)
 

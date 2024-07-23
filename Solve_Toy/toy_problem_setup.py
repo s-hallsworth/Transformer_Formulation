@@ -21,9 +21,10 @@ model = pyo.ConcreteModel(name="(TOY_TEST)")
 ## define problem sets, vars, params
 T = 9000 #11
 seq_len = 2
-window = 3
+pred_len = 2
+window = seq_len + pred_len
 
-x_input, u_input, _,_ = gen_x_u(T)
+gen_x, gen_u, _,_ = gen_x_u(T)
 time_full = np.linspace(0, 1, num= T) # entire time t=0:1 including prediction times
 time = time_full[-window:]
 model.time_input = dae.ContinuousSet(initialize=time[0:seq_len]) # t < prediction times
@@ -38,8 +39,8 @@ LB_input = 0
 # Define inputs
 if NOT_WARM:
 
-    x_input = x_input[0, -window : -window + seq_len ]
-    u_input = u_input[0, -window : -window + seq_len ]
+    x_input = gen_x[0, -window : ]#-window + seq_len ]
+    u_input = gen_u[0, -window : ]#window + seq_len ]
     print(x_input)
     print(u_input)
     
