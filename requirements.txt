@@ -9,10 +9,9 @@ pyomo==6.7.1
 gurobipy==11.0.2
 pyscipopt==5.1.1
 google==3.0.0
-gurobi-machinelearning==1.5.0.post1
-tensorflow==2.17.0
+gurobi-machinelearning==1.5.0
+tensorflow==2.15.0
 ruff==0.4.1
 omlt==1.1
 amplpy==0.14.0 
 ampltools==0.7.5
-pyomo==6.7.3

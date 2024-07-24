@@ -3,9 +3,10 @@
 Minimize
  
 Subject To
- qc0: numerator_squared_layer_norm[0.999777753083676,0] + [
-   - numerator_layer_norm[0.999777753083676,0] ^2 ] = 0
+ R185:
+   - 0.5 Block_attention_output.s_cc[1,0.999666629625514,0.999666629625514]
+   <= -1
 Bounds
- numerator_layer_norm[0.999777753083676,0] >= 0.8124166512335389
- -infinity <= numerator_squared_layer_norm[0.999777753083676,0] <= 0
+Binaries
+ Block_attention_output.s_cc[1,0.999666629625514,0.999666629625514]
 End
