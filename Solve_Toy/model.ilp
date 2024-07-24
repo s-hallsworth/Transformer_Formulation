@@ -3,10 +3,28 @@
 Minimize
  
 Subject To
- R185:
-   - 0.5 Block_attention_output.s_cc[1,0.999666629625514,0.999666629625514]
-   <= -1
+ R427:
+   Block_attention_output.tie_point_cv_prime[3,0.999777753083676,0.999777753083676]
+   + 2.307904185709142 Block_attention_output.tp_cv[3,0.999777753083676,0.999777753083676]
+   <= 0
+ R1346:
+   Block_attention_output.tie_point_cv[3,0.999777753083676,0.999777753083676]
+   + Block_attention_output.tp_cv_sct_mult_2[3,0.999777753083676,0.999777753083676]
+   = 2.307904285709142
+ R1347:
+   Block_attention_output.tp_cv_sct_mult_2[3,0.999777753083676,0.999777753083676]
+   <= 1e-07
+ qc0:
+   Block_attention_output.tie_point_cv[3,0.999777753083676,0.999777753083676]
+   - Block_attention_output.tie_point_cv_prime[3,0.999777753083676,0.999777753083676]
+   + 2.307904185709142 Block_attention_output.tp_cv[3,0.999777753083676,0.999777753083676]
+   + [
+   Block_attention_output.tie_point_cv_prime[3,0.999777753083676,0.999777753083676] * Block_attention_output.tp_cv[3,0.999777753083676,0.999777753083676]
+   ] = 0
 Bounds
+ Block_attention_output.tie_point_cv[3,0.999777753083676,0.999777753083676] free
+ Block_attention_output.tie_point_cv_prime[3,0.999777753083676,0.999777753083676] free
+ Block_attention_output.tp_cv_sct_mult_2[3,0.999777753083676,0.999777753083676] free
 Binaries
- Block_attention_output.s_cc[1,0.999666629625514,0.999666629625514]
+ Block_attention_output.tp_cv[3,0.999777753083676,0.999777753083676]
 End
