@@ -667,5 +667,13 @@ def reformat(dict, layer_name):
 
 # ------- MAIN -----------------------------------------------------------------------------------
 if __name__ == '__main__': 
+    model_path = ".\\TNN_enc_0002.keras"
+    config_file = '.\\data\\toy_config_relu_10.json' 
+    T = 900 # time steps
+    seq_len = 10
+    pred_len = 2
+    window = seq_len + pred_len
+    model = tps.setup_toy( T, seq_len, pred_len, model_path, config_file)
+    tir.generate_layer_outputs()
     unittest.main() 
 
