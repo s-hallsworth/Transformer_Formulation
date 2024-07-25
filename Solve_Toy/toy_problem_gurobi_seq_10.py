@@ -24,7 +24,7 @@ Add transformer instance/constraints to toy problem setup and solve GUROBIPY Mod
 # Define pyomo model 
 model_path = ".\\TNN_enc_0002.keras"
 config_file = '.\\data\\toy_config_relu_10.json' 
-T = 900 # time steps
+T = 9000 # time steps
 seq_len = 10
 pred_len = 2
 window = seq_len + pred_len
