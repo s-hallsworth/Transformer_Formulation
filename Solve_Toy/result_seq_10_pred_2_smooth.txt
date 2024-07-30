@@ -297,6 +297,7 @@ Best objective 2.121749680028e+00, best bound 2.121699800070e+00, gap 0.0024%
 ------------------------------------------------------
 
 Optimal solution found.
+
 Runtime: 1113.15 seconds
 Number of solutions found: 1
 Optimality gap: 0.0000

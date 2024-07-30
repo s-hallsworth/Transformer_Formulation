@@ -67,7 +67,7 @@ class Transformer:
             else:
                 M.model_dims = pyo.Set(initialize=[str(0)])
 
-    def embed_input(self, M, input_var_name, embed_var_name, set_input_var_name, W_emb=None):
+    def embed_input(self, M, input_var_name, embed_var_name, set_input_var_name = None, W_emb=None, b_emb = None):
         """
         Embed the feature dimensions of input
         """
@@ -77,57 +77,147 @@ class Transformer:
         input_var = getattr(M, input_var_name)
         set_var = getattr(M, set_input_var_name)
         
-        # define embedding var
-        if not hasattr(M, embed_var_name):
-            init_array = 0.5 * np.ones((self.N, self.d_model)) #randomly initialize embed array to create pyo.Var
-            dict_embed = {}
-            for t_index, t in enumerate(self.time_input):
-                for s_index, s in enumerate(set_var):
-                    dict_embed[(t, s)] = init_array[t_index,s_index]
-                
-            setattr(M, embed_var_name, pyo.Var(self.time_input, M.model_dims, within=pyo.Reals, initialize=dict_embed))
-
-            embed_var = getattr(M, embed_var_name)
-        else:
-            raise ValueError('Attempting to overwrite variable')
-  
-        
-        #if model dims = number of variables in input var
-        if W_emb is None:
-            for s in set_var:
-                for t in self.time_input:
-                    M.embed_constraints.add(embed_var[t, s] == input_var[t,s])
-                    if isinstance(input_var, pyo.Var):
-                        if input_var[t,s].ub:
-                            embed_var[t, s].ub = input_var[t,s].ub
-                        if input_var[t,s].lb:
-                            embed_var[t, s].lb = input_var[t,s].lb
-                    elif isinstance(input_var, pyo.Param):
-                        embed_var[t, s].ub = input_var[t,s]
-                        embed_var[t, s].lb = input_var[t,s]
+        if set_input_var_name: #if indexed
+            # define embedding var
+            if not hasattr(M, embed_var_name):
+                init_array = 0.5 * np.ones((self.N, self.d_model)) #randomly initialize embed array to create pyo.Var
+                dict_embed = {}
+                for t_index, t in enumerate(self.time_input):
+                    for s_index, s in enumerate(set_var):
+                        dict_embed[(t, s)] = init_array[t_index,s_index]
                     
-        else: # create embedded var
-            W_emb_dict = {
-                (set_var.at(s+1),M.model_dims.at(d+1)): W_emb[s][d]
-                for s in range(len(set_var))
-                for d in range(len(M.model_dims))
-            }
-            M.W_emb = pyo.Param(set_var, M.model_dims, initialize=W_emb_dict)
+                setattr(M, embed_var_name, pyo.Var(self.time_input, M.model_dims, within=pyo.Reals, initialize=dict_embed))
+
+                embed_var = getattr(M, embed_var_name)
+            else:
+                raise ValueError('Attempting to overwrite variable')
+    
             
-            for d in M.model_dims:
-                for t in self.time_input:
-                    M.embed_constraints.add(embed_var[t, d] 
-                                            == sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
-                                            )
-                    if isinstance(input_var, pyo.Var):
-                        try:
-                            embed_var[t, d].ub = sum(input_var[t,s].ub * M.W_emb[s,d] for s in set_var)
-                            embed_var[t, d].lb = sum(input_var[t,s].lb * M.W_emb[s,d] for s in set_var)
-                        except:
-                            continue
-                    elif isinstance(input_var, pyo.Param):
-                        embed_var[t, d].ub = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
-                        embed_var[t, d].lb = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
+            
+            if W_emb is None:
+                for s in set_var:
+                    for t in self.time_input:
+                        M.embed_constraints.add(embed_var[t, s] == input_var[t,s])
+                        if isinstance(input_var, pyo.Var):
+                            if input_var[t,s].ub:
+                                embed_var[t, s].ub = input_var[t,s].ub
+                            if input_var[t,s].lb:
+                                embed_var[t, s].lb = input_var[t,s].lb
+                        elif isinstance(input_var, pyo.Param):
+                            embed_var[t, s].ub = input_var[t,s]
+                            embed_var[t, s].lb = input_var[t,s]
+                        
+            else: # create embedded var
+                W_emb_dict = {
+                    (set_var.at(s+1),M.model_dims.at(d+1)): W_emb[s][d]
+                    for s in range(len(set_var))
+                    for d in range(len(M.model_dims))
+                }
+                M.W_emb = pyo.Param(set_var, M.model_dims, initialize=W_emb_dict)
+                if b_emb:
+                    b_emb_dict = {
+                        (M.model_dims.at(d+1)): b_emb[d]
+                        for d in range(len(M.model_dims))
+                    }
+                    M.b_emb = pyo.Param(M.model_dims, initialize=b_emb_dict)
+                    for d in M.model_dims:
+                        for t in self.time_input:
+                            M.embed_constraints.add(embed_var[t, d] 
+                                                    == sum(input_var[t,s] * M.W_emb[s,d] for s in set_var) +  b_emb[d]
+                                                    )
+                            if isinstance(input_var, pyo.Var):
+                                try:
+                                    embed_var[t, d].ub = sum(input_var[t,s].ub * M.W_emb[s,d] for s in set_var) +  b_emb[d]
+                                    embed_var[t, d].lb = sum(input_var[t,s].lb * M.W_emb[s,d] for s in set_var) +  b_emb[d]
+                                except:
+                                    continue
+                            elif isinstance(input_var, pyo.Param):
+                                embed_var[t, d].ub = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var) +  b_emb[d]
+                                embed_var[t, d].lb = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var) +  b_emb[d]
+                else:
+                    for d in M.model_dims:
+                        for t in self.time_input:
+                            M.embed_constraints.add(embed_var[t, d] 
+                                                    == sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
+                                                    )
+                            if isinstance(input_var, pyo.Var):
+                                try:
+                                    embed_var[t, d].ub = sum(input_var[t,s].ub * M.W_emb[s,d] for s in set_var)
+                                    embed_var[t, d].lb = sum(input_var[t,s].lb * M.W_emb[s,d] for s in set_var)
+                                except:
+                                    continue
+                            elif isinstance(input_var, pyo.Param):
+                                embed_var[t, d].ub = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
+                                embed_var[t, d].lb = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
+        
+        else: #if not indexed
+            # define embedding var
+            if not hasattr(M, embed_var_name):
+                init_array = 0.5 * np.ones((self.N)) #randomly initialize embed array to create pyo.Var
+                dict_embed = {}
+                for t_index, t in enumerate(self.time_input):
+                        dict_embed[t] = init_array[t_index]
+                    
+                setattr(M, embed_var_name, pyo.Var(self.time_input, within=pyo.Reals, initialize=dict_embed))
+
+                embed_var = getattr(M, embed_var_name)
+            else:
+                raise ValueError('Attempting to overwrite variable')
+    
+            
+            if W_emb is None:
+                    for t in self.time_input:
+                        M.embed_constraints.add(embed_var[t] == input_var[t])
+                        if isinstance(input_var, pyo.Var):
+                            if input_var[t].ub:
+                                embed_var[t].ub = input_var[t].ub
+                            if input_var[t].lb:
+                                embed_var[t].lb = input_var[t].lb
+                        elif isinstance(input_var, pyo.Param):
+                            embed_var[t].ub = input_var[t]
+                            embed_var[t].lb = input_var[t]
+                        
+            else: # create embedded var
+                W_emb_dict = {
+                    (M.model_dims.at(d+1)): W_emb[d]
+                    for d in range(len(M.model_dims))
+                }
+                M.W_emb = pyo.Param( M.model_dims, initialize=W_emb_dict)
+                if b_emb:
+                    b_emb_dict = {
+                        (M.model_dims.at(d+1)): b_emb[d]
+                        for d in range(len(M.model_dims))
+                    }
+                    M.b_emb = pyo.Param(M.model_dims, initialize=b_emb_dict)
+                    for d in M.model_dims:
+                        for t in self.time_input:
+                            M.embed_constraints.add(embed_var[t, d] 
+                                                    == (input_var[t] * M.W_emb[d]) +  b_emb[d]
+                                                    )
+                            if isinstance(input_var, pyo.Var):
+                                try:
+                                    embed_var[t, d].ub = (input_var[t].ub * M.W_emb[d]) +  b_emb[d]
+                                    embed_var[t, d].lb = (input_var[t].lb * M.W_emb[d] ) +  b_emb[d]
+                                except:
+                                    continue
+                            elif isinstance(input_var, pyo.Param):
+                                embed_var[t, d].ub = (input_var[t] * M.W_emb[d]) +  b_emb[d]
+                                embed_var[t, d].lb = (input_var[t] * M.W_emb[d]) +  b_emb[d]
+                else: # no bias
+                    for d in M.model_dims:
+                        for t in self.time_input:
+                            M.embed_constraints.add(embed_var[t, d] 
+                                                    == (input_var[t] * M.W_emb[d])
+                                                    )
+                            if isinstance(input_var, pyo.Var):
+                                try:
+                                    embed_var[t, d].ub = (input_var[t].ub * M.W_emb[d])
+                                    embed_var[t, d].lb = (input_var[t].lb * M.W_emb[d])
+                                except:
+                                    continue
+                            elif isinstance(input_var, pyo.Param):
+                                embed_var[t, d].ub = (input_var[t] * M.W_emb[s,d] )
+                                embed_var[t, d].lb = (input_var[t] * M.W_emb[s,d] )
 
     def add_layer_norm(self, M, input_var_name, layer_norm_var_name, gamma= None, beta = None, std=None):  # non-linear
         """
@@ -181,6 +271,8 @@ class Transformer:
             setattr(M, numerator_squared_sum_name, pyo.Var(self.time_input, within=pyo.Reals, bounds=(0,None)))
             numerator_squared_sum = getattr(M, numerator_squared_sum_name)
             
+            
+            
         else:
             raise ValueError('Attempting to overwrite variable')
 
@@ -204,7 +296,7 @@ class Transformer:
                 M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
                 M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
                 
-                M.layer_norm_constraints.add(expr= variance[t] == denominator[t] * denominator_abs[t]) 
+                #M.layer_norm_constraints.add(expr= variance[t] == (denominator[t] * denominator_abs[t] ) )
                 if std:
                     denominator[t].ub = std
                     denominator[t].lb = -std
@@ -219,6 +311,7 @@ class Transformer:
                     M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == numerator_scaled[t,d] + getattr(M, beta)[d])
                     layer_norm_var[t, d].ub = getattr(M, beta)[d] + 4*getattr(M, gamma)[d]
                     layer_norm_var[t, d].lb = getattr(M, beta)[d] - 4*getattr(M, gamma)[d]
+                    
                 else: 
                     M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == div[t,d])
                     M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == numerator_scaled[t,d])
@@ -235,8 +328,8 @@ class Transformer:
                     numerator_squared[t,d].lb = 0
                     
                     if not std :
-                        denominator[t].ub = ( max(input_var[t,:].ub) - min(input_var[t,:].lb))/8
-                        denominator[t].lb = - denominator[t].ub 
+                        denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) #/8
+                        denominator[t].lb = - abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))#/8
                 numerator_squared[t,d].lb = 0
             if input_var[t, d].ub and input_var[t, d].lb:
                 numerator_squared_sum[t].ub = sum( (numerator_squared[t,d_prime].ub) for d_prime in M.model_dims) 

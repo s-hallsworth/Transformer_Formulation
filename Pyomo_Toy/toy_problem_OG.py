@@ -13,7 +13,7 @@ model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
 # define sets
 T = 11
 time = np.linspace(0, 1, num=T)
-model.time = dae.ContinuousSet(initialize=time)
+model.time = dae.ContinuousSet(bounds=(0,1))
 
 # define variables
 model.x = pyo.Var(model.time, bounds=(0, 10))
@@ -45,14 +45,18 @@ def _intU(m, t):
 model.intX = dae.Integral(model.time, wrt=model.time, rule=_intX)
 model.intU = dae.Integral(model.time, wrt=model.time, rule=_intU)
 
+def _intXU(m, t):
+    return m.x[t] - m.u[t]
+model.intXU = dae.Integral(model.time, wrt=model.time, rule=_intXU)
+
 model.obj = pyo.Objective(
-    expr=model.intX - model.intU + model.x[model.time.last()], sense=1
+    expr=model.intXU + model.x[model.time.last()], sense=1
 )  # -1: maximize, +1: minimize (default)
 
 
 # Discretize model using Backward Difference method
 discretizer = pyo.TransformationFactory("dae.finite_difference")
-discretizer.apply_to(model, nfe=T - 1, wrt=model.time, scheme="BACKWARD")
+discretizer.apply_to(model, nfe=T-1, wrt=model.time, scheme="BACKWARD")
 
 # view model
 model.pprint()  # pyomo solve test.py --solver=gurobi --stream-solver --summary

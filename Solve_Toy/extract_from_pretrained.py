@@ -1,8 +1,10 @@
 import json
 import numpy as np
 import keras
-#from tensorflow import keras
+import torch
 import os
+
+
     
 def get_weights(model_path, save_json=True, file_name="model_weights.json"):
     """
@@ -169,3 +171,77 @@ def get_intermediate_values(model_path, sample_input, file_name=None):
         print(f"intermedite outputs of the model have been saved to {file_name}")
     
     return layer_outputs_dict
+
+def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json'):
+    """
+    Save weights of pre-trained PyTorch model to json file with layer name appended.
+    """
+    
+    model.eval()
+
+    # Extract weights
+    model_weights = {}
+    model_bias = {}
+    for name, param in model.named_parameters():
+        if "weight" in name:
+            new_name = name.split('weight')[0]
+            model_weights[new_name] = param.detach().cpu().numpy().tolist()
+        elif "bias" in name:
+            new_name = name.split('bias')[0]
+            model_bias[new_name] = param.detach().cpu().numpy().tolist()
+            
+    
+    # Save weights
+    if save_json:
+        with open(file_name, 'w') as json_file:
+            json.dump(model_weights, json_file)
+            
+        print(f"Weights of the model have been saved to {file_name}")
+    
+    else:
+        return model_weights, model_bias
+    
+def get_pytorch_learned_parameters(model):
+    """
+    Read model parameters and store in dict with associated name.
+    """
+    
+    transformer_weights, transformer_bias = get_pytorch_model_weights(model, save_json=False)
+    model_layers = [name for name, _ in model.named_modules() if "dropout" not in name]
+    print(model_layers)
+    # model_outputs = []
+    # model_activations = [activation]
+    
+
+    # Create dictionary with parameters
+    dict_transformer_params = {}
+    layer_names = []
+    count_LN = 0
+    count_MHA = 0
+    count_Conv2D = 0
+    count_Dense = 0
+    count_Layers = 0
+    
+    for i, layer_name in enumerate(model_layers):
+        parameters = transformer_weights.get(layer_name, None)
+        if not parameters:
+            continue
+
+        if 'norm' in layer_name.lower():
+            count_LN += 1
+            new_layer_name = 'layer_normalization_' + str(count_LN)
+            dict_transformer_params[(new_layer_name, 'weights')] = parameters
+        
+        if 'multihead_attn' in layer_name.lower():
+            count_MHA += 1
+            new_layer_name = 'multi_head_attention_' + str(count_MHA)
+            dict_transformer_params[(new_layer_name, 'weights')] = parameters
+        
+        if 'linear' in layer_name.lower():
+            count_Dense += 1
+            new_layer_name = 'dense_' + str(count_Dense)
+            dict_transformer_params[(new_layer_name, 'weights')] = parameters
+
+        layer_names.append(new_layer_name)
+    
+    return layer_names, dict_transformer_params, model

@@ -20,7 +20,7 @@ Define toy problem parametrs and var then run from another script like toy_probl
 
 ## create model
 
-def setup_toy( T, seq_len, pred_len, model_path, config_file):
+def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     model_path = model_path
     config_file = config_file
     model = pyo.ConcreteModel(name="(TOY_OPTIMAL_CONTROL)")
@@ -29,9 +29,9 @@ def setup_toy( T, seq_len, pred_len, model_path, config_file):
     
     ## define problem sets, vars, params
     gen_x, gen_u, _,_ = gen_x_u(T)
-    time_full = np.linspace(0, 1, num= T) # entire time t=0:1 including prediction times
-    time = time_full[-window:]
-    model.time_input = dae.ContinuousSet(initialize=time[0:seq_len]) # t < prediction times
+    time_sample = np.linspace(0, 1, num= T) # entire time t=0:1 including prediction times
+    time = time_sample[start_time : start_time + window]
+    model.time_input = dae.ContinuousSet(initialize=time[0: seq_len]) # t < prediction times
     model.time = dae.ContinuousSet(initialize=time)
     set_variables = ['0','1'] ##--- NB: same order as trained input ---##
     model.variables = pyo.Set(initialize=set_variables)
@@ -41,8 +41,8 @@ def setup_toy( T, seq_len, pred_len, model_path, config_file):
     LB_input = 0 
 
     # Define inputs
-    x_input = gen_x[0, -window : ]#-window + seq_len ]
-    u_input = gen_u[0, -window : ]#window + seq_len ]
+    x_input = gen_x[0, start_time : start_time + window]
+    u_input = gen_u[0, start_time : start_time + window]
     print(x_input)
     print(u_input)
 
@@ -69,9 +69,8 @@ def setup_toy( T, seq_len, pred_len, model_path, config_file):
     dict_beta2 = {(v): val for v,val in zip(model.variables,  parameters['layer_normalization_2','beta'])}
     model.gamma2 = pyo.Param(model.variables, initialize = dict_gamma2)
     model.beta2 = pyo.Param(model.variables, initialize = dict_beta2)
-
-    print("GB 1: ", parameters['layer_normalization_1','gamma'], parameters['layer_normalization_1','beta'])
-    print("GB 2: ", parameters['layer_normalization_2','gamma'], parameters['layer_normalization_2','beta'])
+    
+    
 
     W_q = parameters['multi_head_attention_1','W_q']
     W_k = parameters['multi_head_attention_1','W_k']
