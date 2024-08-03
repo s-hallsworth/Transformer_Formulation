@@ -296,7 +296,7 @@ class Transformer:
                 M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
                 M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
                 
-                #M.layer_norm_constraints.add(expr= variance[t] == (denominator[t] * denominator_abs[t] ) )
+                M.layer_norm_constraints.add(expr= variance[t] == (denominator[t] * denominator_abs[t] ) )
                 if std:
                     denominator[t].ub = std
                     denominator[t].lb = -std
@@ -608,6 +608,7 @@ class Transformer:
                         
                     # sum over exp(compatbility)
                     MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_exp_sum[h, n] == sum(MHA_Block.compatibility_exp[h, n, p] for p in self.time_input))
+                    
                     # sum over softmax = 1    
                     MHA_Block.attention_constraints.add(
                         expr=sum(MHA_Block.attention_weight[h, n, n_prime] for n_prime in self.time_input) == 1
@@ -636,7 +637,7 @@ class Transformer:
                     MHA_Block.compatibility[h,n,p].lb = -MHA_Block.compatibility_pos[h,n,p].ub
                     
                     MHA_Block.compatibility_exp[h,n,p].ub = math.exp(MHA_Block.compatibility[h,n,p].ub)
-                    MHA_Block.compatibility_exp[h,n,p].lb = 1 + MHA_Block.compatibility[h,n,p].lb
+                    MHA_Block.compatibility_exp[h,n,p].lb = max(0, 1 + MHA_Block.compatibility[h,n,p].lb)
                     
                 MHA_Block.compatibility_exp_sum[h, n].ub = sum( MHA_Block.compatibility_exp[h,n,p].ub for p in self.time_input) 
                 MHA_Block.compatibility_exp_sum[h, n].lb = max(0, sum( MHA_Block.compatibility_exp[h,n,p].lb for p in self.time_input))
@@ -651,8 +652,6 @@ class Transformer:
                     # print(MHA_Block.attention_weight[h, n, p].ub)
                     # print("compat l", MHA_Block.compatibility[h,n,p].lb)
                     # print("2:", MHA_Block.compatibility_exp[h,n,p].lb , MHA_Block.compatibility_exp_sum[h, n].lb)
-                    # if MHA_Block.attention_weight[h, n, p].lb <= 0:
-                    #     print(MHA_Block.attention_weight[h, n, p].ub, MHA_Block.attention_weight[h, n, p].lb)
                     
                     # f(x) >= f_cv(x): attention weight >= convex envelope
                     MHA_Block.attention_constraints.add(
@@ -668,8 +667,12 @@ class Transformer:
                     MHA_Block.attention_constraints.add(
                         expr= MHA_Block.attention_weight[h, n, p].ub <= 0.5  + (BigM_s * MHA_Block.s_cv[h,n,p])
                     )
+                    
+                    # MHA_Block.attention_constraints.add(
+                    #     expr= MHA_Block.attention_weight[h, n, p].ub >= 0.5  - (BigM_s * (1 - MHA_Block.s_cv[h,n,p]))
+                    # )
                     MHA_Block.attention_constraints.add(
-                        expr= MHA_Block.attention_weight[h, n, p].ub >= 0.5  - (BigM_s * (1 - MHA_Block.s_cv[h,n,p]))
+                        expr= MHA_Block.attention_weight[h, n, p].ub - 0.5 + BigM_s >= BigM_s *  MHA_Block.s_cv[h,n,p]
                     )
 
                     # set convex aux var -- f(x_LB) <= 0.5 --> convex zone else f(x_LB) >= 0.5 --> concave zone

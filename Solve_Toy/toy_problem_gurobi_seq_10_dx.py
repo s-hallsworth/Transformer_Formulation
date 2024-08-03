@@ -22,7 +22,7 @@ Add transformer instance/constraints to toy problem setup and solve GUROBIPY Mod
 """
 
 # Define pyomo model 
-model_path = ".\\TNN_7.keras"
+model_path = ".\\TNN_9.keras"
 config_file = '.\\data\\toy_config_relu_10_TNN_7.json' 
 T = 90000 # time steps
 seq_len = 10
@@ -36,7 +36,7 @@ pred_times = []
 for start_time in [89987]: #range(0,T, int(T/10)):
     #start_time = 89987
     for i in range(pred_len):
-        pred_times += [start_time + seq_len + i]
+        pred_times += [start_time + seq_len + i + 1]
         
     model = tps.setup_toy( T, start_time ,seq_len, pred_len, model_path, config_file)
 
@@ -85,40 +85,20 @@ for start_time in [89987]: #range(0,T, int(T/10)):
     last_time_2 = False
     d = model.variables.first()
     d2 = model.variables.last()
-    
-    # initialise X and dX
-    for t_index, t in enumerate(model.time_input):
-        model.X_constraints.add(expr=model.input_param[t,'0'] == model.X[t,'0'])
-        model.X_constraints.add(expr=model.input_param[t,'1'] == model.X[t,'1'])
-        if  t > model.time_input.first():
-            model.X_constraints.add(expr=model.dX[t] == model.input_param[t,'0'] - model.input_param[model.time_input.at(t_index),'0'])
-    
+    delta_T = 1/T
+    M = 10 * (delta_T)
+    print(d, d2)
+
     # FNN outputs update X and dX    
     for t_index, t in enumerate(model.time):
-        
-        if t > model.time_input.first() and t < model.time_input.last():
-            model.X_constraints.add(expr=model.input_2[t,d] == model.X[t,d])
-            model.X_constraints.add(expr=model.input_2[t,d2] == model.X[t,d2])
-            
-        elif t == model.time_input.last():
-            last_time_1  = True
-            model.X_constraints.add(expr=model.input_2[t,d] == model.X[t,d]) #second last value of input 2
-            model.X_constraints.add(expr=model.input_2[t,d2] == model.X[t,d2])
-            
-        elif last_time_1 : # time after time_input.last()
-            
+        if t == model.time_dx.first(): # first prediction for x(t)
             model.X_constraints.add(expr=model.dX[t] == model.FFN_2[d]) # predict dx
-            model.X_constraints.add(expr=model.input_2[t,d] == model.input_2[model.time.at(t_index),d] + model.FFN_2[d])  # lastvalue of input 2
-            last_time_1  = False
-            last_time_2  = True
-            
-        elif last_time_2 :
-            model.X_constraints.add(expr=model.dX[t] == model.FFN_22[d])# predict dx
-            last_time_2  = False
-            
-        if  t > model.time.first():
-            model.X_constraints.add(expr=model.X[t,d] == model.X[model.time.at(t_index),d] + model.dX[t]) # x_t = x_t-1 + dx_t
-            
+            model.X_constraints.add(expr=model.X[t,d] == model.X[model.time.at(t_index),d] + model.FFN_2[d]) # x = x_prev + dx
+            model.X_constraints.add(expr=  model.X[t,d2] -  model.X[model.time.at(t_index),d2] <= M) #u(t) should be smooth (first order) 
+        if t == model.time_dx.last(): # second prediction for x(t)
+            model.X_constraints.add(expr=model.dX[t] == model.FFN_22[d]) # predict dx
+            model.X_constraints.add(expr=model.X[t,d] == model.X[model.time.at(t_index),d] + model.FFN_22[d]) # x = x_prev + dx
+            model.X_constraints.add(expr=  model.X[t,d2] -  model.X[model.time.at(t_index),d2] <= M) #u(t) should be smooth (first order) 
         
         
     # # Convert to gurobipy
@@ -131,11 +111,11 @@ for start_time in [89987]: #range(0,T, int(T/10)):
     inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
     pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
 
-    inputs_21, outputs_21 = get_inputs_gurobipy_FNN(input_nn21, output_nn21, map_var)
-    pred_constr21 = add_predictor_constr(gurobi_model, nn21, inputs_21, outputs_21)
+    # inputs_21, outputs_21 = get_inputs_gurobipy_FNN(input_nn21, output_nn21, map_var)
+    # pred_constr21 = add_predictor_constr(gurobi_model, nn21, inputs_21, outputs_21)
 
-    inputs_22, outputs_22 = get_inputs_gurobipy_FNN(input_nn22, output_nn22, map_var)
-    pred_constr22 = add_predictor_constr(gurobi_model, nn22, inputs_22, outputs_22)
+    # inputs_22, outputs_22 = get_inputs_gurobipy_FNN(input_nn22, output_nn22, map_var)
+    # pred_constr22 = add_predictor_constr(gurobi_model, nn22, inputs_22, outputs_22)
     gurobi_model.update()
     #pred_constr.print_stats()
 
@@ -188,6 +168,7 @@ for start_time in [89987]: #range(0,T, int(T/10)):
 
         ## Print X, U --> input var, control var 
         X_soltuion = np.array(optimal_parameters["X"])
+        print("dx: ", optimal_parameters["dX"])
 
         x = []
         u = []
@@ -196,17 +177,20 @@ for start_time in [89987]: #range(0,T, int(T/10)):
                 x += [X_soltuion[i]]
             else: 
                 u += [X_soltuion[i]]
+                
+        x = x - tps.pe[0,0]
+        u = u - tps.pe[0,1]
         print("X: ", x )
         print("U: ", u )
-        preds_x = x[-2:]
-        preds_u = u[-2:]
+        preds_x += [x[-pred_len:]]
+        preds_u += [u[-pred_len:]]
 
     print("actual X: ", tps.gen_x[0, -tps.window :])
     print("actual U: ", tps.gen_u[0, -tps.window :])
  
 #save to file
 import csv
-file_name = "results_trajectory.csv"   
+file_name = "results_trajectory_2.csv"   
 with open(file_name, 'a', newline='') as file:
     writer = csv.writer(file)
     values = []

@@ -76,6 +76,22 @@ def gen_x_u(T, N=3, save=False):
     return x,u , x_prime_diff, x_prime_diff
 
 
+# define positional encoding
+def positional_encoding(T, d_model):
+    # Initialize positional encoding matrix
+    t= np.linspace(0, 1, num=T)
+    pe = np.zeros((t.shape[0], d_model))
+    
+    # Compute positional encodings
+    for pos, time in enumerate(t):
+        for i in range(d_model):
+            if i % 2 == 0:
+                pe[pos, i] = np.sin(time / (10000 ** (2 * i / d_model)))
+            else:
+                pe[pos, i] = np.cos(time / (10000 ** (2 * (i-1) / d_model)))
+    
+    return pe
+
 x,u , x_prime_diff, x_prime_diff = gen_x_u(T)
 
 

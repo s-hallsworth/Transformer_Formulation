@@ -2,7 +2,7 @@ import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
 import extract_from_pretrained as extract_from_pretrained
-from data_gen import gen_x_u
+from data_gen import gen_x_u, positional_encoding
 
 """
 Define toy problem parametrs and var then run from another script like toy_problem.py or transformer_test.py
@@ -27,27 +27,37 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     layer_names, parameters, TNN_model = extract_from_pretrained.get_learned_parameters(model_path)
     window = seq_len + pred_len
     
-    ## define problem sets, vars, params
+    ## generate input data
     gen_x, gen_u, _,_ = gen_x_u(T)
+    pe = positional_encoding(T, d_model=2)
+    gen_x_pe = gen_x + pe[0,0]
+    gen_u_pe = gen_u + pe[0,1]
+    
+    ## define problem sets, vars, params
     time_sample = np.linspace(0, 1, num= T) # entire time t=0:1 including prediction times
     time = time_sample[start_time : start_time + window]
     model.time_input = dae.ContinuousSet(initialize=time[0: seq_len]) # t < prediction times
+    model.time_dx = dae.ContinuousSet(initialize=time[-pred_len: ])
     model.time = dae.ContinuousSet(initialize=time)
     set_variables = ['0','1'] ##--- NB: same order as trained input ---##
     model.variables = pyo.Set(initialize=set_variables)
+    
+    
 
     # Set bounds based on training dataset
-    UB_input = 3.5
+    UB_input = 4
     LB_input = 0 
 
     # Define inputs
-    x_input = gen_x[0, start_time : start_time + window]
-    u_input = gen_u[0, start_time : start_time + window]
+    x_input = gen_x_pe[0, start_time : start_time + window]
+    u_input = gen_u_pe[0, start_time : start_time + window]
     print(x_input)
     print(u_input)
+    
+    print(len(time[0: seq_len]), len(x_input))
 
     dicseq_lens = {}
-    for t, (u_out, x_out) in zip(model.time_input, zip(u_input, x_input)):
+    for t, (u_out, x_out) in zip(model.time_input, zip(u_input[0: seq_len], x_input[0: seq_len])):
         dicseq_lens[(t, '0')] = x_out
         dicseq_lens[(t, '1')] = u_out
 
@@ -55,7 +65,7 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     model.input_param = pyo.Param(model.time_input, model.variables, initialize=dicseq_lens)#, bounds=(LB_input, UB_input))
 
     model.X= pyo.Var(model.time, model.variables, bounds=(LB_input, UB_input)) #t = 0 to t=1
-    model.dX= pyo.Var(model.time, bounds=(1,6))
+    model.dX= pyo.Var(model.time_dx)
 
 
     ## define transformer sets, vars, params
@@ -84,11 +94,12 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
 
 
     
-    
-            
-        
+    # initialise X 
+    model.input_constraints = pyo.ConstraintList()
+    for t_index, t in enumerate(model.time_input):
+        model.input_constraints.add(expr=model.input_param[t,'0'] == model.X[t,'0'])
+        model.input_constraints.add(expr=model.input_param[t,'1'] == model.X[t,'1'])
 
-        
     # define integral constraints
     def _intX(m, t):
         return m.X[t,'0']

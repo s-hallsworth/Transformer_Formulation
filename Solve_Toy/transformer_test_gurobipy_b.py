@@ -101,101 +101,101 @@ class TestTransformer(unittest.TestCase):
     #     # with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
     #     #     transformer.embed_input(model, "input_param","input_embed", "variables")
     
-    # # def test_embed_input(self):
-    # #     # Define Test Case Params
-    # #     model = tps.model.clone()
-    # #     config_file = '.\\data\\toy_config_embed_3.json' 
-    # #     T = 11
+    # def test_embed_input(self):
+    #     # Define Test Case Params
+    #     model = tps.model.clone()
+    #     config_file = '.\\data\\toy_config_embed_3.json' 
+    #     T = 11
         
-    # #     # Define tranformer and execute up to embed
-    # #     transformer = TNN.Transformer(model, config_file, "time_input")  
-    # #     W_emb = np.random.rand(transformer.input_dim, transformer.d_model) # define rand embedding matrix
-    # #     transformer.embed_input(model, "input_param","input_embed", "variables",W_emb)
+    #     # Define tranformer and execute up to embed
+    #     transformer = TNN.Transformer(model, config_file, "time_input")  
+    #     W_emb = np.random.rand(transformer.input_dim, transformer.d_model) # define rand embedding matrix
+    #     transformer.embed_input(model, "input_param","input_embed", "variables",W_emb)
         
-    # #     self.assertIn("input_embed", dir(model))                       # check var created
-    # #     self.assertIsInstance(model.input_embed, pyo.Var)               # check data type
-    # #     self.assertTrue(hasattr(model, 'embed_constraints'))      # check constraints created
+    #     self.assertIn("input_embed", dir(model))                       # check var created
+    #     self.assertIsInstance(model.input_embed, pyo.Var)               # check data type
+    #     self.assertTrue(hasattr(model, 'embed_constraints'))      # check constraints created
         
-    # #     # Convert to gurobipy
-    # #     gurobi_model, _  = convert_pyomo.to_gurobi(model)
-    # #     gurobi_model.optimize()
+    #     # Convert to gurobipy
+    #     gurobi_model, _  = convert_pyomo.to_gurobi(model)
+    #     gurobi_model.optimize()
 
-    # #     if gurobi_model.status == GRB.OPTIMAL:
-    # #         optimal_parameters = {}
-    # #         for v in gurobi_model.getVars():
-    # #             #print(f'var name: {v.varName}, var type {type(v)}')
-    # #             if "[" in v.varName:
-    # #                 name = v.varname.split("[")[0]
-    # #                 if name in optimal_parameters.keys():
-    # #                     optimal_parameters[name] += [v.x]
-    # #                 else:
-    # #                     optimal_parameters[name] = [v.x]
-    # #             else:    
-    # #                 optimal_parameters[v.varName] = v.x
+    #     if gurobi_model.status == GRB.OPTIMAL:
+    #         optimal_parameters = {}
+    #         for v in gurobi_model.getVars():
+    #             #print(f'var name: {v.varName}, var type {type(v)}')
+    #             if "[" in v.varName:
+    #                 name = v.varname.split("[")[0]
+    #                 if name in optimal_parameters.keys():
+    #                     optimal_parameters[name] += [v.x]
+    #                 else:
+    #                     optimal_parameters[name] = [v.x]
+    #             else:    
+    #                 optimal_parameters[v.varName] = v.x
             
-    # #     # model input
-    # #     embed_output = np.array(optimal_parameters["input_embed"])
+    #     # model input
+    #     embed_output = np.array(optimal_parameters["input_embed"])
         
-    # #     # Calculate embedded value
-    # #     transformer_input = np.array(layer_outputs_dict['input_layer_1'])
-    # #     transformer_embed = np.dot(transformer_input, W_emb).flatten() # W_emb dim: (2, 3), transformer_input dim: (1,10,2)
+    #     # Calculate embedded value
+    #     transformer_input = np.array(layer_outputs_dict['input_layer_1'])
+    #     transformer_embed = np.dot(transformer_input, W_emb).flatten() # W_emb dim: (2, 3), transformer_input dim: (1,10,2)
 
-    # #     # Assertions
-    # #     self.assertIsNone(np.testing.assert_array_equal(embed_output.shape, transformer_embed.shape)) # same shape
-    # #     self.assertIsNone(np.testing.assert_array_almost_equal(embed_output, transformer_embed, decimal=2))  # almost same values
+    #     # Assertions
+    #     self.assertIsNone(np.testing.assert_array_equal(embed_output.shape, transformer_embed.shape)) # same shape
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(embed_output, transformer_embed, decimal=2))  # almost same values
     
     
-    def test_layer_norm(self):
+    # def test_layer_norm(self):
         
-        print("======= LAYER NORM =======")
+    #     print("======= LAYER NORM =======")
 
-        # Define Test Case Params
-        model = tps.model.clone()
-        # config_file = '.\\data\\toy_config_relu_2.json' 
-        config_file = tps.config_file 
-        T = 11
+    #     # Define Test Case Params
+    #     model = tps.model.clone()
+    #     # config_file = '.\\data\\toy_config_relu_2.json' 
+    #     config_file = tps.config_file 
+    #     T = 11
         
-        # Define tranformer and execute up to layer norm
-        transformer = TNN.Transformer(model, config_file, "time_input")  
-        transformer.embed_input(model, "input_param","input_embed", "variables")
-        transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        
-        
-        # Check layer norm var and constraints created
-        self.assertIn("layer_norm", dir(model))                        # check layer_norm created
-        self.assertIsInstance(model.layer_norm, pyo.Var)               # check data type
-        self.assertTrue(hasattr(model, 'layer_norm_constraints'))      # check constraints created
+    #     # Define tranformer and execute up to layer norm
+    #     transformer = TNN.Transformer(model, config_file, "time_input")  
+    #     transformer.embed_input(model, "input_param","input_embed", "variables")
+    #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         
         
-        # Convert to gurobipy
-        gurobi_model, _  = convert_pyomo.to_gurobi(model)
-        gurobi_model.optimize()
+    #     # Check layer norm var and constraints created
+    #     self.assertIn("layer_norm", dir(model))                        # check layer_norm created
+    #     self.assertIsInstance(model.layer_norm, pyo.Var)               # check data type
+    #     self.assertTrue(hasattr(model, 'layer_norm_constraints'))      # check constraints created
+        
+        
+    #     # Convert to gurobipy
+    #     gurobi_model, _  = convert_pyomo.to_gurobi(model)
+    #     gurobi_model.optimize()
 
-        if gurobi_model.status == GRB.OPTIMAL:
-            optimal_parameters = {}
-            for v in gurobi_model.getVars():
-                #print(f'var name: {v.varName}, var type {type(v)}')
-                if "[" in v.varName:
-                    name = v.varname.split("[")[0]
-                    if name in optimal_parameters.keys():
-                        optimal_parameters[name] += [v.x]
-                    else:
-                        optimal_parameters[name] = [v.x]
-                else:    
-                    optimal_parameters[v.varName] = v.x
+    #     if gurobi_model.status == GRB.OPTIMAL:
+    #         optimal_parameters = {}
+    #         for v in gurobi_model.getVars():
+    #             #print(f'var name: {v.varName}, var type {type(v)}')
+    #             if "[" in v.varName:
+    #                 name = v.varname.split("[")[0]
+    #                 if name in optimal_parameters.keys():
+    #                     optimal_parameters[name] += [v.x]
+    #                 else:
+    #                     optimal_parameters[name] = [v.x]
+    #             else:    
+    #                 optimal_parameters[v.varName] = v.x
 
-        # model output
-        layer_norm_output = np.array(optimal_parameters["layer_norm"])
+    #     # model output
+    #     layer_norm_output = np.array(optimal_parameters["layer_norm"])
         
-        # transformer output
-        LN_1_output= np.array(layer_outputs_dict["layer_normalization_1"]).flatten()
+    #     # transformer output
+    #     LN_1_output= np.array(layer_outputs_dict["layer_normalization_1"]).flatten()
         
-        # Assertions
-        self.assertIsNone(np.testing.assert_array_equal(layer_norm_output.shape, LN_1_output.shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_output,LN_1_output, decimal=5)) # decimal=1 # compare value with transformer output
-        with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
-            transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        print("- LN output formulation == LN output model")
+    #     # Assertions
+    #     self.assertIsNone(np.testing.assert_array_equal(layer_norm_output.shape, LN_1_output.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(layer_norm_output,LN_1_output, decimal=5)) # decimal=1 # compare value with transformer output
+    #     with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
+    #         transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+    #     print("- LN output formulation == LN output model")
 
     # def test_multi_head_attention(self):
     #     print("======= MULTIHEAD ATTENTION =======")
@@ -556,64 +556,64 @@ class TestTransformer(unittest.TestCase):
     #     print("- Avg Pool output formulation == Avg Pool output model")     
         
         
-    # def test_FFN2(self):
-    #     print("======= FFN2 =======")
+    def test_FFN2(self):
+        print("======= FFN2 =======")
         
-    #     # Define Test Case Params
-    #     model = tps.model.clone()
-    #     # config_file = '.\\data\\toy_config_relu_2.json' 
-    #     config_file = tps.config_file 
+        # Define Test Case Params
+        model = tps.model.clone()
+        # config_file = '.\\data\\toy_config_relu_2.json' 
+        config_file = tps.config_file 
         
         
-    #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(model, config_file, "time_input")  
-    #     transformer.embed_input(model, "input_param","input_embed", "variables")
-    #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-    #     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
-    #     transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
-    #     transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-    #     nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
-    #     transformer.add_residual_connection(model,"residual_1", "ffn_1", "residual_2")  
-    #     transformer.add_avg_pool(model, "residual_2", "avg_pool")
-    #     nn2, input_nn2, output_nn2 = transformer.get_fnn(model, "avg_pool", "ffn_2", "ffn_2", (None,2), tps.parameters)
+        # Define tranformer and execute 
+        transformer = TNN.Transformer(model, config_file, "time_input")  
+        transformer.embed_input(model, "input_param","input_embed", "variables")
+        transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
+        transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
+        transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
+        nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
+        transformer.add_residual_connection(model,"residual_1", "ffn_1", "residual_2")  
+        transformer.add_avg_pool(model, "residual_2", "avg_pool")
+        nn2, input_nn2, output_nn2 = transformer.get_fnn(model, "avg_pool", "ffn_2", "ffn_2", (None,2), tps.parameters)
 
-    #     # # Convert to gurobipy
-    #     gurobi_model, map_var = convert_pyomo.to_gurobi(model)
+        # # Convert to gurobipy
+        gurobi_model, map_var = convert_pyomo.to_gurobi(model)
 
-    #     ## Add FNN1 to gurobi model
-    #     inputs_1, outputs_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
-    #     pred_constr1 = add_predictor_constr(gurobi_model, nn, inputs_1, outputs_1)
+        ## Add FNN1 to gurobi model
+        inputs_1, outputs_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+        pred_constr1 = add_predictor_constr(gurobi_model, nn, inputs_1, outputs_1)
         
-    #     inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
-    #     pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
-    #     gurobi_model.update()
-    #     #pred_constr.print_stats()
+        inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
+        pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
+        gurobi_model.update()
+        #pred_constr.print_stats()
         
-    #     ## Optimizes
-    #     gurobi_model.optimize()
+        ## Optimizes
+        gurobi_model.optimize()
 
-    #     if gurobi_model.status == GRB.OPTIMAL:
-    #         optimal_parameters = {}
-    #         for v in gurobi_model.getVars():
-    #             #print(f'var name: {v.varName}, var type {type(v)}')
-    #             if "[" in v.varName:
-    #                 name = v.varname.split("[")[0]
-    #                 if name in optimal_parameters.keys():
-    #                     optimal_parameters[name] += [v.x]
-    #                 else:
-    #                     optimal_parameters[name] = [v.x]
-    #             else:    
-    #                 optimal_parameters[v.varName] = v.x
+        if gurobi_model.status == GRB.OPTIMAL:
+            optimal_parameters = {}
+            for v in gurobi_model.getVars():
+                #print(f'var name: {v.varName}, var type {type(v)}')
+                if "[" in v.varName:
+                    name = v.varname.split("[")[0]
+                    if name in optimal_parameters.keys():
+                        optimal_parameters[name] += [v.x]
+                    else:
+                        optimal_parameters[name] = [v.x]
+                else:    
+                    optimal_parameters[v.varName] = v.x
         
-    #     #Check outputs
-    #     ffn_2_output = np.array(optimal_parameters["ffn_2"]) 
-    #     FFN_out = np.array(layer_outputs_dict["dense_4"]).flatten()
-    #     print(ffn_2_output,  FFN_out)
-    #     self.assertIsNone(np.testing.assert_array_equal(ffn_2_output.shape,  FFN_out.shape)) # compare shape with transformer
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(ffn_2_output,  FFN_out, decimal=5)) # compare value with transformer output
-    #     print("- FFN2 output formulation == FFN2 output model")   
+        #Check outputs
+        ffn_2_output = np.array(optimal_parameters["ffn_2"])[0]
+        FFN_out = np.array(layer_outputs_dict["dense_4"]).flatten()[0]
+        print(ffn_2_output,  FFN_out)
+        self.assertIsNone(np.testing.assert_array_equal(ffn_2_output.shape,  FFN_out.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(ffn_2_output,  FFN_out, decimal=5)) # compare value with transformer output
+        print("- FFN2 output formulation == FFN2 output model")   
         
-    #     print("Output: ", ffn_2_output)
+        print("Output: ", ffn_2_output)
 # -------- Helper functions ---------------------------------------------------------------------------------- 
 
 
