@@ -1,5 +1,5 @@
 import pyomo.environ as pyo
-from pyomo import dae
+#from pyomo import dae
 import numpy as np
 import extract_from_pretrained as extract_from_pretrained
 from data_gen import gen_x_u
@@ -31,8 +31,8 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     gen_x, gen_u, _,_ = gen_x_u(T)
     time_sample = np.linspace(0, 1, num= T) # entire time t=0:1 including prediction times
     time = time_sample[start_time : start_time + window]
-    model.time_input = dae.ContinuousSet(initialize=time[0: seq_len]) # t < prediction times
-    model.time = dae.ContinuousSet(initialize=time)
+    model.time_input = pyo.Set(initialize=time[0: seq_len]) # t < prediction times
+    model.time = pyo.Set(initialize=time)
     set_variables = ['0','1'] ##--- NB: same order as trained input ---##
     model.variables = pyo.Set(initialize=set_variables)
 
@@ -43,6 +43,9 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     # Define inputs
     x_input = gen_x[0, start_time : start_time + window]
     u_input = gen_u[0, start_time : start_time + window]
+    
+    
+    print("------------- SET UP ---------------")
     print(x_input)
     print(u_input)
 
@@ -54,7 +57,7 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     #model.input_param = pyo.Var(model.time_input, model.variables, initialize=dicseq_lens, bounds=(LB_input, UB_input))
     model.input_param = pyo.Param(model.time_input, model.variables, initialize=dicseq_lens)#, bounds=(LB_input, UB_input))
 
-    model.input_var = pyo.Var(model.time, model.variables, bounds=(LB_input, UB_input)) #t = 0 to t=1
+    model.input_var = pyo.Var(model.time, model.variables, bounds=(LB_input, UB_input), initialize=dicseq_lens) #t = 0 to t=1
 
 
 
@@ -71,7 +74,7 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     model.beta2 = pyo.Param(model.variables, initialize = dict_beta2)
     
     
-
+    # define weights and biases
     W_q = parameters['multi_head_attention_1','W_q']
     W_k = parameters['multi_head_attention_1','W_k']
     W_v = parameters['multi_head_attention_1','W_v']
@@ -83,7 +86,7 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     b_o = parameters['multi_head_attention_1','b_o']
 
 
-    """ REMOVE FOR TESTING OPTIMIZATION WITH WINDOW OF LAST 10  POINTS"""
+   
     ## define constraints
     model.input_constraints = pyo.ConstraintList()      
 
@@ -94,17 +97,24 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
 
         
     # define integral constraints
-    def _intX(m, t):
-        return m.input_var[t,'0']
-    def _intU(m, t):
-        return m.input_var[t,'1']
-    model.intX = dae.Integral(model.time, wrt=model.time, rule=_intX)
-    model.intU = dae.Integral(model.time, wrt=model.time, rule=_intU)
 
+    int_factor = (time[-1] - time[0])/(3 * window)
+    model.intXU = pyo.Var(model.variables, bounds=(0, UB_input * (time[-1] - time[0])))
+    for d in model.variables:
+        sum_d = model.input_var[model.time.first(), d ] + model.input_var[model.time.last(), d]
+        for t_index, t in enumerate(model.time):
+            if t < model.time.last() and t > model.time.first():
+                # Use Simpsons Rule to find discrete integral
+                if t_index % 2 == 0:
+                    sum_d += 2 * model.input_var[model.time.at(t_index + 1), d]
+                    
+                else:
+                    sum_d += 4 * model.input_var[model.time.at(t_index + 1), d]
+        model.input_constraints.add(expr = model.intXU[d] == int_factor * sum_d )
 
     # Set objective function
     model.obj = pyo.Objective(
-        expr=model.intX - model.intU + model.input_var[model.time.last(),'0'], sense=1
+        expr= model.intXU['0'] - model.intXU['1'] + model.input_var[model.time.last(),'0'], sense=1
     )  # -1: maximize, +1: minimize (default)
 
     globals().update(locals()) #make all variables from this function global

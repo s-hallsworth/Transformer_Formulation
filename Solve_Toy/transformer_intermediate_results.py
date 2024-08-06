@@ -1,7 +1,7 @@
 import extract_from_pretrained 
 import numpy as np 
 import os
-import toy_problem_setup_dx as tps
+import toy_problem_setup as tps
 
 """
 Get outputs from the layers of a transformer model specified by model_path

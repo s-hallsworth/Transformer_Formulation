@@ -16,7 +16,7 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
 import transformer_b as TNN
-import toy_problem_setup_dx as tps
+import toy_problem_setup as tps
 import transformer_intermediate_results as tir
 
 """
@@ -673,7 +673,7 @@ if __name__ == '__main__':
     seq_len = 10
     pred_len = 2
     window = seq_len + pred_len
-    start_time = 8987
+    start_time = 900
     model = tps.setup_toy( T, start_time, seq_len, pred_len, model_path, config_file)
     layer_outputs_dict = tir.generate_layer_outputs(model_path)
     unittest.main() 
