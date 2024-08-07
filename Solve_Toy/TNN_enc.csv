@@ -1,2 +1,0 @@
-input_shape,head_size,num_heads,ff_dim,num_transformer_blocks,mlp_units,mlp_dropout,dropout,validation_split,epochs,batch_size,learning_rate,rmse_x_1,rmse_x_2,rmse_x_3,TNN_ed_1.keras
-"(4, 2)",1,5,8,1,[12],0,0,0.2,1000,16,1e-07,1.9466723944232593,2.06130887258104,2.3278382841728162,

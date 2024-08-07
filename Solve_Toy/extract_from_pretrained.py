@@ -3,6 +3,7 @@ import numpy as np
 import keras
 import torch
 import os
+from torch import nn
 
 
     
@@ -183,14 +184,21 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     model_weights = {}
     model_bias = {}
     for name, param in model.named_parameters():
+        
         if "weight" in name:
+            print(name, param.shape)
+            
             new_name = name.split('weight')[0]
+            if not new_name[-1].isalnum():
+                new_name = new_name[:-1]
             model_weights[new_name] = param.detach().cpu().numpy().tolist()
-        elif "bias" in name:
+        if "bias" in name:
             new_name = name.split('bias')[0]
+            if not new_name[-1].isalnum():
+                new_name = new_name[:-1]
             model_bias[new_name] = param.detach().cpu().numpy().tolist()
             
-    
+        
     # Save weights
     if save_json:
         with open(file_name, 'w') as json_file:
@@ -201,47 +209,98 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     else:
         return model_weights, model_bias
     
-def get_pytorch_learned_parameters(model):
+def get_pytorch_learned_parameters(model, input_shape):
     """
-    Read model parameters and store in dict with associated name.
+    Read model parameters and store in dict with associated name. Only supports ReLU Activation function
     """
     
+    src = torch.rand(input_shape)
+    tgt = torch.rand(input_shape)
+    input_shapes = {}
+
+    ## Get layer input shapes
+    # Function to capture the input shape
+    def hook_fn(module, input, output, name):
+        input_shapes[name] = input[0].shape
+
+    # Register hooks to all layers
+    for name, layer in model.named_modules():
+        if "dropout" not in name:
+            layer.register_forward_hook(lambda module, input, output, name=name: hook_fn(module, input, output, name))
+    model(src, tgt)
+
+    # # Print the input shapes
+    # for layer_name, shape in input_shapes.items():
+    #     print(f"Layer: {layer_name}, Input shape: {shape}")
+    
+    
+    # Get weights and biases
     transformer_weights, transformer_bias = get_pytorch_model_weights(model, save_json=False)
-    model_layers = [name for name, _ in model.named_modules() if "dropout" not in name]
-    print(model_layers)
-    # model_outputs = []
-    # model_activations = [activation]
-    
+    layers = [val for  val in model.named_modules() if "dropout" not in val[0]]
 
     # Create dictionary with parameters
     dict_transformer_params = {}
     layer_names = []
     count_LN = 0
     count_MHA = 0
+    count_SA = 0
     count_Conv2D = 0
     count_Dense = 0
     count_Layers = 0
+
     
-    for i, layer_name in enumerate(model_layers):
-        parameters = transformer_weights.get(layer_name, None)
-        if not parameters:
-            continue
-
-        if 'norm' in layer_name.lower():
-            count_LN += 1
-            new_layer_name = 'layer_normalization_' + str(count_LN)
-            dict_transformer_params[(new_layer_name, 'weights')] = parameters
+    # for each layer
+    for i, layer in enumerate(layers):
         
-        if 'multihead_attn' in layer_name.lower():
-            count_MHA += 1
-            new_layer_name = 'multi_head_attention_' + str(count_MHA)
-            dict_transformer_params[(new_layer_name, 'weights')] = parameters
+        layer_name = layer[0]
         
-        if 'linear' in layer_name.lower():
-            count_Dense += 1
-            new_layer_name = 'dense_' + str(count_Dense)
-            dict_transformer_params[(new_layer_name, 'weights')] = parameters
+        if "dropout" not in layer_name:
+            print(f"name: {layer_name}")
+            
+            W_parameters = transformer_weights.get(layer_name, None)
+            b_parameters = transformer_bias.get(layer_name, None)
 
-        layer_names.append(new_layer_name)
+            if not W_parameters:
+                continue
+
+            if 'norm' in layer_name.lower():
+                count_LN += 1
+                new_layer_name = 'layer_normalization_' + str(count_LN)
+                dict_transformer_params[(new_layer_name, 'gamma')] = W_parameters
+                dict_transformer_params[(new_layer_name, 'beta')] = b_parameters
+                layer_names.append(new_layer_name)
+                
+            if 'self_attn' and 'proj' in layer_name.lower():
+                count_SA += 1
+                new_layer_name = 'self_attention_' + str(count_SA)
+                dict_transformer_params[(new_layer_name, 'weights')] = W_parameters
+                dict_transformer_params[(new_layer_name, 'bias')] = b_parameters
+                layer_names.append(new_layer_name)
+                
+            if 'multihead_attn' and 'proj' in layer_name.lower():
+                count_MHA += 1
+                new_layer_name = 'multihead_attention_' + str(count_MHA)
+                dict_transformer_params[(new_layer_name, 'weights')] = W_parameters
+                dict_transformer_params[(new_layer_name, 'bias')] = b_parameters
+                layer_names.append(new_layer_name)
+                
+            if 'linear' in layer_name.lower():
+                # if previous layer also dense, count as part of previous FFN
+                prev_name = layers[i-1][0]
+                if 'linear' in prev_name.lower(): 
+                    dict_transformer_params[NN_name] |= { layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': "relu"}}
+                
+                # else create new ffn in dict 
+                else: 
+                    count_Dense += 1
+                    NN_name = 'ffn_'+str(count_Dense)
+                    new_layer_name = NN_name
+
+                    dict_transformer_params[NN_name] = {'input_shape': input_shapes[layer_name], 
+                                                        'input': layer_names[-1],
+                                                        layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': "relu"}}  
+                
+
+                layer_names.append(new_layer_name)
     
     return layer_names, dict_transformer_params, model

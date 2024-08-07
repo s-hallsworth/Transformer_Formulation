@@ -100,19 +100,39 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
         model.input_constraints.add(expr=model.input_param[t,'0'] == model.X[t,'0'])
         model.input_constraints.add(expr=model.input_param[t,'1'] == model.X[t,'1'])
 
-    # define integral constraints
-    def _intX(m, t):
-        return m.X[t,'0']
-    def _intU(m, t):
-        return m.X[t,'1']
-    model.intX = dae.Integral(model.time, wrt=model.time, rule=_intX)
-    model.intU = dae.Integral(model.time, wrt=model.time, rule=_intU)
 
+    int_factor = 1/(3 * T)
+    model.intXU = pyo.Var(model.variables)
+    for d in model.variables:
+        sum_d = model.X[model.time.first(), d ] + model.X[model.time.last(), d]
+        for t_index, t in enumerate(model.time):
+            if t < model.time.last() and t > model.time.first():
+                # Use Simpsons Rule to find discrete integral
+                if t_index % 2 == 0:
+                    sum_d += 2 * model.X[model.time.at(t_index + 1), d]
+                    
+                else:
+                    sum_d += 4 * model.X[model.time.at(t_index + 1), d]
+        model.input_constraints.add(expr = model.intXU[d] == int_factor * sum_d )
 
     # Set objective function
     model.obj = pyo.Objective(
-        expr=model.intX - model.intU + model.X[model.time.last(),'0'], sense=1
+        expr= model.intXU['0'] - model.intXU['1'] + model.X[model.time.last(),'0'], sense=1
     )  # -1: maximize, +1: minimize (default)
+    
+    # # define integral constraints
+    # def _intX(m, t):
+    #     return m.X[t,'0']
+    # def _intU(m, t):
+    #     return m.X[t,'1']
+    # model.intX = dae.Integral(model.time, wrt=model.time, rule=_intX)
+    # model.intU = dae.Integral(model.time, wrt=model.time, rule=_intU)
+
+
+    # # Set objective function
+    # model.obj = pyo.Objective(
+    #     expr=model.intX - model.intU + model.X[model.time.last(),'0'], sense=1
+    # )  # -1: maximize, +1: minimize (default)
 
     globals().update(locals()) #make all variables from this function global
     return model

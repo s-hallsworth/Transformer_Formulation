@@ -13,6 +13,7 @@ from gurobi_ml import add_predictor_constr
 from GUROBI_ML_helper import get_inputs_gurobipy_FNN
 from print_stats import solve_gurobipy
 
+
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 
@@ -24,7 +25,7 @@ Add transformer instance/constraints to toy problem setup and solve GUROBIPY Mod
 # Define pyomo model 
 model_path = ".\\TNN_9.keras"
 config_file = '.\\data\\toy_config_relu_10_TNN_7.json' 
-T = 90000 # time steps
+T = 9000 # time steps
 seq_len = 10
 pred_len = 2
 window = seq_len + pred_len
@@ -33,7 +34,7 @@ preds_u = []
 preds_x = []
 pred_times = []
 
-for start_time in [89987]: #range(0,T, int(T/10)):
+for start_time in [8987]: #range(0,T, int(T/10)):
     #start_time = 89987
     for i in range(pred_len):
         pred_times += [start_time + seq_len + i + 1]
@@ -51,10 +52,13 @@ for start_time in [89987]: #range(0,T, int(T/10)):
     transformer2 = TNN.Transformer(model, config_file, "time_input_2")
 
     # Initialise transformers
+    std_list = []
+    for i in range(seq_len):
+        std_list += [np.std([tps.x_input[i], tps.u_input[i]])]
+    std = max(std_list)
     
-    #std = 0.82
     transformer.embed_input(model, "input_param", "input_embed", "variables")
-    transformer.add_layer_norm(model,"input_embed", "layer_norm", "gamma1", "beta1")
+    transformer.add_layer_norm(model,"input_embed", "layer_norm", "gamma1", "beta1",std)
     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
     transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
     transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
@@ -147,7 +151,8 @@ for start_time in [89987]: #range(0,T, int(T/10)):
         #if gurobi_model.status == GRB.OPTIMAL:
         optimal_parameters = {}
         for v in gurobi_model.getVars():
-            #print(f'var name: {v.varName}, var type {type(v)}')
+            # if 'int' or 'X' in v.varName:
+            #     print(f'var name: {v.varName}, var type: {type(v)}, var value: {v.x}')
             if "[" in v.varName:
                 name = v.varname.split("[")[0]
                 if name in optimal_parameters.keys():

@@ -15,15 +15,12 @@ torch.save(transformer_model.state_dict(), model_path)
 device = torch.device('cpu')
 model = torch.nn.Transformer(d_model= 4, nhead=4, num_encoder_layers=1, num_decoder_layers=1,dim_feedforward=10, batch_first=True)
 model.load_state_dict(torch.load(model_path, map_location=device))
+out_pre_trained = model(src, tgt)
 
 print("---------")
 # print(out)
 
 
-layer_names, dict_transformer_params, model = get_pytorch_learned_parameters(model)
+layer_names, dict_transformer_params, model = get_pytorch_learned_parameters(model, input_shape= (5, 10, 4))
 print(dict_transformer_params)
 
-# Print the extracted information
-for layer in layer_names:
-    print(f"Layer: {layer}")
-    print(f"Parameters: {dict_transformer_params[layer]}")
