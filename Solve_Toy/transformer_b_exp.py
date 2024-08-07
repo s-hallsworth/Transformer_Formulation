@@ -98,14 +98,14 @@ class Transformer:
                 for s in set_var:
                     for t in self.time_input:
                         M.embed_constraints.add(embed_var[t, s] == input_var[t,s])
-                        # if isinstance(input_var, pyo.Var):
-                        #     if input_var[t,s].ub:
-                        #         embed_var[t, s].ub = input_var[t,s].ub
-                        #     if input_var[t,s].lb:
-                        #         embed_var[t, s].lb = input_var[t,s].lb
-                        # elif isinstance(input_var, pyo.Param):
-                        #     embed_var[t, s].ub = input_var[t,s]
-                        #     embed_var[t, s].lb = input_var[t,s]
+                        if isinstance(input_var, pyo.Var):
+                            if input_var[t,s].ub:
+                                embed_var[t, s].ub = input_var[t,s].ub
+                            if input_var[t,s].lb:
+                                embed_var[t, s].lb = input_var[t,s].lb
+                        elif isinstance(input_var, pyo.Param):
+                            embed_var[t, s].ub = input_var[t,s]
+                            embed_var[t, s].lb = input_var[t,s]
                         
             else: # create embedded var
                 W_emb_dict = {
@@ -125,30 +125,30 @@ class Transformer:
                             M.embed_constraints.add(embed_var[t, d] 
                                                     == sum(input_var[t,s] * M.W_emb[s,d] for s in set_var) +  b_emb[d]
                                                     )
-                            # if isinstance(input_var, pyo.Var):
-                            #     try:
-                            #         embed_var[t, d].ub = sum(input_var[t,s].ub * M.W_emb[s,d] for s in set_var) +  b_emb[d]
-                            #         embed_var[t, d].lb = sum(input_var[t,s].lb * M.W_emb[s,d] for s in set_var) +  b_emb[d]
-                            #     except:
-                            #         continue
-                            # elif isinstance(input_var, pyo.Param):
-                            #     embed_var[t, d].ub = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var) +  b_emb[d]
-                            #     embed_var[t, d].lb = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var) +  b_emb[d]
+                            if isinstance(input_var, pyo.Var):
+                                try:
+                                    embed_var[t, d].ub = sum(input_var[t,s].ub * M.W_emb[s,d] for s in set_var) +  b_emb[d]
+                                    embed_var[t, d].lb = sum(input_var[t,s].lb * M.W_emb[s,d] for s in set_var) +  b_emb[d]
+                                except:
+                                    continue
+                            elif isinstance(input_var, pyo.Param):
+                                embed_var[t, d].ub = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var) +  b_emb[d]
+                                embed_var[t, d].lb = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var) +  b_emb[d]
                 else:
                     for d in M.model_dims:
                         for t in self.time_input:
                             M.embed_constraints.add(embed_var[t, d] 
                                                     == sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
                                                     )
-                            # if isinstance(input_var, pyo.Var):
-                            #     try:
-                            #         embed_var[t, d].ub = sum(input_var[t,s].ub * M.W_emb[s,d] for s in set_var)
-                            #         embed_var[t, d].lb = sum(input_var[t,s].lb * M.W_emb[s,d] for s in set_var)
-                            #     except:
-                            #         continue
-                            # elif isinstance(input_var, pyo.Param):
-                            #     embed_var[t, d].ub = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
-                            #     embed_var[t, d].lb = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
+                            if isinstance(input_var, pyo.Var):
+                                try:
+                                    embed_var[t, d].ub = sum(input_var[t,s].ub * M.W_emb[s,d] for s in set_var)
+                                    embed_var[t, d].lb = sum(input_var[t,s].lb * M.W_emb[s,d] for s in set_var)
+                                except:
+                                    continue
+                            elif isinstance(input_var, pyo.Param):
+                                embed_var[t, d].ub = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
+                                embed_var[t, d].lb = sum(input_var[t,s] * M.W_emb[s,d] for s in set_var)
         
         else: #if not indexed
             # define embedding var
@@ -168,14 +168,14 @@ class Transformer:
             if W_emb is None:
                     for t in self.time_input:
                         M.embed_constraints.add(embed_var[t] == input_var[t])
-                        # if isinstance(input_var, pyo.Var):
-                        #     if input_var[t].ub:
-                        #         embed_var[t].ub = input_var[t].ub
-                        #     if input_var[t].lb:
-                        #         embed_var[t].lb = input_var[t].lb
-                        # elif isinstance(input_var, pyo.Param):
-                        #     embed_var[t].ub = input_var[t]
-                        #     embed_var[t].lb = input_var[t]
+                        if isinstance(input_var, pyo.Var):
+                            if input_var[t].ub:
+                                embed_var[t].ub = input_var[t].ub
+                            if input_var[t].lb:
+                                embed_var[t].lb = input_var[t].lb
+                        elif isinstance(input_var, pyo.Param):
+                            embed_var[t].ub = input_var[t]
+                            embed_var[t].lb = input_var[t]
                         
             else: # create embedded var
                 W_emb_dict = {
@@ -194,30 +194,30 @@ class Transformer:
                             M.embed_constraints.add(embed_var[t, d] 
                                                     == (input_var[t] * M.W_emb[d]) +  b_emb[d]
                                                     )
-                            # if isinstance(input_var, pyo.Var):
-                            #     try:
-                            #         embed_var[t, d].ub = (input_var[t].ub * M.W_emb[d]) +  b_emb[d]
-                            #         embed_var[t, d].lb = (input_var[t].lb * M.W_emb[d] ) +  b_emb[d]
-                            #     except:
-                            #         continue
-                            # elif isinstance(input_var, pyo.Param):
-                            #     embed_var[t, d].ub = (input_var[t] * M.W_emb[d]) +  b_emb[d]
-                            #     embed_var[t, d].lb = (input_var[t] * M.W_emb[d]) +  b_emb[d]
+                            if isinstance(input_var, pyo.Var):
+                                try:
+                                    embed_var[t, d].ub = (input_var[t].ub * M.W_emb[d]) +  b_emb[d]
+                                    embed_var[t, d].lb = (input_var[t].lb * M.W_emb[d] ) +  b_emb[d]
+                                except:
+                                    continue
+                            elif isinstance(input_var, pyo.Param):
+                                embed_var[t, d].ub = (input_var[t] * M.W_emb[d]) +  b_emb[d]
+                                embed_var[t, d].lb = (input_var[t] * M.W_emb[d]) +  b_emb[d]
                 else: # no bias
                     for d in M.model_dims:
                         for t in self.time_input:
                             M.embed_constraints.add(embed_var[t, d] 
                                                     == (input_var[t] * M.W_emb[d])
                                                     )
-                            # if isinstance(input_var, pyo.Var):
-                            #     try:
-                            #         embed_var[t, d].ub = (input_var[t].ub * M.W_emb[d])
-                            #         embed_var[t, d].lb = (input_var[t].lb * M.W_emb[d])
-                            #     except:
-                            #         continue
-                            # elif isinstance(input_var, pyo.Param):
-                            #     embed_var[t, d].ub = (input_var[t] * M.W_emb[s,d] )
-                            #     embed_var[t, d].lb = (input_var[t] * M.W_emb[s,d] )
+                            if isinstance(input_var, pyo.Var):
+                                try:
+                                    embed_var[t, d].ub = (input_var[t].ub * M.W_emb[d])
+                                    embed_var[t, d].lb = (input_var[t].lb * M.W_emb[d])
+                                except:
+                                    continue
+                            elif isinstance(input_var, pyo.Param):
+                                embed_var[t, d].ub = (input_var[t] * M.W_emb[s,d] )
+                                embed_var[t, d].lb = (input_var[t] * M.W_emb[s,d] )
 
     def add_layer_norm(self, M, input_var_name, layer_norm_var_name, gamma= None, beta = None, std=None):  # non-linear
         """
@@ -297,9 +297,9 @@ class Transformer:
                 M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
                 
                 M.layer_norm_constraints.add(expr= variance[t] == (denominator[t] * denominator_abs[t] ) )
-                # if std:
-                #     denominator[t].ub = std
-                #     denominator[t].lb = -std
+                if std:
+                    denominator[t].ub = std
+                    denominator[t].lb = -std
                     
                 
                 M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
@@ -319,7 +319,7 @@ class Transformer:
                     # layer_norm_var[t, d].lb = -4
                     
             #     #Add bounds
-            #     if input_var[t, d].ub and input_var[t, d].lb:
+                if input_var[t, d].ub and input_var[t, d].lb:
             #         mean_u = (sum(input_var[t, d_prime].ub for d_prime in M.model_dims)/ self.d_model )
             #         mean_l = (sum(input_var[t, d_prime].lb for d_prime in M.model_dims)/ self.d_model )
             #         numerator[t,d].ub = input_var[t, d].ub - mean_l
@@ -327,9 +327,9 @@ class Transformer:
             #         numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
             #         numerator_squared[t,d].lb = 0
                     
-            #         if not std :
-            #             denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) #/8
-            #             denominator[t].lb = - abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))#/8
+                    if not std :
+                        denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) #/8
+                        denominator[t].lb = - abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))#/8
             #     numerator_squared[t,d].lb = 0
             # if input_var[t, d].ub and input_var[t, d].lb:
             #     numerator_squared_sum[t].ub = sum( (numerator_squared[t,d_prime].ub) for d_prime in M.model_dims) 

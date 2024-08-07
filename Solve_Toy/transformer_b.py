@@ -4,6 +4,7 @@ import math
 from pyomo import dae
 import json
 import os
+from extract_from_pretrained import get_pytorch_learned_parameters
 from omlt import OmltBlock
 from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation
 from omlt.io.keras import keras_reader
@@ -37,6 +38,7 @@ def activate_envelope_att(model):
                 model.constr_concave_tp_sct.activate()
 
 class Transformer:
+    """ A Time Series Transformer based on Vaswani et al's "Attention is All You Need" paper."""
     def __init__(self, M, config_file, time_var_name):
         
         # time set
@@ -66,6 +68,62 @@ class Transformer:
                 M.model_dims = pyo.Set(initialize=str_array)
             else:
                 M.model_dims = pyo.Set(initialize=[str(0)])
+    
+    def build_from_pytorch(self, pytorch_model, input_shape, opt_model_name):
+        # Get learned parameters
+        layer_names, parameters, _ = get_pytorch_learned_parameters(pytorch_model, input_shape= (5, 10, 4))
+        self.build_layers(self, input_shape, opt_model_name, layer_names, parameters)
+        
+    def build_layers(self, input_shape, opt_model_name, layer_names, parameters):
+        opt_model = pyo.ConcreteModel(name=opt_model_name)
+        for l, layer in enumerate(layer_names):
+            print(layer)
+            input_name = None #track previous layers output name
+            
+            if l == 0: # first layer
+                # create input param
+                dim_1 = input_shape[0]
+                dim_2 = input_shape[dim_1]
+                opt_model.set_dim_time  = pyo.Set(initialize= range(dim_1))
+                opt_model.set_dim_model = pyo.Set(initialize= range(dim_2))
+                opt_model.input_param = pyo.Param(opt_model.set_dim_time, opt_model.set_dim_model)
+                
+                input = "input_param" #update prev layer output name
+                
+            if "self_attention" in layer:
+                W_q = parameters[layer,'W_q']
+                W_k = parameters[layer,'W_k']
+                W_v = parameters[layer,'W_v']
+                W_o = parameters[layer,'W_o']
+                
+                try:
+                    b_q = parameters[layer,'b_q']
+                    b_k = parameters[layer,'b_k']
+                    b_v = parameters[layer,'b_v']
+                    b_o = parameters[layer,'b_o']
+                    
+                    self.add_attention(opt_model, input, layer, W_q, W_k, W_k, W_o, b_q, b_k, b_v, b_o)
+                except: # no bias values found
+                    self.add_attention(opt_model, input, layer, W_q, W_k, W_k, W_o)
+                input_name = layer
+                    
+            if "layer_norm" in layer:
+                gamma = parameters[layer, 'gamma']
+                beta  = parameters[layer, 'beta']
+                dict_gamma = {(v): val for v,val in zip(opt_model.set_dim_model, gamma)}
+                dict_beta  = {(v): val for v,val in zip(opt_model.set_dim_model, beta)}
+                
+                # define new gamma and beta params
+                setattr(opt_model, f"{layer}_gamma", pyo.Param(opt_model.set_dim_model, initialize = dict_gamma))
+                gamma = getattr(opt_model, f"{layer}_gamma")
+                setattr(opt_model, f"{layer}_beta", pyo.Param(opt_model.set_dim_model, initialize = dict_beta))
+                gamma = getattr(opt_model, f"{layer}_beta")
+                
+            if 
+                
+                
+            
+        return opt_model.input_param, opt_model.output_var
 
     def embed_input(self, M, input_var_name, embed_var_name, set_input_var_name = None, W_emb=None, b_emb = None):
         """

@@ -156,7 +156,7 @@ for start_time in [600]: # \
     ## Optimize
     # gurobi_model.params.SolutionLimit = 10 ##
     # gurobi_model.params.MIPFocus = 1 ## focus on finding feasible solution
-    time_limit = 21600 # 24 hrs
+    time_limit = 120 #21600 # 24 hrs
     solve_gurobipy(gurobi_model, time_limit) ## Solve and print
 
     if gurobi_model.status == GRB.INFEASIBLE:

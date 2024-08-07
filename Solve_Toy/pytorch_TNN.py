@@ -20,13 +20,13 @@ out_pre_trained = model(src, tgt)
 print("---------")
 # print(out)
 
-
+# Get learned parameters
 layer_names, dict_transformer_params, model = get_pytorch_learned_parameters(model, input_shape= (5, 10, 4))
 #print(dict_transformer_params)
 
-sample_input = torch.rand((5, 10, 4))  # Adjust based on your model's input size
+# Get intermediate outputs of model for testing
+sample_input = torch.rand((5, 10, 4)) 
 sample_input2 = torch.rand((5, 10, 4))
-# Call the function
 intermediate_outputs = get_pytorch_intermediate_values(model, sample_input, sample_input2)
-print(layer_names)
-print(intermediate_outputs)
+
+# Create transformer 

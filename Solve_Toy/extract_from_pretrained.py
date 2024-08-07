@@ -83,9 +83,9 @@ def get_learned_parameters(model_path):
                 
             # else may contain gamma and beta parameters
         
-        if 'MULTI_HEAD_ATTENTION' in layer_name.upper():  
+        if 'MULTIHEAD_ATTENTION' in layer_name.upper():  
             count_MHA += 1
-            new_layer_name = 'multi_head_attention_'+str(count_MHA)
+            new_layer_name = 'mutlihead_attention_'+str(count_MHA)
             if len(parameters) > 4: # has bias
                 dict_transformer_params[(new_layer_name, 'W_q')] = parameters[0]
                 dict_transformer_params[(new_layer_name, 'W_k')] = parameters[2]
@@ -132,8 +132,8 @@ def get_learned_parameters(model_path):
             
         layer_names += [new_layer_name]
             
-    #print(layer_names) # ['layer_normalization_130', 'multi_head_attention_65', 'layer_normalization_131', 'conv2d_42', 'conv2d_43', 'dense_70', 'dense_71']
-    #print(dict_transformer_params['multi_head_attention_1','W_q'])   
+    #print(layer_names) # ['layer_normalization_130', 'mutlihead_attention_65', 'layer_normalization_131', 'conv2d_42', 'conv2d_43', 'dense_70', 'dense_71']
+    #print(dict_transformer_params['mutlihead_attention_1','W_q'])   
     return layer_names, dict_transformer_params, model
 
 def get_intermediate_values(model_path, sample_input, file_name=None):
@@ -359,8 +359,7 @@ def get_pytorch_intermediate_values(model, sample_input1, sample_input2, file_na
     # Format the layer names
     formatted_layer_outputs = {}
     for name, output in layer_outputs_dict.items():
-        print(name)
-        
+
         if name == 'encoder':
             layer_name = name
             

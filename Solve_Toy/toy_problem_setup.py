@@ -75,15 +75,15 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     
     
     # define weights and biases
-    W_q = parameters['multi_head_attention_1','W_q']
-    W_k = parameters['multi_head_attention_1','W_k']
-    W_v = parameters['multi_head_attention_1','W_v']
-    W_o = parameters['multi_head_attention_1','W_o']
+    W_q = parameters['multihead_attention_1','W_q']
+    W_k = parameters['multihead_attention_1','W_k']
+    W_v = parameters['multihead_attention_1','W_v']
+    W_o = parameters['multihead_attention_1','W_o']
 
-    b_q = parameters['multi_head_attention_1','b_q']
-    b_k = parameters['multi_head_attention_1','b_k']
-    b_v = parameters['multi_head_attention_1','b_v']
-    b_o = parameters['multi_head_attention_1','b_o']
+    b_q = parameters['multihead_attention_1','b_q']
+    b_k = parameters['multihead_attention_1','b_k']
+    b_v = parameters['multihead_attention_1','b_v']
+    b_o = parameters['multihead_attention_1','b_o']
 
 
    
