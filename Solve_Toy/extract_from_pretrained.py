@@ -186,12 +186,11 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     for name, param in model.named_parameters():
         
         if "weight" in name:
-            print(name, param.shape)
-            
             new_name = name.split('weight')[0]
             if not new_name[-1].isalnum():
                 new_name = new_name[:-1]
             model_weights[new_name] = param.detach().cpu().numpy().tolist()
+            
         if "bias" in name:
             new_name = name.split('bias')[0]
             if not new_name[-1].isalnum():
@@ -211,7 +210,8 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     
 def get_pytorch_learned_parameters(model, input_shape):
     """
-    Read model parameters and store in dict with associated name. Only supports ReLU Activation function
+    Read model parameters and store in dict with associated name. 
+    ** NB: Assumes ReLU Activation function **
     """
     
     src = torch.rand(input_shape)
@@ -244,9 +244,7 @@ def get_pytorch_learned_parameters(model, input_shape):
     count_LN = 0
     count_MHA = 0
     count_SA = 0
-    count_Conv2D = 0
     count_Dense = 0
-    count_Layers = 0
 
     
     # for each layer
@@ -255,13 +253,8 @@ def get_pytorch_learned_parameters(model, input_shape):
         layer_name = layer[0]
         
         if "dropout" not in layer_name:
-            print(f"name: {layer_name}")
-            
             W_parameters = transformer_weights.get(layer_name, None)
             b_parameters = transformer_bias.get(layer_name, None)
-
-            if not W_parameters:
-                continue
 
             if 'norm' in layer_name.lower():
                 count_LN += 1
@@ -270,19 +263,56 @@ def get_pytorch_learned_parameters(model, input_shape):
                 dict_transformer_params[(new_layer_name, 'beta')] = b_parameters
                 layer_names.append(new_layer_name)
                 
-            if 'self_attn' and 'proj' in layer_name.lower():
-                count_SA += 1
-                new_layer_name = 'self_attention_' + str(count_SA)
-                dict_transformer_params[(new_layer_name, 'weights')] = W_parameters
-                dict_transformer_params[(new_layer_name, 'bias')] = b_parameters
-                layer_names.append(new_layer_name)
+            if layer_name.lower().endswith('attn'):
+                try: 
+                    # if embed dim = k, v dim --> weights concatinated in in_proj (see pytorch doc)
+                    W_parameters = transformer_weights.get(layer_name + ".in_proj")
+                    b_parameters = transformer_bias.get(layer_name + ".in_proj", None)
+                    emb_shape = int(np.array(W_parameters).shape[0]/3)
+                    W_q, W_k, W_v = torch.split(torch.tensor(W_parameters), [emb_shape, emb_shape, emb_shape])
+                    if b_parameters:
+                        b_q, b_k, b_v = torch.split(torch.tensor(b_parameters), [emb_shape, emb_shape, emb_shape])
+                    else:
+                        b_q = None
+                    
+                except:
+                    W_q = transformer_weights.get(layer_name + ".q_proj")
+                    W_k = transformer_weights.get(layer_name + ".k_proj")
+                    W_v = transformer_weights.get(layer_name + ".v_proj")
+                    
+                    b_q = transformer_bias.get(layer_name + ".q_proj", None)
+                    b_k = transformer_bias.get(layer_name + ".k_proj", None)
+                    W_v = transformer_bias.get(layer_name + ".v_proj", None)
                 
-            if 'multihead_attn' and 'proj' in layer_name.lower():
-                count_MHA += 1
-                new_layer_name = 'multihead_attention_' + str(count_MHA)
-                dict_transformer_params[(new_layer_name, 'weights')] = W_parameters
-                dict_transformer_params[(new_layer_name, 'bias')] = b_parameters
+                # set name of type of attention
+                if 'self_attn' in layer_name.lower():    
+                    count_SA += 1
+                    new_layer_name = 'self_attention_' + str(count_SA)
+                elif 'multihead_attn' in layer_name.lower():
+                    count_MHA += 1
+                    new_layer_name = 'multihead_attention_' + str(count_MHA)
+                    
+                # Save in dict Q, K, V weights and biases
+                dict_transformer_params[(new_layer_name, 'W_q')] =  W_q
+                dict_transformer_params[(new_layer_name, 'W_k')] =  W_k
+                dict_transformer_params[(new_layer_name, 'W_v')] =  W_v
+                
+                if not b_q is None:
+                    dict_transformer_params[(new_layer_name, 'b_q')] = b_q
+                    dict_transformer_params[(new_layer_name, 'b_k')] = b_k
+                    dict_transformer_params[(new_layer_name, 'b_v')] = b_v
+                
+                out_proj_name = layer_name + ".out_proj"
+                W_o = transformer_weights.get(out_proj_name)
+                dict_transformer_params[(new_layer_name, 'W_o')] =  W_o
+                
+                b_o = transformer_bias.get(out_proj_name , None)
+                if not b_o  is None:
+                    dict_transformer_params[(new_layer_name, 'b_o')] = b_o
+                    
+                # Update layer names
                 layer_names.append(new_layer_name)
+                       
                 
             if 'linear' in layer_name.lower():
                 # if previous layer also dense, count as part of previous FFN
@@ -301,6 +331,61 @@ def get_pytorch_learned_parameters(model, input_shape):
                                                         layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': "relu"}}  
                 
 
-                layer_names.append(new_layer_name)
+                    layer_names.append(new_layer_name)
     
     return layer_names, dict_transformer_params, model
+
+def get_pytorch_intermediate_values(model, sample_input1, sample_input2, file_name=None):
+    # model.eval()
+
+    # Dictionary to store the output of each layer
+    layer_outputs_dict = {}
+    layer_names = []
+
+    # Function to get the output of each layer
+    def output_hook_fn(module, input, output, name):
+        layer_outputs_dict[name] = output
+
+    # Register hooks for all layers
+    for name, layer in model.named_modules():
+        if "dropout" not in name:
+            layer.register_forward_hook(lambda module, input, output, name=name: output_hook_fn(module, input, output, name))
+
+    # Make a forward pass with the sample input
+    with torch.no_grad():
+        _ = model(sample_input1, sample_input2)
+
+    print("---")
+    # Format the layer names
+    formatted_layer_outputs = {}
+    for name, output in layer_outputs_dict.items():
+        print(name)
+        
+        if name == 'encoder':
+            layer_name = name
+            
+        elif name.endswith('self_attn'):
+            layer_name = 'self_attention'
+            
+        elif name.endswith('multihead_attn'):
+            layer_name = 'multihead_attention'
+            
+        elif 'linear' in name:
+            layer_name = 'dense'
+            
+        elif 'norm' in name:
+            layer_name = 'layer_normalization'
+
+        else:
+            continue
+                
+        count = layer_names.count(layer_name) + 1
+        formatted_layer_outputs[f"{layer_name}_{count}"] = output
+        layer_names.append(layer_name)
+
+    if file_name:
+        with open(file_name, 'w') as file:
+            json.dump(formatted_layer_outputs, file, indent=4)
+        print(f"Intermediate outputs of the model have been saved to {file_name}")
+
+    return formatted_layer_outputs

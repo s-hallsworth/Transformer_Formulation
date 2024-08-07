@@ -26,7 +26,7 @@ model_path = ".\\TNN_enc_0002.keras" #7.keras"
 config_file = '.\\data\\toy_config_relu_10.json'#_TNN_7.json' 
 T = 9000 # time steps
 seq_len = 10
-pred_len = 1
+pred_len = 2
 window = seq_len + pred_len
 
 preds_u = []
@@ -35,7 +35,7 @@ pred_times = []
 
 start_indices = list(range(0,T, int(T/12)))
 start_indices.append(T - window - 1)
-for start_time in [8987]: # \
+for start_time in [600]: # \
     print("START TIME: ", start_time)
 
     model = tps.setup_toy( T, start_time ,seq_len, pred_len, model_path, config_file)
@@ -45,12 +45,12 @@ for start_time in [8987]: # \
     # Define time sets
     Time_start = 1
 
-    # model.time_input_2 = dae.ContinuousSet(initialize=tps.time[Time_start : Time_start + seq_len])
-    # model.input_2 = pyo.Var(model.time_input_2, model.variables, bounds=(tps.LB_input, tps.UB_input))
+    model.time_input_2 = dae.ContinuousSet(initialize=tps.time[Time_start : Time_start + seq_len])
+    model.input_2 = pyo.Var(model.time_input_2, model.variables, bounds=(tps.LB_input, tps.UB_input))
 
     # Define transformers 
     transformer = TNN.Transformer(model, tps.config_file, "time_input")      
-    # transformer2 = TNN.Transformer(model, tps.config_file, "time_input_2")
+    transformer2 = TNN.Transformer(model, tps.config_file, "time_input_2")
 
     # Initialise transformers
     std_list = []
@@ -72,15 +72,15 @@ for start_time in [8987]: # \
     # Define transformer 2
 
     
-    # transformer2.embed_input(model, "input_2","input_embed2", "variables")
-    # transformer2.add_layer_norm(model, "input_embed2", "layer_norm2", "gamma1", "beta1")
-    # transformer2.add_attention(model, "layer_norm2", "attention_output2" , tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
-    # transformer2.add_residual_connection(model,"input_embed2", "attention_output2", "residual_12")
-    # transformer2.add_layer_norm(model, "residual_12", "layer_norm_22", "gamma2", "beta2")
-    # nn21, input_nn21, output_nn21 = transformer2.get_fnn(model, "layer_norm_22", "FFN_12", "ffn_1", (seq_len,2), tps.parameters)
-    # transformer2.add_residual_connection(model,"residual_12", "FFN_12", "residual_22")  
-    # transformer2.add_avg_pool(model, "residual_22", "avg_pool22")
-    # nn22, input_nn22, output_nn22 = transformer2.get_fnn(model, "avg_pool22", "FFN_22", "ffn_2", (1,2), tps.parameters)
+    transformer2.embed_input(model, "input_2","input_embed2", "variables")
+    transformer2.add_layer_norm(model, "input_embed2", "layer_norm2", "gamma1", "beta1")
+    transformer2.add_attention(model, "layer_norm2", "attention_output2" , tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+    transformer2.add_residual_connection(model,"input_embed2", "attention_output2", "residual_12")
+    transformer2.add_layer_norm(model, "residual_12", "layer_norm_22", "gamma2", "beta2")
+    nn21, input_nn21, output_nn21 = transformer2.get_fnn(model, "layer_norm_22", "FFN_12", "ffn_1", (seq_len,2), tps.parameters)
+    transformer2.add_residual_connection(model,"residual_12", "FFN_12", "residual_22")  
+    transformer2.add_avg_pool(model, "residual_22", "avg_pool22")
+    nn22, input_nn22, output_nn22 = transformer2.get_fnn(model, "avg_pool22", "FFN_22", "ffn_2", (1,2), tps.parameters)
 
 
     ## Add constraint to input_var
@@ -94,24 +94,24 @@ for start_time in [8987]: # \
     M = 10 * (delta_T)
         
     for t_index, t in enumerate(model.time):
-        # if t > model.time_input.first() and t < model.time_input.last():
-        #     model.input_var_constraints.add(expr=model.input_2[t,d] == model.input_var[t,d])
-        #     model.input_var_constraints.add(expr=model.input_2[t,d2] == model.input_var[t,d2])
+        if t > model.time_input.first() and t < model.time_input.last():
+            model.input_var_constraints.add(expr=model.input_2[t,d] == model.input_var[t,d])
+            model.input_var_constraints.add(expr=model.input_2[t,d2] == model.input_var[t,d2])
             
         if t == model.time_input.last():
             last_time_1  = True
-            # model.input_var_constraints.add(expr=model.input_2[t,d] == model.input_var[t,d]) #second last value of input 2
-            # model.input_var_constraints.add(expr=model.input_2[t,d2] == model.input_var[t,d2])
+            model.input_var_constraints.add(expr=model.input_2[t,d] == model.input_var[t,d]) #second last value of input 2
+            model.input_var_constraints.add(expr=model.input_2[t,d2] == model.input_var[t,d2])
             
         elif last_time_1 :
             model.input_var_constraints.add(expr=model.input_var[t,d] == model.FFN_2[d])
-            #model.input_var_constraints.add(expr=model.input_2[t,d] == model.FFN_2[d])  # lastvalue of input 2
+            model.input_var_constraints.add(expr=model.input_2[t,d] == model.FFN_2[d])  # lastvalue of input 2
             last_time_1  = False
-        #     last_time_2  = True
+            last_time_2  = True
             
-        # elif last_time_2 :
-        #     model.input_var_constraints.add(expr=model.input_var[t,d] == model.FFN_22[d])
-        #     last_time_2  = False
+        elif last_time_2 :
+            model.input_var_constraints.add(expr=model.input_var[t,d] == model.FFN_22[d])
+            last_time_2  = False
             
         if  t < model.time.last():
             # u (control) continuous: u_n+1 - u_n <= x_n+1 - x_n
@@ -132,12 +132,12 @@ for start_time in [8987]: # \
     inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
     pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
 
-    # inputs_21, outputs_21 = get_inputs_gurobipy_FNN(input_nn21, output_nn21, map_var)
-    # pred_constr21 = add_predictor_constr(gurobi_model, nn21, inputs_21, outputs_21)
+    inputs_21, outputs_21 = get_inputs_gurobipy_FNN(input_nn21, output_nn21, map_var)
+    pred_constr21 = add_predictor_constr(gurobi_model, nn21, inputs_21, outputs_21)
 
-    # inputs_22, outputs_22 = get_inputs_gurobipy_FNN(input_nn22, output_nn22, map_var)
-    # pred_constr22 = add_predictor_constr(gurobi_model, nn22, inputs_22, outputs_22)
-    # gurobi_model.update()
+    inputs_22, outputs_22 = get_inputs_gurobipy_FNN(input_nn22, output_nn22, map_var)
+    pred_constr22 = add_predictor_constr(gurobi_model, nn22, inputs_22, outputs_22)
+    gurobi_model.update()
     #pred_constr.print_stats()
 
     ## Print Header

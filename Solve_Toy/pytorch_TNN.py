@@ -1,5 +1,5 @@
 import torch
-from extract_from_pretrained import get_pytorch_learned_parameters
+from extract_from_pretrained import get_pytorch_learned_parameters, get_pytorch_intermediate_values
 
 # create model
 transformer_model = torch.nn.Transformer(d_model= 4, nhead=4, num_encoder_layers=1, num_decoder_layers=1,dim_feedforward=10, batch_first=True)
@@ -22,5 +22,11 @@ print("---------")
 
 
 layer_names, dict_transformer_params, model = get_pytorch_learned_parameters(model, input_shape= (5, 10, 4))
-print(dict_transformer_params)
+#print(dict_transformer_params)
 
+sample_input = torch.rand((5, 10, 4))  # Adjust based on your model's input size
+sample_input2 = torch.rand((5, 10, 4))
+# Call the function
+intermediate_outputs = get_pytorch_intermediate_values(model, sample_input, sample_input2)
+print(layer_names)
+print(intermediate_outputs)
