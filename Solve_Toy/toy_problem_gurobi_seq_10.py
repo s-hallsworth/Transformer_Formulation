@@ -33,7 +33,9 @@ preds_u = []
 preds_x = []
 pred_times = []
 
-for start_time in np.linspace(0, 1, num= T/12): #[8975, 8987]: # \
+start_indices = list(range(0,T, int(T/12)))
+start_indices.append(T - window - 1)
+for start_time in start_indices: #[8975, 8987]: # \
     print("START TIME: ", start_time)
 
     model = tps.setup_toy( T, start_time ,seq_len, pred_len, model_path, config_file)
@@ -210,7 +212,7 @@ for start_time in np.linspace(0, 1, num= T/12): #[8975, 8987]: # \
  
 #save to file
 import csv
-file_name = "results_trajectory_seq_1_full.csv"   
+file_name = "results_trajectory_seq_1_1.csv"   
 with open(file_name, 'a', newline='') as file:
     writer = csv.writer(file)
     values = []
