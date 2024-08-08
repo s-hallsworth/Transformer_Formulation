@@ -39,10 +39,10 @@ def activate_envelope_att(model):
 
 class Transformer:
     """ A Time Series Transformer based on Vaswani et al's "Attention is All You Need" paper."""
-    def __init__(self, M, config_file, time_var_name):
+    def __init__(self, M, config_file):
         
-        # time set
-        self.time_input = getattr(M, time_var_name)
+        # # time set
+        # self.time_input = getattr(M, time_var_name)
         
          # get hyper params
         with open(config_file, "r") as file:
@@ -69,63 +69,135 @@ class Transformer:
             else:
                 M.model_dims = pyo.Set(initialize=[str(0)])
     
-    def build_from_pytorch(self, pytorch_model, input_shape, opt_model_name):
+    def build_from_pytorch(self, pytorch_model, input_shape, opt_model_name, enc_input, dec_input):
         # Get learned parameters
-        layer_names, parameters, _ = get_pytorch_learned_parameters(pytorch_model, input_shape= (5, 10, 4))
-        self.build_layers(self, input_shape, opt_model_name, layer_names, parameters)
+        layer_names, parameters, _ = get_pytorch_learned_parameters(pytorch_model, input_shape, self.d_H)
+        self.build_layers( input_shape, opt_model_name, layer_names, parameters , enc_input, dec_input)
         
-    def build_layers(self, input_shape, opt_model_name, layer_names, parameters):
+    def build_layers(self, input_shape, opt_model_name, layer_names, parameters, enc_input, dec_input):
         opt_model = pyo.ConcreteModel(name=opt_model_name)
+        ffn_parameter_dict = {}
+         
+        input_name = None  #track previous layers output name
+        enc_output_name = None #track encoder output
+        count = [0, 0] # coutn enc and decoder occurances
+        
+        # define sets for input params
+        dim_1 = input_shape[0]
+        dim_2 = input_shape[1]
+        opt_model.time_dims  = pyo.Set(initialize= range(dim_1))
+        opt_model.model_dims = pyo.Set(initialize= range(dim_2))
+        # time set
+        self.time_input = opt_model.model_dims
+        
         for l, layer in enumerate(layer_names):
-            print(layer)
-            input_name = None #track previous layers output name
+            print("layer iteration", layer)
             
-            if l == 0: # first layer
-                # create input param
-                dim_1 = input_shape[0]
-                dim_2 = input_shape[dim_1]
-                opt_model.set_dim_time  = pyo.Set(initialize= range(dim_1))
-                opt_model.set_dim_model = pyo.Set(initialize= range(dim_2))
-                opt_model.input_param = pyo.Param(opt_model.set_dim_time, opt_model.set_dim_model)
+            if "enc" in layer:
+                count[0] += 1
+
+                if count[0] == 1: # first layer encoder
+                    # create input param
+                    dict_enc_input = {}
+                    for t_index, t in enumerate(opt_model.time_dims):
+                        for d_index, d in enumerate(opt_model.model_dims):
+                            dict_enc_input[(t,d)] = enc_input[t_index, d_index].detach().cpu().numpy().tolist()
+
+                    opt_model.enc_input_param = pyo.Param(opt_model.time_dims, opt_model.model_dims, initialize=dict_enc_input)
+                    
+                    self.embed_input(opt_model, "enc_input_param", "enc_input")
+                    input_name = "enc_input" #update prev layer output name
                 
-                input = "input_param" #update prev layer output name
+            elif "dec" in layer:
+                count[1] += 1
+            
+                if count[1] == 1: # first layer decoder
+                    enc_output_name = input_name
+                    
+                    # create input param
+                    opt_model.dec_input_param = pyo.Param(opt_model.time_dims, opt_model.model_dims)
+                    self.embed_input(opt_model, "dec_input_param", "dec_input")
+                    input_name = "dec_input" #update prev layer output name
                 
             if "self_attention" in layer:
                 W_q = parameters[layer,'W_q']
                 W_k = parameters[layer,'W_k']
                 W_v = parameters[layer,'W_v']
                 W_o = parameters[layer,'W_o']
-                
+
                 try:
                     b_q = parameters[layer,'b_q']
                     b_k = parameters[layer,'b_k']
                     b_v = parameters[layer,'b_v']
                     b_o = parameters[layer,'b_o']
-                    
-                    self.add_attention(opt_model, input, layer, W_q, W_k, W_k, W_o, b_q, b_k, b_v, b_o)
                 except: # no bias values found
-                    self.add_attention(opt_model, input, layer, W_q, W_k, W_k, W_o)
+                     b_q = None
+                
+                if not b_q is None:     
+                    self.add_attention(opt_model, input_name, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+                else:
+                    self.add_attention(opt_model, input_name, layer, W_q, W_k, W_k, W_o)
                 input_name = layer
+                
+            # if "multi_head_attention" in layer:
+            #     W_q = parameters[layer,'W_q']
+            #     W_k = parameters[layer,'W_k']
+            #     W_v = parameters[layer,'W_v']
+            #     W_o = parameters[layer,'W_o']
+                
+            #     try:
+            #         b_q = parameters[layer,'b_q']
+            #         b_k = parameters[layer,'b_k']
+            #         b_v = parameters[layer,'b_v']
+            #         b_o = parameters[layer,'b_o']
+                    
+            #         self.add_masked_attention(opt_model, input, layer, enc_output_name , W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+            #     except: # no bias values found
+            #         self.add_masked_attention(opt_model, input, layer, enc_output_name , W_q, W_k, W_k, W_o)
+            #     input_name = layer
                     
             if "layer_norm" in layer:
                 gamma = parameters[layer, 'gamma']
                 beta  = parameters[layer, 'beta']
-                dict_gamma = {(v): val for v,val in zip(opt_model.set_dim_model, gamma)}
-                dict_beta  = {(v): val for v,val in zip(opt_model.set_dim_model, beta)}
+                dict_gamma = {(v): val for v,val in zip(opt_model.model_dims, gamma)}
+                dict_beta  = {(v): val for v,val in zip(opt_model.model_dims, beta)}
                 
                 # define new gamma and beta params
-                setattr(opt_model, f"{layer}_gamma", pyo.Param(opt_model.set_dim_model, initialize = dict_gamma))
-                gamma = getattr(opt_model, f"{layer}_gamma")
-                setattr(opt_model, f"{layer}_beta", pyo.Param(opt_model.set_dim_model, initialize = dict_beta))
-                gamma = getattr(opt_model, f"{layer}_beta")
+                setattr(opt_model, f"{layer}_gamma", pyo.Param(opt_model.model_dims, initialize = dict_gamma))
+                setattr(opt_model, f"{layer}_beta", pyo.Param(opt_model.model_dims, initialize = dict_beta))
                 
-            if 
+                # add layer normalization layer
+                self.add_layer_norm(opt_model, input_name, layer, f"{layer}_gamma", f"{layer}_beta")
                 
+                # update input_name var
+                input_name = layer
                 
+            if "linear" in layer:
+                W_linear = parameters[layer,'W']
+                try:
+                    b_linear = parameters[layer,'b']
+                except:
+                    b_linear = None
+                    
+                if not b_linear is None:    
+                    self.embed_input(opt_model, input_name, layer, W_linear, b_linear)
+                else:
+                    self.embed_input(opt_model, input_name, layer, W_linear)
+                    
+                # update input_name var
+                input_name = layer
             
-        return opt_model.input_param, opt_model.output_var
+            if "ffn" in layer:
+                input_shape = parameters[layer,'input_shape']
+                ffn_params = self.get_fnn(opt_model, input_name, layer, layer, input_shape, parameters)
 
-    def embed_input(self, M, input_var_name, embed_var_name, set_input_var_name = None, W_emb=None, b_emb = None):
+                ffn_parameter_dict[layer].append(ffn_params)
+                # update input_name var
+                input_name = layer
+            
+        return opt_model.input_param, opt_model.output_var, ffn_parameter_dict
+
+    def embed_input(self, M, input_var_name, embed_var_name, W_emb=None, b_emb = None):
         """
         Embed the feature dimensions of input
         """
@@ -133,9 +205,11 @@ class Transformer:
             M.embed_constraints = pyo.ConstraintList()
             
         input_var = getattr(M, input_var_name)
-        set_var = getattr(M, set_input_var_name)
         
-        if set_input_var_name: #if indexed
+        
+        if input_var.is_indexed(): #if indexed
+            set_var = getattr(M, input_var.index_set())
+            
             # define embedding var
             if not hasattr(M, embed_var_name):
                 init_array = 0.5 * np.ones((self.N, self.d_model)) #randomly initialize embed array to create pyo.Var
@@ -404,7 +478,6 @@ class Transformer:
             
         input_var = getattr(M, input_var_name)
         
-        
         if not hasattr(M, output_var_name):
             setattr(M, output_var_name, pyo.Var(self.time_input, M.model_dims, within=pyo.Reals))
             attention_output = getattr(M, output_var_name)
@@ -456,7 +529,7 @@ class Transformer:
         MHA_Block.W_v = pyo.Param(M.model_dims,MHA_Block.heads,MHA_Block.k_dims, initialize=W_v_dict, mutable=False)
         MHA_Block.W_o = pyo.Param(M.model_dims,MHA_Block.heads,MHA_Block.k_dims, initialize=W_o_dict, mutable=False)
         
-        if b_q:
+        if not b_q is None:
             b_q_dict = {
                         (h, k): b_q[h-1][k-1]
                         for h in MHA_Block.heads
@@ -464,7 +537,7 @@ class Transformer:
                        }
             MHA_Block.b_q = pyo.Param(MHA_Block.heads, MHA_Block.k_dims, initialize=b_q_dict, mutable=False)
             
-        if b_k:
+        if not b_k is None:
             b_k_dict = {
                         (h, k): b_k[h-1][k-1]
                         for h in MHA_Block.heads
@@ -472,7 +545,7 @@ class Transformer:
                        }
             MHA_Block.b_k = pyo.Param(MHA_Block.heads, MHA_Block.k_dims, initialize=b_k_dict, mutable=False)
             
-        if b_v: 
+        if not b_v is None: 
             b_v_dict = {
                         (h, k): b_v[h-1][k-1]
                         for h in MHA_Block.heads
@@ -480,7 +553,7 @@ class Transformer:
                        }
             MHA_Block.b_v = pyo.Param(MHA_Block.heads, MHA_Block.k_dims, initialize=b_v_dict, mutable=False)
             
-        if b_o:
+        if not b_o is None:
             b_o_dict = {(d): val for d, val in zip(M.model_dims, b_o) }
             MHA_Block.b_o = pyo.Param(M.model_dims, initialize=b_o_dict, mutable=False)
             
@@ -546,8 +619,8 @@ class Transformer:
             for n in self.time_input:
                     for k in MHA_Block.k_dims:
                         
-                         # constraints for Query
-                        if b_q:
+                        # constraints for Query
+                        if not b_q is None:
                             MHA_Block.attention_constraints.add(
                             expr=MHA_Block.Q[h, n, k]
                             == sum(input_var[n,d] * MHA_Block.W_q[d, h, k] for d in M.model_dims) + MHA_Block.b_q[h,k] 
@@ -579,7 +652,7 @@ class Transformer:
                                 MHA_Block.Q[h, n, k].lb = q_bound_2
                               
                         # constraints for Key
-                        if b_k:
+                        if not b_k is None:
                             MHA_Block.attention_constraints.add(
                             expr=MHA_Block.K[h, n, k]
                             == sum(input_var[n, d] * MHA_Block.W_k[d, h, k] for d in M.model_dims) + MHA_Block.b_k[h,k]
@@ -610,7 +683,7 @@ class Transformer:
                                 MHA_Block.K[h, n, k].lb = k_bound_2
                             
                         # constraints for Value    
-                        if b_v:
+                        if not b_v is None:
                             MHA_Block.attention_constraints.add(
                             expr=MHA_Block.V[h, n, k]
                             == sum(input_var[n, d] * MHA_Block.W_v[d, h, k] for d in M.model_dims) + MHA_Block.b_v[h,k]

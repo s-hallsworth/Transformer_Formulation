@@ -24,7 +24,7 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     model_path = model_path
     config_file = config_file
     model = pyo.ConcreteModel(name="(TOY_OPTIMAL_CONTROL)")
-    layer_names, parameters, TNN_model = extract_from_pretrained.get_learned_parameters(model_path)
+    layer_names, parameters ,_ = extract_from_pretrained.get_learned_parameters(model_path)
     window = seq_len + pred_len
     
     ## define problem sets, vars, params
@@ -75,15 +75,15 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     
     
     # define weights and biases
-    W_q = parameters['multihead_attention_1','W_q']
-    W_k = parameters['multihead_attention_1','W_k']
-    W_v = parameters['multihead_attention_1','W_v']
-    W_o = parameters['multihead_attention_1','W_o']
+    W_q = parameters['mutli_head_attention_1','W_q']
+    W_k = parameters['mutli_head_attention_1','W_k']
+    W_v = parameters['mutli_head_attention_1','W_v']
+    W_o = parameters['mutli_head_attention_1','W_o']
 
-    b_q = parameters['multihead_attention_1','b_q']
-    b_k = parameters['multihead_attention_1','b_k']
-    b_v = parameters['multihead_attention_1','b_v']
-    b_o = parameters['multihead_attention_1','b_o']
+    b_q = parameters['mutli_head_attention_1','b_q']
+    b_k = parameters['mutli_head_attention_1','b_k']
+    b_v = parameters['mutli_head_attention_1','b_v']
+    b_o = parameters['mutli_head_attention_1','b_o']
 
 
    

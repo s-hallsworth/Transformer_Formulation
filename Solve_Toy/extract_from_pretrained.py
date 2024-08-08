@@ -83,9 +83,9 @@ def get_learned_parameters(model_path):
                 
             # else may contain gamma and beta parameters
         
-        if 'MULTIHEAD_ATTENTION' in layer_name.upper():  
+        if 'MULTI_HEAD_ATTENTION' in layer_name.upper():  
             count_MHA += 1
-            new_layer_name = 'mutlihead_attention_'+str(count_MHA)
+            new_layer_name = 'mutli_head_attention_'+str(count_MHA)
             if len(parameters) > 4: # has bias
                 dict_transformer_params[(new_layer_name, 'W_q')] = parameters[0]
                 dict_transformer_params[(new_layer_name, 'W_k')] = parameters[2]
@@ -191,11 +191,19 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
                 new_name = new_name[:-1]
             model_weights[new_name] = param.detach().cpu().numpy().tolist()
             
+            print(name, param.shape)
+            if  "out_proj" in name:
+                print(param)
+            
         if "bias" in name:
             new_name = name.split('bias')[0]
             if not new_name[-1].isalnum():
                 new_name = new_name[:-1]
             model_bias[new_name] = param.detach().cpu().numpy().tolist()
+            
+            print(name, param.shape)
+            if  "out_proj" in name:
+                print(param)
             
         
     # Save weights
@@ -208,7 +216,7 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     else:
         return model_weights, model_bias
     
-def get_pytorch_learned_parameters(model, input_shape):
+def get_pytorch_learned_parameters(model, input_shape, head_size):
     """
     Read model parameters and store in dict with associated name. 
     ** NB: Assumes ReLU Activation function **
@@ -245,20 +253,26 @@ def get_pytorch_learned_parameters(model, input_shape):
     count_MHA = 0
     count_SA = 0
     count_Dense = 0
+    count_Linear = 0
 
     
     # for each layer
     for i, layer in enumerate(layers):
         
         layer_name = layer[0]
+        if "encoder" in layer_name:
+            prefix = "enc_"
+        elif "decoder" in layer_name:
+            prefix = "dec_"
         
+        # store layer information in dict
         if "dropout" not in layer_name:
             W_parameters = transformer_weights.get(layer_name, None)
             b_parameters = transformer_bias.get(layer_name, None)
 
             if 'norm' in layer_name.lower():
                 count_LN += 1
-                new_layer_name = 'layer_normalization_' + str(count_LN)
+                new_layer_name = prefix + 'layer_normalization_' + str(count_LN)
                 dict_transformer_params[(new_layer_name, 'gamma')] = W_parameters
                 dict_transformer_params[(new_layer_name, 'beta')] = b_parameters
                 layer_names.append(new_layer_name)
@@ -287,24 +301,24 @@ def get_pytorch_learned_parameters(model, input_shape):
                 # set name of type of attention
                 if 'self_attn' in layer_name.lower():    
                     count_SA += 1
-                    new_layer_name = 'self_attention_' + str(count_SA)
-                elif 'multihead_attn' in layer_name.lower():
+                    new_layer_name = prefix +'self_attention_' + str(count_SA)
+                elif 'mutlihead_attn' in layer_name.lower():
                     count_MHA += 1
-                    new_layer_name = 'multihead_attention_' + str(count_MHA)
+                    new_layer_name = prefix +'mutli_head_attention_' + str(count_MHA)
                     
                 # Save in dict Q, K, V weights and biases
-                dict_transformer_params[(new_layer_name, 'W_q')] =  W_q
-                dict_transformer_params[(new_layer_name, 'W_k')] =  W_k
-                dict_transformer_params[(new_layer_name, 'W_v')] =  W_v
+                dict_transformer_params[(new_layer_name, 'W_q')] =  arrange_qkv(W_q, head_size)
+                dict_transformer_params[(new_layer_name, 'W_k')] =  arrange_qkv(W_k, head_size)
+                dict_transformer_params[(new_layer_name, 'W_v')] =  arrange_qkv(W_v, head_size)
                 
                 if not b_q is None:
-                    dict_transformer_params[(new_layer_name, 'b_q')] = b_q
-                    dict_transformer_params[(new_layer_name, 'b_k')] = b_k
-                    dict_transformer_params[(new_layer_name, 'b_v')] = b_v
+                    dict_transformer_params[(new_layer_name, 'b_q')] = torch.reshape(b_q, (head_size, int(b_q.shape[0]/head_size)))
+                    dict_transformer_params[(new_layer_name, 'b_k')] = torch.reshape(b_k, (head_size, int(b_k.shape[0]/head_size)))
+                    dict_transformer_params[(new_layer_name, 'b_v')] = torch.reshape(b_k, (head_size, int(b_v.shape[0]/head_size)))
                 
                 out_proj_name = layer_name + ".out_proj"
                 W_o = transformer_weights.get(out_proj_name)
-                dict_transformer_params[(new_layer_name, 'W_o')] =  W_o
+                dict_transformer_params[(new_layer_name, 'W_o')] =  arrange_o(W_o, head_size)
                 
                 b_o = transformer_bias.get(out_proj_name , None)
                 if not b_o  is None:
@@ -316,24 +330,38 @@ def get_pytorch_learned_parameters(model, input_shape):
                 
             if 'linear' in layer_name.lower():
                 # if previous layer also dense, count as part of previous FFN
-                prev_name = layers[i-1][0]
-                if 'linear' in prev_name.lower(): 
-                    dict_transformer_params[NN_name] |= { layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': "relu"}}
-                
-                # else create new ffn in dict 
-                else: 
+                next_name = layers[i-2][0]
+                if "relu" in next_name:
                     count_Dense += 1
-                    NN_name = 'ffn_'+str(count_Dense)
-                    new_layer_name = NN_name
+                    new_layer_name = prefix + 'ffn_'+str(count_Dense)
+                    
 
-                    dict_transformer_params[NN_name] = {'input_shape': input_shapes[layer_name], 
+                    dict_transformer_params[new_layer_name] = {'input_shape': input_shapes[layer_name], 
                                                         'input': layer_names[-1],
                                                         layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': "relu"}}  
-                
+                else:
+                    count_Linear += 1
+                    new_layer_name = prefix + 'linear_'+str(count_Linear)
 
-                    layer_names.append(new_layer_name)
+                    dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
+                    dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
+
+                layer_names.append(new_layer_name)
     
     return layer_names, dict_transformer_params, model
+
+def arrange_qkv(W, head_size):
+    " reshape W to match expected shape [model_dims, headsize, qkv_dim]"
+    W = torch.reshape(W, (head_size, int(W.shape[-1]/head_size), W.shape[-1]))
+    W = torch.transpose(W, 1,2)
+    W = torch.transpose(W, 0,1)
+    return W
+
+def arrange_o(W, head_size):
+    " reshape W to match expected shape [ headsize, qkv_dim, model_dims]"
+    W = torch.tensor(W)
+    W = torch.reshape(W, (head_size, int(W.shape[-1]/head_size), W.shape[-1]))
+    return W
 
 def get_pytorch_intermediate_values(model, sample_input1, sample_input2, file_name=None):
     # model.eval()
@@ -366,8 +394,8 @@ def get_pytorch_intermediate_values(model, sample_input1, sample_input2, file_na
         elif name.endswith('self_attn'):
             layer_name = 'self_attention'
             
-        elif name.endswith('multihead_attn'):
-            layer_name = 'multihead_attention'
+        elif name.endswith('mutlihead_attn'):
+            layer_name = 'mutli_head_attention'
             
         elif 'linear' in name:
             layer_name = 'dense'

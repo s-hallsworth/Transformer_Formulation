@@ -156,7 +156,7 @@ for start_time in [600]: # \
     ## Optimize
     # gurobi_model.params.SolutionLimit = 10 ##
     # gurobi_model.params.MIPFocus = 1 ## focus on finding feasible solution
-    time_limit = 120 #21600 # 24 hrs
+    time_limit = 21600 # 24 hrs
     solve_gurobipy(gurobi_model, time_limit) ## Solve and print
 
     if gurobi_model.status == GRB.INFEASIBLE:
@@ -225,16 +225,16 @@ with open(file_name, 'a', newline='') as file:
     writer.writerow(values)
     
 #plot results   
-print(tps.time_sample)
+print(preds_x)
 print(pred_times)
 
 import matplotlib.pyplot as plt
 plt.figure(figsize=(6, 4))
 plt.plot(tps.time_sample, tps.gen_x[0,0:], 's-', label = 'X* Analytical')
 plt.plot(tps.time_sample, tps.gen_u[0,0:], 's-', label = 'U* Analytical')
-plt.plot(pred_times, preds_x, '--x', 
+plt.plot(pred_times, preds_x[0], '--x', 
          linewidth= 2, label = 'X* Solver')
-plt.plot(pred_times, preds_u, '--x', 
+plt.plot(pred_times, preds_u[0], '--x', 
          linewidth= 2, label = 'U* Solver')
 
 plt.legend()
