@@ -191,9 +191,6 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
                 new_name = new_name[:-1]
             model_weights[new_name] = param.detach().cpu().numpy().tolist()
             
-            print(name, param.shape)
-            if  "out_proj" in name:
-                print(param)
             
         if "bias" in name:
             new_name = name.split('bias')[0]
@@ -201,9 +198,7 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
                 new_name = new_name[:-1]
             model_bias[new_name] = param.detach().cpu().numpy().tolist()
             
-            print(name, param.shape)
-            if  "out_proj" in name:
-                print(param)
+
             
         
     # Save weights
@@ -216,31 +211,37 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     else:
         return model_weights, model_bias
     
-def get_pytorch_learned_parameters(model, input_shape, head_size):
+def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size):
     """
     Read model parameters and store in dict with associated name. 
     ** NB: Assumes ReLU Activation function **
     """
     
-    src = torch.rand(input_shape)
-    tgt = torch.rand(input_shape)
+    src = torch.rand(enc_input.shape)
+    tgt = torch.rand(dec_input.shape)
     input_shapes = {}
+    output_shapes = {}
 
     ## Get layer input shapes
     # Function to capture the input shape
     def hook_fn(module, input, output, name):
-        input_shapes[name] = input[0].shape
-
+        input_shapes[name]  = input[0].shape
+        output_shapes[name] = output[0].shape
+        
+    
+        
     # Register hooks to all layers
     for name, layer in model.named_modules():
         if "dropout" not in name:
             layer.register_forward_hook(lambda module, input, output, name=name: hook_fn(module, input, output, name))
     model(src, tgt)
-
-    # # Print the input shapes
-    # for layer_name, shape in input_shapes.items():
-    #     print(f"Layer: {layer_name}, Input shape: {shape}")
     
+
+    # Print the input shapes
+    for layer_name, shape in input_shapes.items():
+        print(f"Layer: {layer_name}, Input shape: {shape}")
+    for layer_name, shape in output_shapes.items():
+        print(f"Layer: {layer_name}, Input shape: {shape}")
     
     # Get weights and biases
     transformer_weights, transformer_bias = get_pytorch_model_weights(model, save_json=False)
@@ -282,10 +283,20 @@ def get_pytorch_learned_parameters(model, input_shape, head_size):
                     # if embed dim = k, v dim --> weights concatinated in in_proj (see pytorch doc)
                     W_parameters = transformer_weights.get(layer_name + ".in_proj")
                     b_parameters = transformer_bias.get(layer_name + ".in_proj", None)
-                    emb_shape = int(np.array(W_parameters).shape[0]/3)
-                    W_q, W_k, W_v = torch.split(torch.tensor(W_parameters), [emb_shape, emb_shape, emb_shape])
+                    
+                    if "self" in layer_name.lower():
+                        emb_shape = [int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3)]
+                    elif "multihead" in layer_name.lower():
+                        size_input_mha = input_shapes[layer_name][1]
+                        size_output_encoder = input_shapes['encoder'][1]
+                        #cross attention calculates Q from dec inut but K, V from encoder output
+                        emb_shape = [size_input_mha, size_output_encoder, size_output_encoder]
+                        
+                    print(emb_shape)
+                        
+                    W_q, W_k, W_v = torch.split(torch.tensor(W_parameters), emb_shape)
                     if b_parameters:
-                        b_q, b_k, b_v = torch.split(torch.tensor(b_parameters), [emb_shape, emb_shape, emb_shape])
+                        b_q, b_k, b_v = torch.split(torch.tensor(b_parameters), emb_shape)
                     else:
                         b_q = None
                     
@@ -302,23 +313,23 @@ def get_pytorch_learned_parameters(model, input_shape, head_size):
                 if 'self_attn' in layer_name.lower():    
                     count_SA += 1
                     new_layer_name = prefix +'self_attention_' + str(count_SA)
-                elif 'mutlihead_attn' in layer_name.lower():
+                elif 'multihead_attn' in layer_name.lower():
                     count_MHA += 1
                     new_layer_name = prefix +'mutli_head_attention_' + str(count_MHA)
                     
                 # Save in dict Q, K, V weights and biases
-                dict_transformer_params[(new_layer_name, 'W_q')] =  arrange_qkv(W_q, head_size)
-                dict_transformer_params[(new_layer_name, 'W_k')] =  arrange_qkv(W_k, head_size)
-                dict_transformer_params[(new_layer_name, 'W_v')] =  arrange_qkv(W_v, head_size)
+                dict_transformer_params[(new_layer_name, 'W_q')] =  arrange_qkv(W_q, head_size).detach().cpu().numpy().tolist()
+                dict_transformer_params[(new_layer_name, 'W_k')] =  arrange_qkv(W_k, head_size).detach().cpu().numpy().tolist()
+                dict_transformer_params[(new_layer_name, 'W_v')] =  arrange_qkv(W_v, head_size).detach().cpu().numpy().tolist()
                 
                 if not b_q is None:
-                    dict_transformer_params[(new_layer_name, 'b_q')] = torch.reshape(b_q, (head_size, int(b_q.shape[0]/head_size)))
-                    dict_transformer_params[(new_layer_name, 'b_k')] = torch.reshape(b_k, (head_size, int(b_k.shape[0]/head_size)))
-                    dict_transformer_params[(new_layer_name, 'b_v')] = torch.reshape(b_k, (head_size, int(b_v.shape[0]/head_size)))
+                    dict_transformer_params[(new_layer_name, 'b_q')] = torch.reshape(b_q, (head_size, int(b_q.shape[0]/head_size))).detach().cpu().numpy().tolist()
+                    dict_transformer_params[(new_layer_name, 'b_k')] = torch.reshape(b_k, (head_size, int(b_k.shape[0]/head_size))).detach().cpu().numpy().tolist()
+                    dict_transformer_params[(new_layer_name, 'b_v')] = torch.reshape(b_k, (head_size, int(b_v.shape[0]/head_size))).detach().cpu().numpy().tolist()
                 
                 out_proj_name = layer_name + ".out_proj"
                 W_o = transformer_weights.get(out_proj_name)
-                dict_transformer_params[(new_layer_name, 'W_o')] =  arrange_o(W_o, head_size)
+                dict_transformer_params[(new_layer_name, 'W_o')] =  arrange_o(W_o, head_size).detach().cpu().numpy().tolist()
                 
                 b_o = transformer_bias.get(out_proj_name , None)
                 if not b_o  is None:
@@ -326,7 +337,7 @@ def get_pytorch_learned_parameters(model, input_shape, head_size):
                     
                 # Update layer names
                 layer_names.append(new_layer_name)
-                       
+                    
                 
             if 'linear' in layer_name.lower():
                 # if previous layer also dense, count as part of previous FFN
