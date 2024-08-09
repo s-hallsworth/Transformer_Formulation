@@ -152,22 +152,22 @@ class Transformer:
                     self.add_attention( input_name, layer, W_q, W_k, W_k, W_o)
                 input_name = layer
                 
-            # if "multi_head_attention" in layer:
-            #     W_q = parameters[layer,'W_q']
-            #     W_k = parameters[layer,'W_k']
-            #     W_v = parameters[layer,'W_v']
-            #     W_o = parameters[layer,'W_o']
+            if "multi_head_attention" in layer:
+                W_q = parameters[layer,'W_q']
+                W_k = parameters[layer,'W_k']
+                W_v = parameters[layer,'W_v']
+                W_o = parameters[layer,'W_o']
                 
-            #     try:
-            #         b_q = parameters[layer,'b_q']
-            #         b_k = parameters[layer,'b_k']
-            #         b_v = parameters[layer,'b_v']
-            #         b_o = parameters[layer,'b_o']
+                try:
+                    b_q = parameters[layer,'b_q']
+                    b_k = parameters[layer,'b_k']
+                    b_v = parameters[layer,'b_v']
+                    b_o = parameters[layer,'b_o']
                     
-            #         self.add_masked_attention( input, layer, enc_output_name , W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
-            #     except: # no bias values found
-            #         self.add_masked_attention( input, layer, enc_output_name , W_q, W_k, W_k, W_o)
-            #     input_name = layer
+                    self.add_masked_attention( input, layer, enc_output_name , W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output=enc_output_name)
+                except: # no bias values found
+                    self.add_masked_attention( input, layer, enc_output_name , W_q, W_k, W_k, W_o, cross_attn=True, encoder_output=enc_output_name)
+                input_name = layer
                     
             if "layer_norm" in layer:
                 gamma = parameters[layer, 'gamma']
@@ -511,10 +511,8 @@ class Transformer:
                 numerator_squared_sum[t].ub = sum( (numerator_squared[t,d_prime].ub) for d_prime in self.M.model_dims) 
             numerator_squared_sum[t].lb = 0
             
-    def __cross_attn_KV(constraint_list, input_var_2, W_k_param, W_v_param, b_k_param = None, b_v_param = None):
-        """ Function to find K and V values for cross attention between encoder and decoder"""
         
-    def add_attention(self, input_var_name, output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, cross_attn=False, input_var_name_2=None):
+    def add_attention(self, input_var_name, output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, cross_attn=False, encoder_output=None):
         """
         Multihead attention between each element of embedded sequence
         
@@ -524,8 +522,8 @@ class Transformer:
         
         # get input
         input_var = getattr( self.M, input_var_name)
-        if cross_attn and input_var_name_2:
-            input_var_2 = getattr( self.M, input_var_name_2)
+        if cross_attn and not encoder_output is None:
+            encoder_output_var = getattr( self.M, encoder_output)
         
         # determine time index
         if "dec" in input_var_name:
@@ -676,9 +674,6 @@ class Transformer:
             for n in time_input:
                     for k in MHA_Block.k_dims:
                         
-                        # Check if multihead attention or self attention
-                        ###if mult_attn and input_var_name_2:
-                        
                         # constraints for Query
                         if not b_q is None:
                             MHA_Block.attention_constraints.add(
@@ -694,8 +689,6 @@ class Transformer:
                             else:
                                 MHA_Block.Q[h, n, k].ub = q_bound_1
                                 MHA_Block.Q[h, n, k].lb = q_bound_2
-
-
                         else: 
                             MHA_Block.attention_constraints.add(
                                 expr=MHA_Block.Q[h, n, k]
@@ -710,16 +703,22 @@ class Transformer:
                             else:
                                 MHA_Block.Q[h, n, k].ub = q_bound_1
                                 MHA_Block.Q[h, n, k].lb = q_bound_2
-                              
+                        
+                        
+                        # Check if multihead attention or self attention
+                        if cross_attn and not encoder_output is None:
+                            input = encoder_output_var# calculate K and V from output of encoder
+                        else:
+                            input = input_var
                         # constraints for Key
                         if not b_k is None:
                             MHA_Block.attention_constraints.add(
                             expr=MHA_Block.K[h, n, k]
-                            == sum(input_var[n, d] * MHA_Block.W_k[d, h, k] for d in self.M.model_dims) + MHA_Block.b_k[h,k]
+                            == sum(input[n, d] * MHA_Block.W_k[d, h, k] for d in self.M.model_dims) + MHA_Block.b_k[h,k]
                             )  
                             #Add bounds
-                            k_bound_1 = sum( max(input_var[n,d].ub * MHA_Block.W_k[d, h, k], input_var[n,d].lb * MHA_Block.W_k[d, h, k])  for d in self.M.model_dims) + MHA_Block.b_k[h,k]
-                            k_bound_2 = sum( min(input_var[n,d].ub * MHA_Block.W_k[d, h, k], input_var[n,d].lb * MHA_Block.W_k[d, h, k])  for d in self.M.model_dims) + MHA_Block.b_k[h,k]
+                            k_bound_1 = sum( max(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in self.M.model_dims) + MHA_Block.b_k[h,k]
+                            k_bound_2 = sum( min(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in self.M.model_dims) + MHA_Block.b_k[h,k]
                             if k_bound_1 < k_bound_2: 
                                 MHA_Block.K[h, n, k].ub = k_bound_2
                                 MHA_Block.K[h, n, k].lb = k_bound_1
@@ -730,11 +729,11 @@ class Transformer:
                         else: 
                             MHA_Block.attention_constraints.add(
                                 expr=MHA_Block.K[h, n, k]
-                                == sum(input_var[n, d] * MHA_Block.W_k[d, h, k] for d in self.M.model_dims)
+                                == sum(input[n, d] * MHA_Block.W_k[d, h, k] for d in self.M.model_dims)
                             )
                             #Add bounds
-                            k_bound_1 = sum( max(input_var[n,d].ub * MHA_Block.W_k[d, h, k], input_var[n,d].lb * MHA_Block.W_k[d, h, k])  for d in self.M.model_dims) 
-                            k_bound_2 = sum( min(input_var[n,d].ub * MHA_Block.W_k[d, h, k], input_var[n,d].lb * MHA_Block.W_k[d, h, k])  for d in self.M.model_dims) 
+                            k_bound_1 = sum( max(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in self.M.model_dims) 
+                            k_bound_2 = sum( min(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in self.M.model_dims) 
                             if k_bound_1 < k_bound_2: 
                                 MHA_Block.K[h, n, k].ub = k_bound_2
                                 MHA_Block.K[h, n, k].lb = k_bound_1
@@ -746,12 +745,12 @@ class Transformer:
                         if not b_v is None:
                             MHA_Block.attention_constraints.add(
                             expr=MHA_Block.V[h, n, k]
-                            == sum(input_var[n, d] * MHA_Block.W_v[d, h, k] for d in self.M.model_dims) + MHA_Block.b_v[h,k]
+                            == sum(input[n, d] * MHA_Block.W_v[d, h, k] for d in self.M.model_dims) + MHA_Block.b_v[h,k]
                             )  
                             #Add bounds
                             
-                            v_bound_1 = sum( max(input_var[n,d].ub * MHA_Block.W_v[d, h, k], input_var[n,d].lb * MHA_Block.W_v[d, h, k])  for d in self.M.model_dims) + MHA_Block.b_v[h,k]
-                            v_bound_2 = sum( min(input_var[n,d].ub * MHA_Block.W_v[d, h, k], input_var[n,d].lb * MHA_Block.W_v[d, h, k])  for d in self.M.model_dims) + MHA_Block.b_v[h,k]
+                            v_bound_1 = sum( max(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in self.M.model_dims) + MHA_Block.b_v[h,k]
+                            v_bound_2 = sum( min(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in self.M.model_dims) + MHA_Block.b_v[h,k]
                             if v_bound_1 < v_bound_2: 
                                 MHA_Block.V[h, n, k].ub = v_bound_2
                                 MHA_Block.V[h, n, k].lb = v_bound_1
@@ -762,11 +761,11 @@ class Transformer:
                         else: 
                             MHA_Block.attention_constraints.add(
                                 expr=MHA_Block.V[h, n, k]
-                                == sum(input_var[n, d] * MHA_Block.W_v[d, h, k] for d in self.M.model_dims) 
+                                == sum(input[n, d] * MHA_Block.W_v[d, h, k] for d in self.M.model_dims) 
                             )
                             #Add bounds     
-                            v_bound_1 = sum( max(input_var[n,d].ub * MHA_Block.W_v[d, h, k], input_var[n,d].lb * MHA_Block.W_v[d, h, k])  for d in self.M.model_dims)
-                            v_bound_2 = sum( min(input_var[n,d].ub * MHA_Block.W_v[d, h, k], input_var[n,d].lb * MHA_Block.W_v[d, h, k])  for d in self.M.model_dims)
+                            v_bound_1 = sum( max(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in self.M.model_dims)
+                            v_bound_2 = sum( min(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in self.M.model_dims)
                             if v_bound_1 < v_bound_2: 
                                 MHA_Block.V[h, n, k].ub = v_bound_2
                                 MHA_Block.V[h, n, k].lb = v_bound_1

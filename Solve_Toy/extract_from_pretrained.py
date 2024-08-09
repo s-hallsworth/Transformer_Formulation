@@ -237,11 +237,11 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size):
     model(src, tgt)
     
 
-    # Print the input shapes
-    for layer_name, shape in input_shapes.items():
-        print(f"Layer: {layer_name}, Input shape: {shape}")
-    for layer_name, shape in output_shapes.items():
-        print(f"Layer: {layer_name}, Input shape: {shape}")
+    # # Print the input shapes
+    # for layer_name, shape in input_shapes.items():
+    #     print(f"Layer: {layer_name}, Input shape: {shape}")
+    # for layer_name, shape in output_shapes.items():
+    #     print(f"Layer: {layer_name}, Input shape: {shape}")
     
     # Get weights and biases
     transformer_weights, transformer_bias = get_pytorch_model_weights(model, save_json=False)
@@ -291,8 +291,6 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size):
                         size_output_encoder = input_shapes['encoder'][1]
                         #cross attention calculates Q from dec inut but K, V from encoder output
                         emb_shape = [size_input_mha, size_output_encoder, size_output_encoder]
-                        
-                    print(emb_shape)
                         
                     W_q, W_k, W_v = torch.split(torch.tensor(W_parameters), emb_shape)
                     if b_parameters:
