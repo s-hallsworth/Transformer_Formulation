@@ -474,13 +474,11 @@ class Transformer:
         MHA_Block.tp_cv_sct_mult_1 = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
         MHA_Block.tp_cv_sct_mult_2 = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
         MHA_Block.tp_cv_sct_mult_1_2 = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
-        MHA_Block.tp_cv_sct_mult_3 = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
         
         MHA_Block.tp_cc_sct = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals, bounds=(0,1))
         MHA_Block.tp_cc_sct_mult_1 = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
         MHA_Block.tp_cc_sct_mult_2 = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
         MHA_Block.tp_cc_sct_mult_1_2 = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
-        MHA_Block.tp_cc_sct_mult_3 = pyo.Var(MHA_Block.heads, self.time_input, self.time_input, within=pyo.Reals)
         
         MHA_Block.attention_score = pyo.Var(
             MHA_Block.heads, self.time_input, MHA_Block.k_dims, within=pyo.Reals
@@ -652,13 +650,8 @@ class Transformer:
                       
                 ##############-----------------------------------############    
                 for p in self.time_input:    
-                    MHA_Block.attention_weight[h, n, p].ub = MHA_Block.compatibility_exp[h,n,p].ub / (MHA_Block.compatibility_exp_sum[h, n].lb  - MHA_Block.compatibility_exp[h,n,p].lb + MHA_Block.compatibility_exp[h,n,p].ub  + 0.00000001)
-                    MHA_Block.attention_weight[h, n, p].lb = max(0, MHA_Block.compatibility_exp[h,n,p].lb / (MHA_Block.compatibility_exp_sum[h, n].ub - MHA_Block.compatibility_exp[h,n,p].ub + MHA_Block.compatibility_exp[h,n,p].lb + 0.00000001))
-                    # print("compat", MHA_Block.compatibility[h,n,p].ub)
-                    # print("1:", MHA_Block.compatibility_exp[h,n,p].ub , MHA_Block.compatibility_exp_sum[h, n].ub)
-                    # print(MHA_Block.attention_weight[h, n, p].ub)
-                    # print("compat l", MHA_Block.compatibility[h,n,p].lb)
-                    # print("2:", MHA_Block.compatibility_exp[h,n,p].lb , MHA_Block.compatibility_exp_sum[h, n].lb)
+                    MHA_Block.attention_weight[h, n, p].ub = 1 
+                    MHA_Block.attention_weight[h, n, p].lb = 0 
                     
                     # f(x) >= f_cv(x): attention weight >= convex envelope
                     MHA_Block.attention_constraints.add(
@@ -679,7 +672,7 @@ class Transformer:
                     #     expr= MHA_Block.attention_weight[h, n, p].ub >= 0.5  - (BigM_s * (1 - MHA_Block.s_cv[h,n,p]))
                     # )
                     MHA_Block.attention_constraints.add(
-                        expr= MHA_Block.attention_weight[h, n, p].ub - 0.5 + BigM_s >= BigM_s *  MHA_Block.s_cv[h,n,p]
+                        expr= MHA_Block.attention_weight[h, n, p].ub  >= BigM_s *  MHA_Block.s_cv[h,n,p]
                     )
 
                     # set convex aux var -- f(x_LB) <= 0.5 --> convex zone else f(x_LB) >= 0.5 --> concave zone
@@ -775,8 +768,8 @@ class Transformer:
                     MHA_Block.attention_constraints.add( # 
                         expr=  MHA_Block.tp_cv_mult_2[h, n, p]  == MHA_Block.attention_weight_x_cv_prime[h, n, p] * ( 1 -  MHA_Block.attention_weight_x_cv_prime[h, n, p])
                     )
-                    MHA_Block.tp_cv_mult_1[h, n, p].ub = 0.25
-                    MHA_Block.tp_cv_mult_1[h, n, p].lb = 0
+                    MHA_Block.tp_cv_mult_2[h, n, p].ub = 0.25
+                    MHA_Block.tp_cv_mult_2[h, n, p].lb = 0
                     
                     
                     MHA_Block.attention_constraints.add( 
@@ -802,7 +795,8 @@ class Transformer:
                         expr=  MHA_Block.tp_cv_sct_mult_2[h, n, p] == MHA_Block.compatibility[h,n,p].ub - MHA_Block.tie_point_cv[h, n, p]
                     )
                     MHA_Block.tp_cv_sct_mult_2[h, n, p].ub = MHA_Block.compatibility[h,n,p].ub - MHA_Block.tie_point_cv[h, n, p].lb
-                    MHA_Block.tp_cv_sct_mult_2[h, n, p].lb = MHA_Block.compatibility[h,n,p].ub - MHA_Block.tie_point_cv[h, n, p].ub
+                    MHA_Block.tp_cv_sct_mult_2[h, n, p].lb = MHA_Block.compatibility[h,n,p].lb - MHA_Block.tie_point_cv[h, n, p].ub
+                    
                     
                     ## Add tp_cc_sct constraints
                     #bounds
@@ -877,7 +871,7 @@ class Transformer:
                     MHA_Block.constr_concave_tp_sct.add( 
                         expr=  MHA_Block.tp_cc_sct_mult_2[h, n, p] == MHA_Block.compatibility[h,n,p].lb - MHA_Block.tie_point_cc[h, n, p]
                     )
-                    MHA_Block.tp_cc_sct_mult_2[h, n, p].ub = MHA_Block.compatibility[h,n,p].lb - MHA_Block.tie_point_cc[h, n, p].lb
+                    MHA_Block.tp_cc_sct_mult_2[h, n, p].ub = MHA_Block.compatibility[h,n,p].ub - MHA_Block.tie_point_cc[h, n, p].lb
                     MHA_Block.tp_cc_sct_mult_2[h, n, p].lb = MHA_Block.compatibility[h,n,p].lb - MHA_Block.tie_point_cc[h, n, p].ub
                     
                     
@@ -1376,7 +1370,7 @@ class Transformer:
                 if input_var[i].lb:
                     output_var[i].lb = input_var[i].lb
                 if input_var[i].ub:
-                    output_var[i].lb = input_var[i].lb
+                    output_var[i].ub = input_var[i].ub
                 
             
             setattr(M, output_var_name+"_constraints", pyo.ConstraintList())
