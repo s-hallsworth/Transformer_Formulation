@@ -168,11 +168,11 @@ for start_time in [4500]: #start_indices: #[600]: # \
     #         print('%s = %g' % (sv.VarName, sv.X))
     
     ## Print bounds on vars
-    # for var in gurobi_model.getVars():
-    #     lb = var.LB
-    #     ub = var.UB
-    #     if ub - lb > 1e6:  # You can adjust this threshold based on your problem
-    #         print(f"Variable {var.VarName},  bound: [{lb}, {ub}] (range: {ub-lb}), abs(var): {abs(var.X)}")
+    for var in gurobi_model.getVars():
+        lb = var.LB
+        ub = var.UB
+        if ub - lb > 10: 
+            print(f"variable {var.VarName},  bound: [{lb}, {ub}] (range: {ub-lb}), abs(var): {abs(var.X)}")
             
             
 
@@ -211,7 +211,7 @@ for start_time in [4500]: #start_indices: #[600]: # \
         ## Print X, U --> input var, control var 
         input_var_soltuion = np.array(optimal_parameters["input_var"])
         for item, val  in optimal_parameters.items():
-            for elem in ["s_cv", "s_cc", "t_cv", "t_cc"]:
+            for elem in [".s_cv", ".s_cc", ".t_cv", ".t_cc"]:
                 if elem in str(item):
                     print(f"{item}: {val}")
 

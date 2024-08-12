@@ -301,6 +301,7 @@ class Transformer:
                 if std:
                     denominator[t].ub = std
                     denominator[t].lb = -std
+                    denominator_abs[t].ub = std
                     
                 
                 M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
@@ -329,8 +330,9 @@ class Transformer:
                     numerator_squared[t,d].lb = 0
                     
                     if not std :
-                        denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) #/8
-                        denominator[t].lb = - abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))#/8
+                        denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) /8
+                        denominator[t].lb = - abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))/8
+                        denominator_abs[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) /8
                 numerator_squared[t,d].lb = 0
             if input_var[t, d].ub and input_var[t, d].lb:
                 numerator_squared_sum[t].ub = sum( (numerator_squared[t,d_prime].ub) for d_prime in M.model_dims) 
