@@ -35,12 +35,10 @@ pred_times = []
 
 start_indices = list(range(0,T, int(T/12)))
 start_indices.append(T - window - 1)
-for start_time in [600]: # \
+for start_time in [4500]: #start_indices: #[600]: # \
     print("START TIME: ", start_time)
 
     model = tps.setup_toy( T, start_time ,seq_len, pred_len, model_path, config_file)
-    for i in range(pred_len):
-        pred_times += [tps.time_sample[start_time + seq_len + i + 1]]
         
     # Define time sets
     Time_start = 1
@@ -157,9 +155,29 @@ for start_time in [600]: # \
     # gurobi_model.params.SolutionLimit = 10 ##
     # gurobi_model.params.MIPFocus = 1 ## focus on finding feasible solution
     time_limit = 21600 # 24 hrs
+    
+    
+    # gurobi_model.feasRelaxS(0, False, True, True)
     solve_gurobipy(gurobi_model, time_limit) ## Solve and print
+    
+    # print('\nSlack values:')
+    # orignumvars = 92994
+    # slacks = gurobi_model.getVars()[orignumvars:]
+    # for sv in slacks:
+    #     if sv.X > 1e-9:
+    #         print('%s = %g' % (sv.VarName, sv.X))
+    
+    ## Print bounds on vars
+    # for var in gurobi_model.getVars():
+    #     lb = var.LB
+    #     ub = var.UB
+    #     if ub - lb > 1e6:  # You can adjust this threshold based on your problem
+    #         print(f"Variable {var.VarName},  bound: [{lb}, {ub}] (range: {ub-lb}), abs(var): {abs(var.X)}")
+            
+            
 
     if gurobi_model.status == GRB.INFEASIBLE:
+        print(f"Model at start time {start_time} is infeasible")
         gurobi_model.computeIIS()
         gurobi_model.write("model.ilp")     
         
@@ -170,8 +188,7 @@ for start_time in [600]: # \
         print(model.intXU)
         
         for v in gurobi_model.getVars():
-            if 'intXU' ==  v.varname.split("[")[0]:
-                print(f'var name: {v.varName}, var type: {type(v)}, var value: {v.x}')
+            
             if "[" in v.varName:
                 name = v.varname.split("[")[0]
                 if name in optimal_parameters.keys():
@@ -193,7 +210,10 @@ for start_time in [600]: # \
 
         ## Print X, U --> input var, control var 
         input_var_soltuion = np.array(optimal_parameters["input_var"])
-        
+        for item, val  in optimal_parameters.items():
+            for elem in ["s_cv", "s_cc", "t_cv", "t_cc"]:
+                if elem in str(item):
+                    print(f"{item}: {val}")
 
         x = []
         u = []
@@ -206,13 +226,14 @@ for start_time in [600]: # \
         print("U: ", u )
         preds_x += [x[-pred_len:]]
         preds_u += [u[-pred_len:]]
+        pred_times += [tps.time_sample[start_time + seq_len + i] for i in range(pred_len)]
 
     print("actual X: ", tps.gen_x[0, start_time : start_time + window])
     print("actual U: ", tps.gen_u[0, start_time : start_time + window])
  
 #save to file
 import csv
-file_name = "results_trajectory_seq_1_1.csv"   
+file_name = "results_trajectory_seq_1_all_2.csv"   
 with open(file_name, 'a', newline='') as file:
     writer = csv.writer(file)
     values = []
