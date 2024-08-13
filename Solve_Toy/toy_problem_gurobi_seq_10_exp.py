@@ -35,7 +35,7 @@ pred_times = []
 
 start_indices = list(range(0,T, int(T/12)))
 start_indices.append(T - window - 1)
-for start_time in [4500]: #start_indices: #[600]: # \
+for start_time in start_indices: #[600]: # \
     print("START TIME: ", start_time)
 
     model = tps.setup_toy( T, start_time ,seq_len, pred_len, model_path, config_file)
@@ -43,11 +43,11 @@ for start_time in [4500]: #start_indices: #[600]: # \
     # Define time sets
     Time_start = 1
 
-    model.time_input_2 = dae.ContinuousSet(initialize=tps.time[Time_start : Time_start + seq_len])
-    model.input_2 = pyo.Var(model.time_input_2, model.variables, bounds=(tps.LB_input, tps.UB_input))
-
     # Define transformers 
-    transformer = TNN.Transformer(model, tps.config_file, "time_input")      
+    transformer = TNN.Transformer(model, tps.config_file, "time_input") 
+    
+    model.time_input_2 = dae.ContinuousSet(initialize=tps.time[Time_start : Time_start + seq_len])
+    model.input_2 = pyo.Var(model.time_input_2, model.variables, bounds=(tps.LB_input, tps.UB_input))     
     transformer2 = TNN.Transformer(model, tps.config_file, "time_input_2")
 
     # Initialise transformers
@@ -56,7 +56,7 @@ for start_time in [4500]: #start_indices: #[600]: # \
         std_list += [np.std([tps.x_input[i], tps.u_input[i]])]
     std = max(std_list)
     
-    transformer.embed_input(model, "input_param", "input_embed", "variables")
+    transformer.embed_input(model, "input_param", "input_embed")
     transformer.add_layer_norm(model,"input_embed", "layer_norm", "gamma1", "beta1", std)
     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
     transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
@@ -70,7 +70,7 @@ for start_time in [4500]: #start_indices: #[600]: # \
     # Define transformer 2
 
     
-    transformer2.embed_input(model, "input_2","input_embed2", "variables")
+    transformer2.embed_input(model, "input_2","input_embed2")
     transformer2.add_layer_norm(model, "input_embed2", "layer_norm2", "gamma1", "beta1")
     transformer2.add_attention(model, "layer_norm2", "attention_output2" , tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
     transformer2.add_residual_connection(model,"input_embed2", "attention_output2", "residual_12")
@@ -168,18 +168,21 @@ for start_time in [4500]: #start_indices: #[600]: # \
     #         print('%s = %g' % (sv.VarName, sv.X))
     
     ## Print bounds on vars
-    for var in gurobi_model.getVars():
-        lb = var.LB
-        ub = var.UB
-        if ub - lb > 10: 
-            print(f"variable {var.VarName},  bound: [{lb}, {ub}] (range: {ub-lb}), abs(var): {abs(var.X)}")
+    # for var in gurobi_model.getVars():
+    #     lb = var.LB
+    #     ub = var.UB
+    #     if ub - lb > 10: 
+    #         print(f"variable {var.VarName},  bound: [{lb}, {ub}] (range: {ub-lb}), abs(var): {abs(var.X)}")
             
             
 
     if gurobi_model.status == GRB.INFEASIBLE:
         print(f"Model at start time {start_time} is infeasible")
+        preds_x += [None, None]
+        preds_u += [None, None]
+        pred_times += [tps.time_sample[start_time + seq_len + i] for i in range(pred_len)]
         gurobi_model.computeIIS()
-        gurobi_model.write("model.ilp")     
+        gurobi_model.write(f"model_{start_time}.ilp")     
         
     else:
         ## Get optimal parameters
@@ -233,7 +236,7 @@ for start_time in [4500]: #start_indices: #[600]: # \
  
 #save to file
 import csv
-file_name = "results_trajectory_seq_1_all_2.csv"   
+file_name = "results_trajectory_seq_2.csv"   
 with open(file_name, 'a', newline='') as file:
     writer = csv.writer(file)
     values = []
