@@ -179,7 +179,7 @@ def create_gurobi_var(var, var_map, gurobi_model):
                 pyomo_var = var[index]
                 
                 
-                if isinstance(pyomo_var, (int, float)):
+                if isinstance(pyomo_var, (int, float, np.int32, np.int64,  np.float32, np.float64)):
                     gurobi_var[index].lb = pyomo_var
                     gurobi_var[index].ub = pyomo_var
                     var_map[var.name+str(list(index))] = gurobi_var[index] 
