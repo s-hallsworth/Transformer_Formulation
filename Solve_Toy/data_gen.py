@@ -3,9 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-T = 9000
+# T = 9000
 
-N = 3  # number of functions
+# N = 3  # number of functions
 def func_1(t):
     u = 1 / (2 * (2 - t))
     x = t + (1 / (8 - (4 * t))) + 7 / 8
@@ -48,7 +48,7 @@ def gen_x_u(T, N=3, save=False):
         u[2, t], x[2, t] = func_3(time[t])
         # u[3,t], x[3,t] = func_4(time[t])
 
-    x[:, 0] = 1  # set intial condition
+    x[:, 0] = 1.0  # set intial condition
     # u[:,0] = 0
     
     for t in range(T):
@@ -92,7 +92,7 @@ def positional_encoding(T, d_model):
     
     return pe
 
-x,u , x_prime_diff, x_prime_diff = gen_x_u(T)
+# x,u , x_prime_diff, x_prime_diff = gen_x_u(T)
 
 
 

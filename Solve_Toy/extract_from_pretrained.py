@@ -147,7 +147,7 @@ def get_intermediate_values(model_path, sample_input, file_name=None):
     
     # Make predictions
     outputs = model_multi_output.predict(sample_input)
-
+    
     # format and save
     outputs_list = [output.tolist() for output in outputs]
     layer_outputs_dict = {}

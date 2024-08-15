@@ -3,7 +3,7 @@ from pyomo import dae
 import numpy as np
 
 import extract_from_pretrained
-import transformer_b as TNN
+import transformer_b_exp as TNN
 import toy_problem_setup_dx as tps
 import os
 from omlt import OmltBlock
@@ -23,7 +23,7 @@ Add transformer instance/constraints to toy problem setup and solve GUROBIPY Mod
 """
 
 # Define pyomo model 
-model_path = ".\\TNN_9.keras"
+model_path = ".\\Transformers\\TNN_9.keras"
 config_file = '.\\data\\toy_config_relu_10_TNN_7.json' 
 T = 9000 # time steps
 seq_len = 10
@@ -57,7 +57,7 @@ for start_time in [8987]: #range(0,T, int(T/10)):
         std_list += [np.std([tps.x_input[i], tps.u_input[i]])]
     std = max(std_list)
     
-    transformer.embed_input(model, "input_param", "input_embed", "variables")
+    transformer.embed_input(model, "input_param", "input_embed")
     transformer.add_layer_norm(model,"input_embed", "layer_norm", "gamma1", "beta1",std)
     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
     transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
@@ -71,7 +71,7 @@ for start_time in [8987]: #range(0,T, int(T/10)):
     # Define transformer 2
 
     
-    transformer2.embed_input(model, "input_2","input_embed2", "variables")
+    transformer2.embed_input(model, "input_2","input_embed2")
     transformer2.add_layer_norm(model, "input_embed2", "layer_norm2", "gamma1", "beta1")
     transformer2.add_attention(model, "layer_norm2", "attention_output2" , tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
     transformer2.add_residual_connection(model,"input_embed2", "attention_output2", "residual_12")
@@ -102,7 +102,7 @@ for start_time in [8987]: #range(0,T, int(T/10)):
         if t == model.time_dx.last(): # second prediction for x(t)
             model.X_constraints.add(expr=model.dX[t] == model.FFN_22[d]) # predict dx
             model.X_constraints.add(expr=model.X[t,d] == model.X[model.time.at(t_index),d] + model.FFN_22[d]) # x = x_prev + dx
-            model.X_constraints.add(expr=  model.X[t,d2] -  model.X[model.time.at(t_index),d2] <= M) #u(t) should be smooth (first order) 
+            #model.X_constraints.add(expr=  model.X[t,d2] -  model.X[model.time.at(t_index),d2] <= M) #u(t) should be smooth (first order) 
         
         
     # # Convert to gurobipy

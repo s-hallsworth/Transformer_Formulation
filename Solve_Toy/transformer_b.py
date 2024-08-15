@@ -1,5 +1,6 @@
 import pyomo.environ as pyo
 import numpy as np
+import torch
 import math
 from pyomo import dae
 import json
@@ -70,21 +71,27 @@ class Transformer:
             else:
                 self.M.model_dims = pyo.Set(initialize=[str(0)])
     
-    def build_from_pytorch(self, pytorch_model, enc_input, dec_input):
+    def build_from_pytorch(self, pytorch_model, enc_input, dec_input, enc_bounds = None, dec_bounds=None):
         """ Builds transformer formulation for a trained pytorchtransfomrer model with and enocder an decoder """
         
         # Get learned parameters
         layer_names, parameters, _ = get_pytorch_learned_parameters(pytorch_model, enc_input, dec_input ,self.d_H)
-        enc_input_param, dec_input_param, output_var_name, ffn_parameter_dict = self.__build_layers( layer_names, parameters , enc_input, dec_input)
+        enc_input_param, dec_input_param, output_var_name, ffn_parameter_dict = self.__build_layers( layer_names, parameters , enc_input, dec_input, enc_bounds, dec_bounds)
         
         return [enc_input_param, dec_input_param, output_var_name, ffn_parameter_dict]
         
-    def __build_layers(self, layer_names, parameters, enc_input, dec_input):
+    def __build_layers(self, layer_names, parameters, enc_input, dec_input, enc_bounds = None, dec_bounds=None):
         ffn_parameter_dict = {}
          
         input_name = None  #track previous layers output name
         enc_output_name = None #track encoder output
         count = [0, 0] # coutn enc and decoder occurances
+        
+        # convert input tensors to array
+        if torch.is_tensor(enc_input):
+            enc_input = enc_input.detach().cpu().numpy()
+        if torch.is_tensor(dec_input):
+            dec_input = dec_input.detach().cpu().numpy()
         
         # define sets for input params
         enc_dim_1  = enc_input.shape[0]
@@ -92,10 +99,10 @@ class Transformer:
         dim_2 = enc_input.shape[1]
         self.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
         self.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
+        self.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1-1)))
         self.M.input_dims = pyo.Set(initialize= list(range(dim_2)))
-        # time set
-        self.enc_time_input =  self.M.enc_time_dims 
-        self.dec_time_input =  self.M.dec_time_dims
+        
+        
         
         # add layers to transformer
         for l, layer in enumerate(layer_names):
@@ -109,10 +116,10 @@ class Transformer:
                     dict_enc_input = {}
                     for t_index, t in enumerate(self.M.enc_time_dims):
                         for d_index, d in enumerate( self.M.input_dims):
-                            dict_enc_input[(t,d)] = enc_input[t_index, d_index].detach().cpu().numpy().tolist()
+                            dict_enc_input[(t,d)] = enc_input[t_index, d_index]
 
-                    self.M.enc_input_param = pyo.Param(self.M.enc_time_dims,  self.M.input_dims, initialize=dict_enc_input)
-                    
+
+                    self.M.enc_input_param = pyo.Param(self.M.enc_time_dims,  self.M.input_dims, initialize=dict_enc_input)  
                     self.embed_input( "enc_input_param", "enc_input")
                     input_name = "enc_input" #update prev layer output name
                 
@@ -126,10 +133,21 @@ class Transformer:
                     dict_dec_input = {}
                     for t_index, t in enumerate(self.M.dec_time_dims):
                         for d_index, d in enumerate( self.M.input_dims):
-                            dict_dec_input[(t,d)] = dec_input[t_index, d_index].detach().cpu().numpy().tolist()
+                            dict_dec_input[(t,d)] = dec_input[t_index, d_index]
                             
-                    self.M.dec_input_param = pyo.Param(self.M.dec_time_dims,  self.M.input_dims, initialize=dict_dec_input)
+                    if not dec_bounds is None:
+                        self.M.dec_input_p= pyo.Param(self.M.dec_time_dims_param ,  self.M.input_dims, initialize=dict_dec_input)
+                        self.M.dec_input_param = pyo.Var(self.M.dec_time_dims,  self.M.input_dims, initialize=dict_dec_input, bounds=dec_bounds)
+                    
+                        self.M.input_p_constraints = pyo.ConstraintList()
+                        for index in self.M.dec_input_p.index_set():
+                            self.M.input_var_constraints.add(expr= self.M.dec_input_p[index] == self.M.dec_input_param[index])
+                            
+                    else:
+                        raise ValueError('Provide bounds for decoder input')
+                    
                     self.embed_input( "dec_input_param", "dec_input")
+                    
                     input_name = "dec_input" #update prev layer output name
                 
             if "self_attention" in layer:
@@ -152,22 +170,22 @@ class Transformer:
                     self.add_attention( input_name, layer, W_q, W_k, W_k, W_o)
                 input_name = layer
                 
-            # if "multi_head_attention" in layer:
-            #     W_q = parameters[layer,'W_q']
-            #     W_k = parameters[layer,'W_k']
-            #     W_v = parameters[layer,'W_v']
-            #     W_o = parameters[layer,'W_o']
+            if "multi_head_attention" in layer:
+                W_q = parameters[layer,'W_q']
+                W_k = parameters[layer,'W_k']
+                W_v = parameters[layer,'W_v']
+                W_o = parameters[layer,'W_o']
                 
-            #     try:
-            #         b_q = parameters[layer,'b_q']
-            #         b_k = parameters[layer,'b_k']
-            #         b_v = parameters[layer,'b_v']
-            #         b_o = parameters[layer,'b_o']
+                try:
+                    b_q = parameters[layer,'b_q']
+                    b_k = parameters[layer,'b_k']
+                    b_v = parameters[layer,'b_v']
+                    b_o = parameters[layer,'b_o']
                     
-            #         self.add_masked_attention( input, layer, enc_output_name , W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output=enc_output_name)
-            #     except: # no bias values found
-            #         self.add_masked_attention( input, layer, enc_output_name , W_q, W_k, W_k, W_o, cross_attn=True, encoder_output=enc_output_name)
-            #     input_name = layer
+                    self.add_attention( input, layer, enc_output_name , W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output=enc_output_name)
+                except: # no bias values found
+                    self.add_attention( input, layer, enc_output_name , W_q, W_k, W_k, W_o, cross_attn=True, encoder_output=enc_output_name)
+                input_name = layer
                     
             if "layer_norm" in layer:
                 gamma = parameters[layer, 'gamma']
@@ -238,10 +256,11 @@ class Transformer:
                 for index, index_input in zip( embed_var.index_set(), set_var):
                     self.M.embed_constraints.add(embed_var[index] == input_var[index_input])
                     if isinstance(input_var, pyo.Var):
-                        if input_var[index_input].ub:
+                        if not input_var[index_input].ub is None:
                             embed_var[index].ub = input_var[index_input].ub
-                        if input_var[index_input].lb:
+                        if not input_var[index_input].lb is None:
                             embed_var[index].lb = input_var[index_input].lb
+                        
                     elif isinstance(input_var, pyo.Param):
                         embed_var[index].ub = input_var[index_input]
                         embed_var[index].lb = input_var[index_input]         
@@ -612,6 +631,7 @@ class Transformer:
             # Define K and V
             for n in res_dim_1_kv:
                     for k in MHA_Block.k_dims:
+
                         # constraints for Key
                         if not b_k is None:
                             MHA_Block.attention_constraints.add(
@@ -634,6 +654,7 @@ class Transformer:
                                 == sum(input[n, d] * MHA_Block.W_k[d, h, k] for d in W_dim_1_kv)
                             )
                             #Add bounds
+                            
                             k_bound_1 = sum( max(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in W_dim_1_kv ) 
                             k_bound_2 = sum( min(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in W_dim_1_kv ) 
                             if k_bound_1 < k_bound_2: 

@@ -94,9 +94,9 @@ class Transformer:
                 for index, index_input in zip( embed_var.index_set(), set_var):
                     M.embed_constraints.add(embed_var[index] == input_var[index_input])
                     if isinstance(input_var, pyo.Var):
-                        if input_var[index_input].ub:
+                        if not input_var[index_input].ub is None:
                             embed_var[index].ub = input_var[index_input].ub
-                        if input_var[index_input].lb:
+                        if not input_var[index_input].lb is None:
                             embed_var[index].lb = input_var[index_input].lb
                     elif isinstance(input_var, pyo.Param):
                         embed_var[index].ub = input_var[index_input]
@@ -111,7 +111,7 @@ class Transformer:
                 setattr(M, embed_var_name+"_W_emb", pyo.Param(indices[1], M.model_dims, initialize=W_emb_dict))
                 W_emb= getattr(M, embed_var_name+"_W_emb")   
                 
-                if b_emb:
+                if not b_emb is None:
                     # Create bias variable
                     b_emb_dict = {
                         (M.model_dims.at(d+1)): b_emb[d]
@@ -255,16 +255,21 @@ class Transformer:
                     layer_norm_var[t, d].lb = -4
                     
                 #Add bounds
-                if input_var[t, d].ub and input_var[t, d].lb:
-                    numerator[t,d].ub = input_var[t, d].ub - min(input_var[t,:].lb)
-                    # numerator[t,d].lb = input_var[t, d].lb - max(input_var[t,:].ub) 
-                    # numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
-                    numerator_squared[t,d].lb = 0
-                    
-                    if not std :
-                        denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) 
-                        denominator[t].lb = - abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))
-                        denominator_abs[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) 
+                try:
+                
+                    if input_var[t, d].ub and input_var[t, d].lb:
+                        numerator[t,d].ub = input_var[t, d].ub - min(input_var[t,:].lb)
+                        # numerator[t,d].lb = input_var[t, d].lb - max(input_var[t,:].ub) 
+                        # numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
+                        numerator_squared[t,d].lb = 0
+                        
+                        if not std :
+                            denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) 
+                            denominator[t].lb = - abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))
+                            denominator_abs[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) 
+                except:
+                    raise ValueError('Supply bounds to input variable')
+                
                 numerator_squared[t,d].lb = 0
             # if input_var[t, d].ub and input_var[t, d].lb:
             #     numerator_squared_sum[t].ub = sum( (numerator_squared[t,d_prime].ub) for d_prime in M.model_dims) 

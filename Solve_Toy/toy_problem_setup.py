@@ -2,7 +2,7 @@ import pyomo.environ as pyo
 #from pyomo import dae
 import numpy as np
 import extract_from_pretrained as extract_from_pretrained
-from data_gen import gen_x_u
+
 
 """
 Define toy problem parametrs and var then run from another script like toy_problem.py or transformer_test.py
@@ -20,7 +20,7 @@ Define toy problem parametrs and var then run from another script like toy_probl
 
 ## create model
 
-def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
+def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file, input_data):
     model_path = model_path
     config_file = config_file
     model = pyo.ConcreteModel(name="(TOY_OPTIMAL_CONTROL)")
@@ -28,22 +28,25 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     window = seq_len + pred_len
     
     ## define problem sets, vars, params
-    gen_x, gen_u, _,_ = gen_x_u(T)
     time_sample = np.linspace(0, 1, num= T) # entire time t=0:1 including prediction times
     time = time_sample[start_time : start_time + window]
     model.time_input = pyo.Set(initialize=time[0: seq_len]) # t < prediction times
     model.time = pyo.Set(initialize=time)
     set_variables = ['0','1'] ##--- NB: same order as trained input ---##
     model.variables = pyo.Set(initialize=set_variables)
+    
+    if start_time > 0:
+        t_prev_pred = time[seq_len-1]
+    else:
+        t_prev_pred = None
 
     # Set bounds based on training dataset
     UB_input = 3.5
     LB_input = 0 
 
     # Define inputs
-    x_input = gen_x[0, start_time : start_time + window]
-    u_input = gen_u[0, start_time : start_time + window]
-    
+    x_input = input_data[0]
+    u_input = input_data[1]
     
     print("------------- SET UP ---------------")
     print(x_input)
@@ -53,10 +56,22 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     for t, (u_out, x_out) in zip(model.time_input, zip(u_input, x_input)):
         dicseq_lens[(t, '0')] = x_out
         dicseq_lens[(t, '1')] = u_out
-
+    
     #model.input_param = pyo.Var(model.time_input, model.variables, initialize=dicseq_lens, bounds=(LB_input, UB_input))
-    model.input_param = pyo.Param(model.time_input, model.variables, initialize=dicseq_lens)#, bounds=(LB_input, UB_input))
-
+    if start_time == 0:
+        model.input_param = pyo.Param(model.time_input, model.variables, initialize=dicseq_lens)#, bounds=(LB_input, UB_input))
+    else:
+        model.input_p = pyo.Param(model.time_input, model.variables, initialize=dicseq_lens)
+        model.input_param = pyo.Var(model.time_input, model.variables, bounds=(LB_input, UB_input))
+        
+        model.param_constraints = pyo.ConstraintList()      
+        for t_index, t in enumerate(model.time_input): 
+            model.param_constraints.add(expr=model.input_param[t,'0'] == model.input_p[t,'0'])
+            
+            if t != t_prev_pred:
+                model.param_constraints.add(expr=model.input_param[t,'1'] == model.input_p[t,'1'])
+        
+        
     model.input_var = pyo.Var(model.time, model.variables, bounds=(LB_input, UB_input), initialize=dicseq_lens) #t = 0 to t=1
 
 
@@ -90,10 +105,11 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     ## define constraints
     model.input_constraints = pyo.ConstraintList()      
 
-    for t_index, t in enumerate(model.time_input):
-            
+    for t_index, t in enumerate(model.time_input): 
         model.input_constraints.add(expr=model.input_param[t,'0'] == model.input_var[t,'0'])
-        model.input_constraints.add(expr=model.input_param[t,'1'] == model.input_var[t,'1'])
+        
+        if t != t_prev_pred:
+            model.input_constraints.add(expr=model.input_param[t,'1'] == model.input_var[t,'1'])
 
         
     # define integral constraints

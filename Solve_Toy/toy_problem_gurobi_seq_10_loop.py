@@ -1,5 +1,4 @@
 import pyomo.environ as pyo
-from pyomo import dae
 import numpy as np
 
 import extract_from_pretrained
@@ -12,7 +11,8 @@ from gurobipy import Model, GRB, GurobiError
 from gurobi_ml import add_predictor_constr
 from GUROBI_ML_helper import get_inputs_gurobipy_FNN
 from print_stats import solve_gurobipy
-
+from data_gen import gen_x_u
+import transformer_intermediate_results as tir
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 
@@ -26,17 +26,25 @@ model_path = ".\\TNN_enc_0002.keras" #7.keras"
 config_file = '.\\data\\toy_config_relu_10.json'#_TNN_7.json' 
 T = 90000 # time steps
 seq_len = 10
-pred_len = 2
+pred_len = 1
 window = seq_len + pred_len
 
 preds_u = []
 preds_x = []
+
+Trained_preds_x=[]
 pred_times = []
 
 start_indices = list(range(0,T, int(T/12)))
 start_indices.append(T - window - 1)
-input_data = None
-for start_time in range(0,T,1) : #start_indices: #[600]: # \
+
+gen_x, gen_u, _,_ = gen_x_u(T)
+x_input = gen_x[0, 0 : seq_len]
+u_input = gen_u[0, 0 : seq_len]
+input_data = [x_input, u_input ]
+
+
+for start_time in range(0,12) : #start_indices: #[600]: # \
     print("START TIME: ", start_time)
 
     # define optimization model
@@ -77,10 +85,10 @@ for start_time in range(0,T,1) : #start_indices: #[600]: # \
             model.input_var_constraints.add(expr=model.input_var[t,d] == model.FFN_2[d])
             last_time_1  = False
                 
-        if  t < model.time.last():
-            model.input_var_constraints.add(expr= model.input_var[model.time.at(t_index + 2),d2] - model.input_var[t ,d2]
-                                            <= M
-                                            )
+        # if  t < model.time.last() and start_time > 0:
+        #     model.input_var_constraints.add(expr= model.input_var[model.time.at(t_index + 2),d2] - model.input_var[t ,d2]
+        #                                     <= M
+        #                                     )
             
         
         
@@ -119,9 +127,9 @@ for start_time in range(0,T,1) : #start_indices: #[600]: # \
 
     if gurobi_model.status == GRB.INFEASIBLE:
         print(f"Model at start time {start_time} is infeasible")
-        preds_x += [None, None]
-        preds_u += [None, None]
-        pred_times += [tps.time_sample[start_time + seq_len + i] for i in range(pred_len)]
+        # preds_x += [None, None]
+        # preds_u += [None, None]
+        # pred_times += [tps.time_sample[start_time + seq_len + i] for i in range(pred_len)]
         break
         # gurobi_model.computeIIS()
         # gurobi_model.write(f"model_{start_time}.ilp")     
@@ -149,29 +157,51 @@ for start_time in range(0,T,1) : #start_indices: #[600]: # \
 
         ## Print X, U --> input var, control var 
         input_var_soltuion = np.array(optimal_parameters["input_var"])
-
+        input_par_soltuion = np.array(optimal_parameters["input_param"])
         x = []
         u = []
+        xx = []
+        uu = []
         for i in range(len(input_var_soltuion)):
             if i % 2 == 0:
                 x += [input_var_soltuion[i]]
             else: 
                 u += [input_var_soltuion[i]]
+                
+        for i in range(len(input_par_soltuion)):
+            if i % 2 == 0:
+                xx += [input_par_soltuion[i]]
+            else: 
+                uu += [input_par_soltuion[i]]
+        print("start time: ", start_time)
         print("X: ", x )
         print("U: ", u )
-        input_data = [ x , u]
-        print("input_data: ", input_data)
+        print("Xx: ", xx )
+        print("Uu: ", uu )
         
-        preds_x += [x[-pred_len:]]
-        preds_u += [u[-pred_len:]]
+        preds_x += [x[-1]]
+        
+        if start_time > 0: #pred at t+1 solves for value of u at t and x and t+2
+            preds_u += [u[-2]]
         pred_times += [tps.time_sample[start_time + seq_len + i] for i in range(pred_len)]
-
-    print("actual X: ", tps.gen_x[0, start_time : start_time + window])
-    print("actual U: ", tps.gen_u[0, start_time : start_time + window])
+        
+        # find result of trained TNN
+        uu[-1] = u[-2]
+        output = tir.generate_TNN_outputs(model_path, [xx, uu])
+        print(output)
+        Trained_preds_x += [output[0]]
+        print("trained X: ", Trained_preds_x )
+    
+        # update input
+        input_data = [ x[1:] , u[1:]]
+        print("next input_data: ", input_data)
+            
+    print("actual X: ", gen_x[0, start_time : start_time + window])
+    print("actual U: ", gen_u[0, start_time : start_time + window])
  
 #save to file
 import csv
-file_name = "results_trajectory_seq_2.csv"   
+file_name = "results_trajectory_seq_2_.csv"   
 with open(file_name, 'a', newline='') as file:
     writer = csv.writer(file)
     values = []
@@ -183,18 +213,25 @@ with open(file_name, 'a', newline='') as file:
     values.append('')
     writer.writerow(values)
     
-#plot results   
+#plot results  
+preds_x = np.array(preds_x)
+preds_u = np.array(preds_u)
+ 
 print(preds_x)
 print(pred_times)
 
 import matplotlib.pyplot as plt
 plt.figure(figsize=(6, 4))
-plt.plot(tps.time_sample, tps.gen_x[0,0:], 's-', label = 'X* Analytical')
-plt.plot(tps.time_sample, tps.gen_u[0,0:], 's-', label = 'U* Analytical')
-plt.plot(pred_times, preds_x[0], '--x', 
+# plt.plot(tps.time_sample, tps.gen_x[0,0:], 's-', label = 'X* Analytical')
+# plt.plot(tps.time_sample, tps.gen_u[0,0:], 's-', label = 'U* Analytical')
+plt.plot(pred_times, gen_x[0,0: len(pred_times)], 's-', label = 'X* Analytical')
+plt.plot(pred_times, gen_u[0,0: len(pred_times)], 's-', label = 'U* Analytical')
+plt.plot(pred_times, preds_x, '--x', 
          linewidth= 2, label = 'X* Solver')
-plt.plot(pred_times, preds_u[0], '--x', 
+plt.plot(pred_times[1:], preds_u, '--x', 
          linewidth= 2, label = 'U* Solver')
+plt.plot(pred_times, Trained_preds_x, '--', 
+         linewidth= 2, label = 'X* Trained TNN')
 
 plt.legend()
 plt.show()
