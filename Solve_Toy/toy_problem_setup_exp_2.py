@@ -30,8 +30,9 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file, input_d
     ## define problem sets, vars, params
     time_sample = np.linspace(0, 1, num= T) # entire time t=0:1 including prediction times
     time = time_sample
-    model.time_input = pyo.Set(initialize=time[start_time : start_time + seq_len]) # t < prediction times
-    model.time = pyo.Set(initialize=time[start_time : start_time + window])
+    model.seq_length = pyo.Set(initialize= range(seq_len)) # length of inputs to transformer
+    model.time = pyo.Set(initialize=time[start_time : start_time + window]) # entire time range
+    model.pred_window = pyo.Set(initialize=time[start_time : start_time + pred_len]) # number of input windows
     set_variables = ['0','1'] ##--- NB: same order as trained input ---##
     model.model_dims = pyo.Set(initialize=set_variables)
     
@@ -50,18 +51,33 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file, input_d
     print(u_input)
 
     dicseq_lens = {}
-    for t, (u_out, x_out) in zip(model.time_input, zip(u_input, x_input)):
+    for t, (u_out, x_out) in zip(model.seq_length, zip(u_input, x_input)):
         dicseq_lens[(t, '0')] = x_out
         dicseq_lens[(t, '1')] = u_out
     
-    model.input_param = pyo.Param(model.time_input, model.model_dims, initialize=dicseq_lens)#, bounds=(LB_input, UB_input))
-    model.input_var = pyo.Var(model.time, model.model_dims, bounds=(LB_input, UB_input), initialize=dicseq_lens) #t = 0 to t=1
-
+    model.input_param = pyo.Param(model.seq_length, model.model_dims, initialize=dicseq_lens)#, bounds=(LB_input, UB_input))
+    model.input_var = pyo.Var(model.time, model.model_dims, bounds=(LB_input, UB_input)) #t = 0 to t=1
+    model.t_inputs = pyo.Var(model.pred_window, model.seq_length, model.model_dims, bounds=(LB_input, UB_input))
+    
     model.input_constraints = pyo.ConstraintList() 
-    for t_index, t in enumerate(model.time_input): 
-        model.input_constraints.add(expr=model.input_param[t,'0'] == model.input_var[t,'0'])
-        model.input_constraints.add(expr=model.input_param[t,'1'] == model.input_var[t,'1'])  
+    for pos in model.seq_length: 
+        model.input_constraints.add(expr=model.input_param[pos,'0'] == model.t_inputs[0,pos,'0'])
+        model.input_constraints.add(expr=model.input_param[pos,'1'] == model.t_inputs[0,pos,'1']) 
+
+    for t_index, t in enumerate(model.pred_window):
+        t_i = t_index + 1
         
+        if t == model.pred_window.last:
+            for p_index, pos in enumerate(model.seq_length): 
+                p_i = p_index + 1
+                model.input_constraints.add(expr=model.t_inputs[t, 0,'0'] == model.input_var[model.time.at(t_i + p_i),'0'])
+                model.input_constraints.add(expr=model.t_inputs[t, 0,'1'] == model.input_var[model.time.at(t_i + p_i),'1']) 
+        else:   
+            model.input_constraints.add(expr=model.t_inputs[t, 0,'0'] == model.input_var[model.time.at(t_i),'0'])
+            model.input_constraints.add(expr=model.t_inputs[t, 0,'1'] == model.input_var[model.time.at(t_i),'1']) 
+        
+            
+          
     ## define transformer sets, vars, params
     dict_gamma1 = {(v): val for v,val in zip(model.model_dims, parameters['layer_normalization_1','gamma'])}
     dict_beta1 = {(v): val for v,val in zip(model.model_dims,  parameters['layer_normalization_1','beta'])}
@@ -89,33 +105,24 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file, input_d
         
     # define integral constraints
 
-    # int_factor = (time[-1] - time[0])/(3 * window)
-    # model.intXU = pyo.Var(model.model_dims, bounds=(0, UB_input * (time[-1] - time[0])))
-    # for d in model.model_dims:
-    #     sum_d = model.input_var[model.time.first(), d ] + model.input_var[model.time.last(), d]
-    #     for t_index, t in enumerate(model.time):
-    #         if t < model.time.last() and t > model.time.first():
-    #             # Use Simpsons Rule to find discrete integral
-    #             if t_index % 2 == 0:
-    #                 sum_d += 2 * model.input_var[model.time.at(t_index + 1), d]
+    int_factor = (time[-1] - time[0])/(3 * window)
+    model.intXU = pyo.Var(model.model_dims, bounds=(0, UB_input * (time[-1] - time[0])))
+    for d in model.model_dims:
+        sum_d = model.input_var[model.time.first(), d ] + model.input_var[model.time.last(), d]
+        for t_index, t in enumerate(model.time):
+            if t < model.time.last() and t > model.time.first():
+                # Use Simpsons Rule to find discrete integral
+                if t_index % 2 == 0:
+                    sum_d += 2 * model.input_var[model.time.at(t_index + 1), d]
                     
-    #             else:
-    #                 sum_d += 4 * model.input_var[model.time.at(t_index + 1), d]
-    #     model.input_constraints.add(expr = model.intXU[d] == int_factor * sum_d )
+                else:
+                    sum_d += 4 * model.input_var[model.time.at(t_index + 1), d]
+        model.input_constraints.add(expr = model.intXU[d] == int_factor * sum_d )
 
     # Set objective function
-    # model.obj = pyo.Objective(
-    #     expr= model.intXU['0'] - model.intXU['1'] + model.input_var[model.time.last(),'0'], sense=1
-    # )  # -1: maximize, +1: minimize (default)
-
-
-    # model.obj = pyo.Objective(
-    #     expr= sum(model.input_var[t,'0'] - model.input_var[t,'1'] for t in model.time) + model.input_var[model.time.last(),'0'], sense=1
-    # ) 
-    
     model.obj = pyo.Objective(
-        expr= sum( (model.input_var[t,'0'] - model.input_var[t,'1'])**2 for t in model.time) + model.input_var[model.time.last(),'0'], sense=1
-    ) 
-    
+        expr= model.intXU['0'] - model.intXU['1'] + model.input_var[model.time.last(),'0'], sense=1
+    )  # -1: maximize, +1: minimize (default)
+
     globals().update(locals()) #make all variables from this function global
     return model
