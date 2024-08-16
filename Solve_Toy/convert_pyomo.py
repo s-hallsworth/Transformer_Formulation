@@ -20,22 +20,29 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
         var = getattr(pyomo_model, attr)
         
         if isinstance(var, (omlt.OmltBlock, pyo.Block)): # Check for Block()
-            if "NN" in str(var):
-                for attr in dir(var): # iterate over Block attributes
-                    block_attr = getattr(var, attr)
+            if var.is_indexed():
+                index_set = list(var.index_set().data())
+                
+                for index in index_set:
                     
-                    # Handle OMLT NN Block layer
-                    if "NN_Block.layer" in str(block_attr):
-                        
-                        if isinstance(block_attr, (omlt.OmltBlock, pyo.Block)):
-                            for attr2 in dir(block_attr): # iterate over Block attributes
-                                block_attr2 = getattr(block_attr, attr2)
+                    for attr in dir(var[index]): # iterate over Block attributes
+                        if "NN_Block" in str(attr):
+                            block_attr = getattr(var[index], attr)
+                            
+                            # Handle OMLT NN Block layer
+                            if "NN_Block.layer" in str(block_attr):
                                 
-                                if isinstance(block_attr2, dict) and isinstance(list(block_attr2.keys())[0], int):
-                                    for index, obj in block_attr2.items():    
-                                        var_map = convert_block(obj, var_map, gurobi_model)      
-                    else:
-                        var_map = convert_block(var, var_map, gurobi_model)   
+                                if isinstance(block_attr, (omlt.OmltBlock, pyo.Block)):
+                                    for attr2 in dir(block_attr): # iterate over Block attributes
+                                        block_attr2 = getattr(block_attr, attr2)
+                                        
+                                        if isinstance(block_attr2, dict) and isinstance(list(block_attr2.keys())[0], int):
+                                            for index, obj in block_attr2.items():    
+                                                var_map = convert_block(obj, var_map, gurobi_model)      
+                            else:
+                                var_map = convert_block(var[index], var_map, gurobi_model)   
+                        else:
+                            var_map = convert_block(var[index], var_map, gurobi_model)    
             else:
                 var_map = convert_block(var, var_map, gurobi_model)
                          
