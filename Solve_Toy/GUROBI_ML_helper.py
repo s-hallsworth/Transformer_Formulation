@@ -21,6 +21,7 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
             bias = np.array(val['b'])
             n_layer_inputs, n_layer_nodes = np.shape(weights)
                 
+            
             # Determine activation function
             if val['activation'] =='relu':
                 weights_list += [[weights, bias]]
@@ -29,7 +30,7 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
             else:
                 raise TypeError(f'Error in layer: {layer_name}. Activation function not currently supported for ', val['activation'])
 
-    #print("model summary",nn.summary())
+    # print("model summary",nn.summary())
 
     # set weights for each layer
     for i, w in enumerate(weights_list):
@@ -44,8 +45,7 @@ def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
     prev_output = {}
     for index, value in map_var.items():
         
-        if str(index).split('[')[0] == input_nn.name:
-            
+        if input_nn.name in str(index):
             if "," in str(index):
                 try: 
                     inputs += [ [prev_input[str(index).split(',')[0]], value]]
@@ -53,14 +53,17 @@ def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
                     prev_input[str(index).split(',')[0]] = value
             else:
                 inputs += [value]
+                
+                       
             
-            
-        elif str(index).split('[')[0] == output_nn.name:
+        elif output_nn.name in str(index):
             if "," in str(index):
                 try: 
                     outputs += [ [prev_output[str(index).split(',')[0]], value]]
                 except:
                     prev_output[str(index).split(',')[0]] = value
             else:
-                outputs += [value]          
+                outputs += [value]        
+         
+              
     return inputs, outputs 

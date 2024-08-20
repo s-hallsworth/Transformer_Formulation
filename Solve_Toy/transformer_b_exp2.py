@@ -1326,7 +1326,7 @@ class Transformer:
     #             for j, j_index in  enumerate(output_indices_attr[1]):
     #                 ffn_constraints.add(expr= output_var[i_index, j_index] == NN_block.outputs[j])
             
-    def get_fnn(self, model, input_var_name, output_var_name, nn_name, input_shape, model_parameters):
+    def get_fnn(self, model, input_var_name, output_var_name):
         input_var = getattr(self.Transformer_Block, input_var_name)
         
         if input_var.is_indexed():

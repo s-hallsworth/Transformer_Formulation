@@ -30,31 +30,36 @@ config_file = '.\\data\\toy_config_relu_10.json'#_TNN_7.json'
 T = 9000 # time steps
 seq_len = 10
 pred_len = 2
-window = seq_len + pred_len
-
-preds_u = []
-preds_x = []
-Trained_preds_x=[]
-pred_times = []
-
 gen_x, gen_u, _,_ = gen_x_u(T)
-x_input = gen_x[0, 0 : seq_len]
-u_input = gen_u[0, 0 : seq_len]
-input_data = [x_input, u_input ]
 
-start_indices = list(range(0,T, int(T/5)))
-start_indices.append(T - window - 1)
-for start_time in start_indices: #[600]: # \
+for pred_len in range(2, T-seq_len, 1): #[600]: # \
+    print()
+    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    window = seq_len + pred_len
+    start_time = T-window - 1
     print("START TIME: ", start_time)
+    print("PRED LENGTH: ", pred_len)
+    # initialize input and pred lists
+    x_input = gen_x[0, start_time : start_time + seq_len]
+    u_input = gen_u[0, start_time : start_time + seq_len]
+    input_data = [x_input, u_input ]
+    preds_u = []
+    preds_x = []
+    Trained_preds_x=[]
+    pred_times = []
+    
+    print("------------- SET UP ---------------")
+    print(x_input)
+    print(u_input)
 
+    # initialize otpimization model
     model = tps.setup_toy( T, start_time ,seq_len, pred_len, model_path, config_file, input_data)
-        
-    # Define time sets
-    Time_start = 1
+    print("- set up complete")
 
     # Define transformer
     transformer = TNN.Transformer(model, tps.config_file, "TNN") 
-    
+    print("- created TNN instance")
+     
     def block_rule(b,t):
         # Add TNN acrhicture constraints to block
         transformer.add_input(tps.model.input_param, "input", b)
@@ -62,12 +67,14 @@ for start_time in start_indices: #[600]: # \
         transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
         transformer.add_residual_connection(model,"input", "attention_output", "residual_1")
         transformer.add_layer_norm(model,  "residual_1", "layer_norm_2", "gamma2", "beta2")
-        transformer.get_fnn(model, "layer_norm_2", "FFN_1", "ffn_1", (seq_len,2), tps.parameters)
+        transformer.get_fnn(model, "layer_norm_2", "FFN_1")
         transformer.add_residual_connection(model, "residual_1", "FFN_1", "residual_2")  
         transformer.add_avg_pool(model, "residual_2", "avg_pool")
-        transformer.get_fnn(model, "avg_pool", "FFN_2", "ffn_2", (1,2), tps.parameters)
-
-    model.tnn_block = pyo.Block(model.time, rule = block_rule)
+        transformer.get_fnn(model, "avg_pool", "FFN_2")
+    
+    print("- defining block rule")
+    model.tnn_block = pyo.Block(model.pred_window, rule = block_rule)
+    print("- block rule defined")
     
     model.tnn_block_constraints = pyo.ConstraintList() 
    # input linking rule
@@ -93,26 +100,30 @@ for start_time in start_indices: #[600]: # \
 
                
     # # Convert to gurobipy
+    print("- converting to gurobipy")
     gurobi_model, map_var = convert_pyomo.to_gurobi(model)
+    
 
     ## Add FNNs to gurobi model
     def get_fnn_details(model, input_var_name, output_var_name, nn_name, input_shape, model_parameters):
+        
         input_var = getattr(model, input_var_name)
         output_var = getattr(model, output_var_name)
         nn= GUROBI_ML_helper.weights_to_NetDef(output_var_name, nn_name, input_shape, model_parameters)
+
         return nn, input_var, output_var
 
+    print("- adding gurobiML FFNs")
     for  t in model.pred_window:
         nn, input_nn, output_nn = get_fnn_details(model.tnn_block[t],"layer_norm_2", "FFN_1", "ffn_1", (seq_len,2), tps.parameters )
-        nn2, input_nn2, output_nn2 = get_fnn_details(model.tnn_block[t], "avg_pool", "FFN_2", "ffn_2", (1,2), tps.parameters )
-
         inputs_1, outputs_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
         pred_constr1 = add_predictor_constr(gurobi_model, nn, inputs_1, outputs_1)
-
+        
+        nn2, input_nn2, output_nn2 = get_fnn_details(model.tnn_block[t], "avg_pool", "FFN_2", "ffn_2", (1,2), tps.parameters )
         inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
         pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
 
-    
+    print("- updating gurobi model")
     gurobi_model.update()
     #pred_constr.print_stats()
 
@@ -132,11 +143,12 @@ for start_time in start_indices: #[600]: # \
     ## Optimize
     # gurobi_model.params.SolutionLimit = 10 ##
     # gurobi_model.params.MIPFocus = 1 ## focus on finding feasible solution
-    time_limit = 21600 # 24 hrs
+    time_limit = 21600 # 6 hrs
     
     
     # gurobi_model.feasRelaxS(0, False, True, True)
-    solve_gurobipy(gurobi_model, time_limit) ## Solve and print
+    print("- solving optimization model")
+    runtime, optimality_gap = solve_gurobipy(gurobi_model, time_limit) ## Solve and print
     
     # print('\nSlack values:')
     # orignumvars = 92994
@@ -156,6 +168,7 @@ for start_time in start_indices: #[600]: # \
 
     if gurobi_model.status == GRB.INFEASIBLE:
         print(f"Model at start time {start_time} is infeasible")
+        opt = None
         # preds_x += [None, None]
         # preds_u += [None, None]
         # pred_times += [tps.time_sample[start_time + seq_len + i] for i in range(pred_len)]
@@ -166,7 +179,7 @@ for start_time in start_indices: #[600]: # \
         ## Get optimal parameters
         if gurobi_model.status == GRB.OPTIMAL:
             optimal_parameters = {}
-            print(model.intXU)
+            # print(model.intXU)
             
             for v in gurobi_model.getVars():
                 
@@ -181,6 +194,7 @@ for start_time in start_indices: #[600]: # \
                     
              
             ##
+            opt = gurobi_model.getObjective().getValue()
             print(
             "objective value:", gurobi_model.getObjective().getValue()
             )  
@@ -199,12 +213,24 @@ for start_time in start_indices: #[600]: # \
                 x += [input_var_soltuion[i]]
             else: 
                 u += [input_var_soltuion[i]]
-        print("X: ", x )
-        print("U: ", u )
+        
         preds_x += [x[-pred_len:]]
         preds_u += [u[-pred_len:]]
         pred_times += [tps.time_sample[start_time + seq_len + i] for i in range(pred_len)]
 
+        input_par_soltuion = np.array(optimal_parameters["input_param"])
+        xp = []
+        up = []
+        for i in range(len(input_par_soltuion)):
+            if i % 2 == 0:
+                xp += [input_par_soltuion[i]]
+            else: 
+                up += [input_par_soltuion[i]]
+        print("X fixed input: ", xp )
+        print("U fixed input: ", up )
+        print("X: ", x )
+        print("U: ", u )
+        
         # find result of trained TNN
         # output = tir.generate_TNN_outputs(model_path, input_data)
         # print(output)
@@ -221,42 +247,70 @@ for start_time in start_indices: #[600]: # \
     print("actual U: ", gen_u[0, start_time : start_time + window])
  
  
-#save to file
-import csv
-file_name = "results_trajectory_seq_22.csv"   
-with open(file_name, 'a', newline='') as file:
-    writer = csv.writer(file)
-    values = []
-    values.append(T)
-    values.append(pred_times)
-    values.append(preds_x)
-    values.append(preds_u)
-
-    values.append('')
-    writer.writerow(values)
+    #save to file
+    import csv
+    file_name = "results_prediction_blocks.csv"   
+    with open(file_name, 'a', newline='') as file:
+        writer = csv.writer(file)
+        headers = []
+        headers.append('T')
+        headers.append('seq_len')
+        headers.append('pred_len')
+        headers.append('pred_times')
+        headers.append('preds_x')
+        headers.append('preds_u')
+        headers.append('actual_x')
+        headers.append('actual_u')
+        headers.append('runtime')
+        headers.append('opt gap')
+        headers.append('objective value')
+        writer.writerow(headers)
+        
+        values = []
+        values.append(T)
+        values.append(seq_len)
+        values.append(pred_len)
+        values.append(pred_times)
+        values.append(preds_x)
+        values.append(preds_u)
+        values.append( gen_x[0, start_time : start_time + window])
+        values.append( gen_u[0, start_time : start_time + window])
+        values.append(runtime)
+        values.append(optimality_gap)
+        values.append(opt)
+        values.append('')
+        writer.writerow(values)
     
-#plot results  
-preds_x = np.array(preds_x).flatten()
-preds_u = np.array(preds_u).flatten()
+    #plot results  
+    preds_x = np.array(preds_x).flatten()
+    preds_u = np.array(preds_u).flatten()
 
 
-print(preds_x)
-print(preds_u)
-print(pred_times)
+    print(preds_x)
+    print(preds_u)
+    print(pred_times)
 
-import matplotlib.pyplot as plt
-plt.figure(figsize=(6, 4))
-# plt.plot(tps.time_sample, tps.gen_x[0,0:], 's-', label = 'X* Analytical')
-# plt.plot(tps.time_sample, tps.gen_u[0,0:], 's-', label = 'U* Analytical')
-plt.plot(pred_times, gen_x[0,0: len(pred_times)], 's-', label = 'X* Analytical')
-plt.plot(pred_times, gen_u[0,0: len(pred_times)], 's-', label = 'U* Analytical')
-plt.plot(pred_times, preds_x, '--x', 
-         linewidth= 2, label = 'X* Solver')
-plt.plot(pred_times, preds_u, '--x', 
-         linewidth= 2, label = 'U* Solver')
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(6, 4))
+    # plt.plot(tps.time_sample, tps.gen_x[0,0:], 's-', label = 'X* Analytical')
+    # plt.plot(tps.time_sample, tps.gen_u[0,0:], 's-', label = 'U* Analytical')
+    plt.plot(tps.time[start_time : start_time + window], gen_x[0, start_time : start_time + window], 's-', label = 'X* Analytical')
+    plt.plot(tps.time[start_time : start_time + window], gen_u[0, start_time : start_time + window], 's-', label = 'U* Analytical')
+    # plt.plot(tps.time[start_time : start_time + window], x, '--x', 
+    #          linewidth= 2, label = 'X* Solver')
+    # plt.plot(tps.time[start_time : start_time + window], u, '--x', 
+    #          linewidth= 2, label = 'U* Solver')
 
-plt.legend()
-plt.show()
+    plt.plot(pred_times, preds_x, '--o', 
+            linewidth= 2, label = 'X* Solver')
+    plt.plot(pred_times, preds_u, '--x', 
+            linewidth= 2, label = 'U* Solver')
+    # plt.plot(pred_times, Trained_preds_x, '--', 
+    #          linewidth= 2, label = 'X* Trained TNN')
+
+    plt.legend()
+    plt.savefig(".\\images\\prediction_blocks\\figure_pred_"+str(pred_len))
+    plt.show()
 
 # print(optimal_parameters["input_2"])
 # print(optimal_parameters["FFN_22"])

@@ -55,7 +55,7 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file, input_d
         dicseq_lens[(t, '1')] = u_out
     
     model.input_param = pyo.Param(model.time_input, model.model_dims, initialize=dicseq_lens)#, bounds=(LB_input, UB_input))
-    model.input_var = pyo.Var(model.time, model.model_dims, bounds=(LB_input, UB_input), initialize=dicseq_lens) #t = 0 to t=1
+    model.input_var = pyo.Var(model.time, model.model_dims , bounds=(LB_input, UB_input)) #t = 0 to t=1
 
     model.input_constraints = pyo.ConstraintList() 
     for t_index, t in enumerate(model.time_input): 

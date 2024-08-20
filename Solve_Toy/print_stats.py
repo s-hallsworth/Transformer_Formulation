@@ -45,7 +45,7 @@ def solve_gurobipy(model, time_limit):
     print("------------------------------------------------------")
     print("------------------------------------------------------")
     print()
-    
+    return runtime, optimality_gap
     
 def solve_pyomo(model, solver, time_limit):
     if time_limit is not None:

@@ -14,6 +14,7 @@ from GUROBI_ML_helper import get_inputs_gurobipy_FNN
 from print_stats import solve_gurobipy
 from data_gen import gen_x_u
 import transformer_intermediate_results as tir
+import GUROBI_ML_helper
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
@@ -123,8 +124,9 @@ for start_time in [T-window-1]: #start_indices: #[600]: # \
  
     # # Convert to gurobipy
     gurobi_model, map_var = convert_pyomo.to_gurobi(model)
+            
 
-    ## Add FNN1 to gurobi model
+    # Add FNN1 to gurobi model
     inputs_1, outputs_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
     pred_constr1 = add_predictor_constr(gurobi_model, nn, inputs_1, outputs_1)
 
@@ -137,7 +139,7 @@ for start_time in [T-window-1]: #start_indices: #[600]: # \
     inputs_22, outputs_22 = get_inputs_gurobipy_FNN(input_nn22, output_nn22, map_var)
     pred_constr22 = add_predictor_constr(gurobi_model, nn22, inputs_22, outputs_22)
     gurobi_model.update()
-    #pred_constr.print_stats()
+    # #pred_constr.print_stats()
 
     ## Print Header
     print("------------------------------------------------------")
@@ -155,7 +157,7 @@ for start_time in [T-window-1]: #start_indices: #[600]: # \
     ## Optimize
     # gurobi_model.params.SolutionLimit = 10 ##
     # gurobi_model.params.MIPFocus = 1 ## focus on finding feasible solution
-    time_limit = 21600 # 24 hrs
+    time_limit = 3600 # 24 hrs
     
     
     # gurobi_model.feasRelaxS(0, False, True, True)
@@ -304,15 +306,15 @@ plt.figure(figsize=(6, 4))
 # plt.plot(tps.time_sample, tps.gen_u[0,0:], 's-', label = 'U* Analytical')
 plt.plot(tps.time[start_time : start_time + window], gen_x[0, start_time : start_time + window], 's-', label = 'X* Analytical')
 plt.plot(tps.time[start_time : start_time + window], gen_u[0, start_time : start_time + window], 's-', label = 'U* Analytical')
-plt.plot(tps.time[start_time : start_time + window], x, '--x', 
-         linewidth= 2, label = 'X* Solver')
-plt.plot(tps.time[start_time : start_time + window], u, '--x', 
-         linewidth= 2, label = 'U* Solver')
-
-# plt.plot(pred_times, preds_x, '--x', 
+# plt.plot(tps.time[start_time : start_time + window], x, '--x', 
 #          linewidth= 2, label = 'X* Solver')
-# plt.plot(pred_times, preds_u, '--x', 
+# plt.plot(tps.time[start_time : start_time + window], u, '--x', 
 #          linewidth= 2, label = 'U* Solver')
+
+plt.plot(pred_times, preds_x, '--x', 
+         linewidth= 2, label = 'X* Solver')
+plt.plot(pred_times, preds_u, '--o', 
+         linewidth= 2, label = 'U* Solver')
 # plt.plot(pred_times, Trained_preds_x, '--', 
 #          linewidth= 2, label = 'X* Trained TNN')
 

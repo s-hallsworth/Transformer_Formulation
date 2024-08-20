@@ -94,14 +94,14 @@ class Transformer:
             if W_emb is None:
                 for index, index_input in zip( embed_var.index_set(), set_var):
                     self.Transformer_Block.embed_constraints.add(embed_var[index] == input_var[index_input])
-                    if isinstance(input_var, pyo.Var):
-                        if not input_var[index_input].ub is None:
-                            embed_var[index].ub = input_var[index_input].ub
-                        if not input_var[index_input].lb is None:
-                            embed_var[index].lb = input_var[index_input].lb
-                    elif isinstance(input_var, pyo.Param):
-                        embed_var[index].ub = input_var[index_input]
-                        embed_var[index].lb = input_var[index_input]         
+                    # if isinstance(input_var, pyo.Var):
+                    #     if not input_var[index_input].ub is None:
+                    #         embed_var[index].ub = input_var[index_input].ub
+                    #     if not input_var[index_input].lb is None:
+                    #         embed_var[index].lb = input_var[index_input].lb
+                    # elif isinstance(input_var, pyo.Param):
+                    #     embed_var[index].ub = input_var[index_input]
+                    #     embed_var[index].lb = input_var[index_input]         
             else: # w_emb has a value
                 # Create weight variable
                 W_emb_dict = {
@@ -242,10 +242,10 @@ class Transformer:
                 self.Transformer_Block.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
                 
                 self.Transformer_Block.layer_norm_constraints.add(expr= variance[t] == (denominator[t] * denominator_abs[t] ) )
-                if std:
-                    denominator[t].ub = std
-                    denominator[t].lb = -std
-                    #denominator_abs[t].ub = std
+                # if std:
+                #     denominator[t].ub = std
+                #     denominator[t].lb = -std
+                #     denominator_abs[t].ub = std
                     
                 
                 self.Transformer_Block.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
@@ -265,20 +265,20 @@ class Transformer:
                     layer_norm_var[t, d].lb = -4
                     
                 #Add bounds
-                try:
+                # try:
                 
-                    if input_var[t, d].ub and input_var[t, d].lb:
-                        numerator[t,d].ub = input_var[t, d].ub - min(input_var[t,:].lb)
-                        # numerator[t,d].lb = input_var[t, d].lb - max(input_var[t,:].ub) 
-                        # numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
-                        numerator_squared[t,d].lb = 0
+                #     if input_var[t, d].ub and input_var[t, d].lb:
+                #         numerator[t,d].ub = input_var[t, d].ub - min(input_var[t,:].lb)
+                #         # numerator[t,d].lb = input_var[t, d].lb - max(input_var[t,:].ub) 
+                #         # numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
+                #         numerator_squared[t,d].lb = 0
                         
-                        if not std :
-                            denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) 
-                            denominator[t].lb = - abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))
-                            denominator_abs[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) 
-                except:
-                    raise ValueError('Supply bounds to input variable')
+                #         if not std :
+                #             denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) 
+                #             denominator[t].lb = - abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))
+                #             denominator_abs[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) 
+                # except:
+                #     raise ValueError('Supply bounds to input variable')
                 
                 numerator_squared[t,d].lb = 0
             # if input_var[t, d].ub and input_var[t, d].lb:
@@ -452,7 +452,11 @@ class Transformer:
                             == sum(input_var[n,d] * MHA_Block.W_q[d, h, k] for d in model.model_dims) + MHA_Block.b_q[h,k] 
                             )  
                             #Add bounds
-                            q_bound_1 = sum( max(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model.model_dims) + MHA_Block.b_q[h,k]
+                            try:
+                                q_bound_1 = sum( max(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model.model_dims) + MHA_Block.b_q[h,k]
+                            except:
+                                raise ValueError('Supply bounds to input variable')
+                            #q_bound_1 = sum( max(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model.model_dims) + MHA_Block.b_q[h,k]
                             q_bound_2 = sum( min(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model.model_dims) + MHA_Block.b_q[h,k]
                             if q_bound_1 < q_bound_2: 
                                 MHA_Block.Q[h, n, k].ub = q_bound_2
@@ -567,7 +571,7 @@ class Transformer:
                     # sum over exp(compatbility)
                     MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_exp_sum[h, n] == sum(MHA_Block.compatibility_exp[h, n, p] for p in time_input))
                     
-                    # # sum over softmax = 1    
+                    #sum over softmax = 1    
                     MHA_Block.attention_constraints.add(
                         expr=sum(MHA_Block.attention_weight[h, n, n_prime] for n_prime in time_input) == 1
                     )
@@ -575,10 +579,6 @@ class Transformer:
                     for n2 in time_input:
 
                         #attention weights softmax(compatibility)   
-                        MHA_Block.attention_constraints.add(
-                            expr= MHA_Block.attention_weight[h, n, n2] <= 1
-                        )
-                        
                         MHA_Block.attention_constraints.add(
                             expr=MHA_Block.attention_weight[h, n, n2] * MHA_Block.compatibility_exp_sum[h, n]
                             == MHA_Block.compatibility_exp[h, n, n2]) 
@@ -605,10 +605,10 @@ class Transformer:
                     MHA_Block.attention_score[h, n, k].ub = sum(MHA_Block.V[h, n2, k].ub for n2 in time_input)
                     MHA_Block.attention_score[h, n, k].lb = min(0, sum(MHA_Block.V[h, n2, k].lb for n2 in time_input))
                       
-                ##############-----------------------------------############    
+                # ##############-----------------------------------############    
                 for p in time_input:    
-                    MHA_Block.attention_weight[h, n, p].ub = 1 #MHA_Block.compatibility_exp[h,n,p].ub / (MHA_Block.compatibility_exp_sum[h, n].lb  - MHA_Block.compatibility_exp[h,n,p].lb + MHA_Block.compatibility_exp[h,n,p].ub  + 0.00000001)
-                    MHA_Block.attention_weight[h, n, p].lb = 0 #max(0, MHA_Block.compatibility_exp[h,n,p].lb / (MHA_Block.compatibility_exp_sum[h, n].ub - MHA_Block.compatibility_exp[h,n,p].ub + MHA_Block.compatibility_exp[h,n,p].lb + 0.00000001))
+                    MHA_Block.attention_weight[h, n, p].ub = MHA_Block.compatibility_exp[h,n,p].ub / (MHA_Block.compatibility_exp_sum[h, n].lb  - MHA_Block.compatibility_exp[h,n,p].lb + MHA_Block.compatibility_exp[h,n,p].ub  + 0.00000001)
+                    MHA_Block.attention_weight[h, n, p].lb = max(0, MHA_Block.compatibility_exp[h,n,p].lb / (MHA_Block.compatibility_exp_sum[h, n].ub - MHA_Block.compatibility_exp[h,n,p].ub + MHA_Block.compatibility_exp[h,n,p].lb + 0.00000001))
                     
                     # # f(x) >= f_cv(x): attention weight >= convex envelope
                     # MHA_Block.attention_constraints.add(
@@ -1278,11 +1278,11 @@ class Transformer:
         for n in time_input:
             for d in model.model_dims:
                 self.Transformer_Block.residual_constraints.add(expr= residual_var[n,d] == input_1[n,d] + input_2[n,d])
-                try:
-                    residual_var[n,d].ub == input_1[n,d].ub + input_2[n,d].ub
-                    residual_var[n,d].lb == input_1[n,d].lb + input_2[n,d].lb
-                except:
-                    continue
+                # try:
+                #     residual_var[n,d].ub == input_1[n,d].ub + input_2[n,d].ub
+                #     residual_var[n,d].lb == input_1[n,d].lb + input_2[n,d].lb
+                # except:
+                #     continue
                 
     # def add_FFN_2D(self, modelself.Transformer_Block, input_var_name, output_var_name, input_shape, model_parameters):
     #     input_var = getattr(self.Transformer_Block, input_var_name)
@@ -1345,12 +1345,12 @@ class Transformer:
             setattr(self.Transformer_Block, output_var_name, pyo.Var(input_var.index_set(), within=pyo.Reals))
             output_var = getattr(self.Transformer_Block, output_var_name)
 
-            #set bounds
-            for i in input_var.index_set():
-                if input_var[i].lb:
-                    output_var[i].lb = input_var[i].lb
-                if input_var[i].ub:
-                    output_var[i].ub = input_var[i].ub
+            # #set bounds
+            # for i in input_var.index_set():
+            #     if input_var[i].lb:
+            #         output_var[i].lb = input_var[i].lb
+            #     if input_var[i].ub:
+            #         output_var[i].ub = input_var[i].ub
                 
             
             setattr(self.Transformer_Block, output_var_name+"_constraints", pyo.ConstraintList())
@@ -1404,11 +1404,11 @@ class Transformer:
         for d in model.model_dims: 
             constraints.add(expr= output_var[d] * self.N == sum(input_var[t,d] for t in time_input))
             
-            try:
-                output_var[d].ub  == sum(input_var[t,d].ub for t in time_input) / self.N
-                output_var[d].lb  == sum(input_var[t,d].lb for t in time_input) / self.N
-            except:
-                continue
+            # try:
+            #     output_var[d].ub  == sum(input_var[t,d].ub for t in time_input) / self.N
+            #     output_var[d].lb  == sum(input_var[t,d].lb for t in time_input) / self.N
+            # except:
+            #     continue
             
             
             
