@@ -403,7 +403,7 @@ class Transformer:
         MHA_Block.tp_cc_mult_1 = pyo.Var(MHA_Block.heads, time_input, time_input, within=pyo.Reals)
         MHA_Block.tp_cc_mult_2 = pyo.Var(MHA_Block.heads, time_input, time_input, within=pyo.Reals)
         
-        BigM_s = 0.5
+        #BigM_s = 0.5
         MHA_Block.sct = pyo.Var(MHA_Block.heads, time_input, time_input, within=pyo.Reals, bounds=(0,1))
         
         MHA_Block.s_cv= pyo.Var(MHA_Block.heads, time_input, time_input, within=pyo.Binary)
@@ -611,38 +611,38 @@ class Transformer:
                     
                     # # f(x) >= f_cv(x): attention weight >= convex envelope
                     # MHA_Block.attention_constraints.add(
-                    #     MHA_Block.attention_weight[h, n, p]  >= MHA_Block.attention_weight_cv[h, n, p]
+                    ###     MHA_Block.attention_weight[h, n, p]  >= MHA_Block.attention_weight_cv[h, n, p]
                     # )
                     # # f(x) <= f_cc(x): attention weight <= concave envelope
                     # MHA_Block.attention_constraints.add(
-                    #     MHA_Block.attention_weight[h, n, p]  <= MHA_Block.attention_weight_cc[h, n, p]
+                    ###     MHA_Block.attention_weight[h, n, p]  <= MHA_Block.attention_weight_cc[h, n, p]
                     # )
            
                     # # Constraints for Concave/convex envelope
                     # # set convex aux var -- s=0: f(x_UB) <= 0.5 --> convex zone, s=1: f(x_UB) >= 0.5 --> concave zone
                     # MHA_Block.attention_constraints.add(
-                    #     expr= MHA_Block.attention_weight[h, n, p].ub <= 0.5  + (BigM_s * MHA_Block.s_cv[h,n,p])
+                    ###     expr= MHA_Block.attention_weight[h, n, p].ub <= 0.5  + (BigM_s * MHA_Block.s_cv[h,n,p])
                     # )
                     
                     # # MHA_Block.attention_constraints.add(
                     # #     expr= MHA_Block.attention_weight[h, n, p].ub >= 0.5  - (BigM_s * (1 - MHA_Block.s_cv[h,n,p]))
                     # # )
                     # MHA_Block.attention_constraints.add(
-                    #     expr= MHA_Block.attention_weight[h, n, p].ub >= BigM_s *  MHA_Block.s_cv[h,n,p]
+                    ###     expr= MHA_Block.attention_weight[h, n, p].ub >= BigM_s *  MHA_Block.s_cv[h,n,p]
                     # )
 
                     # # set convex aux var -- f(x_LB) <= 0.5 --> convex zone else f(x_LB) >= 0.5 --> concave zone
                     # MHA_Block.attention_constraints.add(
-                    #     expr= MHA_Block.attention_weight[h, n, p].lb >= 0.5 - (BigM_s *  (MHA_Block.s_cc[h,n,p]))
+                    ###     expr= MHA_Block.attention_weight[h, n, p].lb >= 0.5 - (BigM_s *  (MHA_Block.s_cc[h,n,p]))
                     # )
                     # MHA_Block.attention_constraints.add(
-                    #     expr= (BigM_s * MHA_Block.s_cc[h,n,p]) <= 0.5 + BigM_s - MHA_Block.attention_weight[h, n, p].lb
+                    ###     expr= (BigM_s * MHA_Block.s_cc[h,n,p]) <= 0.5 + BigM_s - MHA_Block.attention_weight[h, n, p].lb
                     # )
                     
                     # # # sct(x)
-                    # A = ((MHA_Block.attention_weight[h, n, p].ub - MHA_Block.attention_weight[h, n, p].lb) / (MHA_Block.compatibility[h,n,p].ub - MHA_Block.compatibility[h,n,p].lb )) 
-                    # b = ( (MHA_Block.compatibility[h,n,p].ub * MHA_Block.attention_weight[h, n, p].lb) - (MHA_Block.compatibility[h,n,p].lb * MHA_Block.attention_weight[h, n, p].ub)) /(MHA_Block.compatibility[h,n,p].ub - MHA_Block.compatibility[h,n,p].lb )
-                    # MHA_Block.attention_constraints.add(
+                    ### A = ((MHA_Block.attention_weight[h, n, p].ub - MHA_Block.attention_weight[h, n, p].lb) / (MHA_Block.compatibility[h,n,p].ub - MHA_Block.compatibility[h,n,p].lb )) 
+                    ### b = ( (MHA_Block.compatibility[h,n,p].ub * MHA_Block.attention_weight[h, n, p].lb) - (MHA_Block.compatibility[h,n,p].lb * MHA_Block.attention_weight[h, n, p].ub)) /(MHA_Block.compatibility[h,n,p].ub - MHA_Block.compatibility[h,n,p].lb )
+                    ### MHA_Block.attention_constraints.add(
                     #     MHA_Block.sct[h, n, p]   == (A *  MHA_Block.compatibility[h,n,p]) + b
                     # )
 
@@ -650,7 +650,7 @@ class Transformer:
                     # # # # Add concave/convex evelope function constraints
                     # # # when f(UB) <= 0.5: convex
                     # MHA_Block.constr_convex.add( 
-                    #     MHA_Block.attention_weight_cv[h, n, p] == MHA_Block.attention_weight[h, n, p]
+                    ###     MHA_Block.attention_weight_cv[h, n, p] == MHA_Block.attention_weight[h, n, p]
                     # )
                     # MHA_Block.constr_convex.add( 
                     #     MHA_Block.attention_weight_cc[h, n, p] == MHA_Block.sct[h, n, p] 

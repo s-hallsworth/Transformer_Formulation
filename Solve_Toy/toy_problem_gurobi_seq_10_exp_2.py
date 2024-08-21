@@ -10,7 +10,7 @@ from omlt import OmltBlock
 import convert_pyomo
 from gurobipy import Model, GRB, GurobiError
 from gurobi_ml import add_predictor_constr
-from GUROBI_ML_helper import get_inputs_gurobipy_FNN
+from GUROBI_ML_helper import get_inputs_gurobipy_FNN, add_envelope
 from print_stats import solve_gurobipy
 from data_gen import gen_x_u
 import transformer_intermediate_results as tir
@@ -32,7 +32,7 @@ seq_len = 10
 pred_len = 2
 gen_x, gen_u, _,_ = gen_x_u(T)
 
-for pred_len in range(2, T-seq_len, 1): #[600]: # \
+for pred_len in [2]: #range(5, T-seq_len, 1): #[600]: # \
     print()
     print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     window = seq_len + pred_len
@@ -101,8 +101,8 @@ for pred_len in range(2, T-seq_len, 1): #[600]: # \
                
     # # Convert to gurobipy
     print("- converting to gurobipy")
-    gurobi_model, map_var = convert_pyomo.to_gurobi(model)
-    
+    gurobi_model, map_var, block_map = convert_pyomo.to_gurobi(model)
+    gurobi_model._vars = block_map # store mappings to gruobi vars in a custom attribute of gurobi model
 
     ## Add FNNs to gurobi model
     def get_fnn_details(model, input_var_name, output_var_name, nn_name, input_shape, model_parameters):
@@ -125,6 +125,7 @@ for pred_len in range(2, T-seq_len, 1): #[600]: # \
 
     print("- updating gurobi model")
     gurobi_model.update()
+    
     #pred_constr.print_stats()
 
     ## Print Header
@@ -139,16 +140,27 @@ for pred_len in range(2, T-seq_len, 1): #[600]: # \
     print(f"NN formulation: Gurobipy NN (using max constraint)")
     print("------------------------------------------------------")
     print()
-
+    
+    ## Envelope call back
+    print("- define callback")
+    gurobi_model.Params.lazyConstraints = 1
+    def envelope_callback(gmodel,where):
+        if where == GRB.Callback.MIPNODE:
+            # get current solution
+            vals = model.cbGetSolution( gmodel._vars)
+            
+            print("- add convex/concave envelope to attention block")
+            add_envelope("attention_output", model.tnn_block, gmodel, vals)
+    
     ## Optimize
     # gurobi_model.params.SolutionLimit = 10 ##
     # gurobi_model.params.MIPFocus = 1 ## focus on finding feasible solution
-    time_limit = 21600 # 6 hrs
+    time_limit = 43200 # 12 hrs
     
     
     # gurobi_model.feasRelaxS(0, False, True, True)
     print("- solving optimization model")
-    runtime, optimality_gap = solve_gurobipy(gurobi_model, time_limit) ## Solve and print
+    runtime, optimality_gap = solve_gurobipy(gurobi_model, time_limit, envelope_callback) ## Solve and print
     
     # print('\nSlack values:')
     # orignumvars = 92994
@@ -249,7 +261,7 @@ for pred_len in range(2, T-seq_len, 1): #[600]: # \
  
     #save to file
     import csv
-    file_name = "results_prediction_blocks.csv"   
+    file_name = "results_prediction_blocks_2.csv"   
     with open(file_name, 'a', newline='') as file:
         writer = csv.writer(file)
         headers = []
