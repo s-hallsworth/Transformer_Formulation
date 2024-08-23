@@ -14,6 +14,7 @@ from GUROBI_ML_helper import get_inputs_gurobipy_FNN
 from print_stats import solve_gurobipy
 from data_gen import gen_x_u
 import transformer_intermediate_results as tir
+import GUROBI_ML_helper
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
@@ -28,7 +29,7 @@ model_path = ".\\TNN_enc_0002.keras" #7.keras"
 config_file = '.\\data\\toy_config_relu_10.json'#_TNN_7.json' 
 T = 9000 # time steps
 seq_len = 10
-pred_len = 1
+pred_len = 2
 window = seq_len + pred_len
 
 preds_u = []
@@ -37,56 +38,60 @@ Trained_preds_x=[]
 pred_times = []
 
 gen_x, gen_u, _,_ = gen_x_u(T)
-x_input = gen_x[0, 0 : seq_len]
-u_input = gen_u[0, 0 : seq_len]
-input_data = [x_input, u_input ]
 
-start_indices = list(range(0,T, int(T/12)))
+
+start_indices = list(range(0,T, int(T/5)))
 start_indices.append(T - window - 1)
-for start_time in start_indices: #[600]: # \
+for start_time in [T-window-1]: #start_indices: #[600]: # \
     print("START TIME: ", start_time)
+    x_input = gen_x[0, start_time : start_time + seq_len]
+    u_input = gen_u[0, start_time : start_time + seq_len]
+    input_data = [x_input, u_input ]
 
     model = tps.setup_toy( T, start_time ,seq_len, pred_len, model_path, config_file, input_data)
         
-    # Define time sets
-    Time_start = 1
-
     # Define transformers 
-    transformer = TNN.Transformer(model, tps.config_file, "time_input") 
+    transformer = TNN.Transformer(model, tps.config_file, "TNN") 
+    t_Block  = getattr(model, "TNN")
     
-    # model.time_input_2 = dae.ContinuousSet(initialize=tps.time[Time_start : Time_start + seq_len])
-    # model.input_2 = pyo.Var(model.time_input_2, model.variables, bounds=(tps.LB_input, tps.UB_input))     
-    # transformer2 = TNN.Transformer(model, tps.config_file, "time_input_2")
+    
+    start_time2 = start_time + 1
+    model.time_input_2 = dae.ContinuousSet(initialize=tps.time[start_time2 : start_time2 + seq_len])
+    model.input_2 = pyo.Var(model.time_input_2, model.model_dims, bounds=(tps.LB_input, tps.UB_input))     
+    transformer2 = TNN.Transformer(model, tps.config_file, "TNN2")
+    t_Block_2  = getattr(model, "TNN2")
+    
+    print("times 1: ", model.time_input.data())
+    print("times 2: ", model.time_input_2.data())
+    print("time :", model.time.data())
 
     # Initialise transformers
-    std_list = []
-    for i in range(seq_len):
-        std_list += [np.std([tps.x_input[i], tps.u_input[i]])]
-    std = max(std_list)
+    # std_list = []
+    # for i in range(seq_len):
+    #     std_list += [np.std([tps.x_input[i], tps.u_input[i]])]
+    # std = max(std_list)
     
-    transformer.embed_input(model, "input_param", "input_embed")
-    transformer.add_layer_norm(model,"input_embed", "layer_norm", "gamma1", "beta1", std)
+    transformer.add_input(tps.model.input_param, "tnn_input")
+    transformer.add_layer_norm(model,"tnn_input", "layer_norm", "gamma1", "beta1")
     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
-    transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
-    transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
+    transformer.add_residual_connection(model,"tnn_input", "attention_output", "residual_1")
+    transformer.add_layer_norm(model,  "residual_1", "layer_norm_2", "gamma2", "beta2")
     nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "FFN_1", "ffn_1", (seq_len,2), tps.parameters)
-    transformer.add_residual_connection(model,"residual_1", "FFN_1", "residual_2")  
+    transformer.add_residual_connection(model, "residual_1", "FFN_1", "residual_2")  
     transformer.add_avg_pool(model, "residual_2", "avg_pool")
     nn2, input_nn2, output_nn2 = transformer.get_fnn(model, "avg_pool", "FFN_2", "ffn_2", (1,2), tps.parameters)
 
         
     # Define transformer 2
-
-    
-    # transformer2.embed_input(model, "input_2","input_embed2")
-    # transformer2.add_layer_norm(model, "input_embed2", "layer_norm2", "gamma1", "beta1")
-    # transformer2.add_attention(model, "layer_norm2", "attention_output2" , tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
-    # transformer2.add_residual_connection(model,"input_embed2", "attention_output2", "residual_12")
-    # transformer2.add_layer_norm(model, "residual_12", "layer_norm_22", "gamma2", "beta2")
-    # nn21, input_nn21, output_nn21 = transformer2.get_fnn(model, "layer_norm_22", "FFN_12", "ffn_1", (seq_len,2), tps.parameters)
-    # transformer2.add_residual_connection(model,"residual_12", "FFN_12", "residual_22")  
-    # transformer2.add_avg_pool(model, "residual_22", "avg_pool22")
-    # nn22, input_nn22, output_nn22 = transformer2.get_fnn(model, "avg_pool22", "FFN_22", "ffn_2", (1,2), tps.parameters)
+    transformer2.add_input(model.input_2, "tnn_input_2")
+    transformer2.add_layer_norm(model, "tnn_input_2", "layer_norm2", "gamma1", "beta1")
+    transformer2.add_attention(model, "layer_norm2", "attention_output2" , tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+    transformer2.add_residual_connection(model,"tnn_input_2", "attention_output2", "residual_12")
+    transformer2.add_layer_norm(model, "residual_12", "layer_norm_22", "gamma2", "beta2")
+    nn21, input_nn21, output_nn21 = transformer2.get_fnn(model, "layer_norm_22", "FFN_12", "ffn_1", (seq_len,2), tps.parameters)
+    transformer2.add_residual_connection(model,"residual_12", "FFN_12", "residual_22")  
+    transformer2.add_avg_pool(model, "residual_22", "avg_pool22")
+    nn22, input_nn22, output_nn22 = transformer2.get_fnn(model, "avg_pool22", "FFN_22", "ffn_2", (1,2), tps.parameters)
 
 
     ## Add constraint to input_var
@@ -94,57 +99,47 @@ for start_time in start_indices: #[600]: # \
 
     last_time_1 = False
     last_time_2 = False
-    d = model.variables.first()
-    d2 = model.variables.last()
+    d = model.model_dims.first()
+    d2 = model.model_dims.last()
     delta_T = 1/T
     M = 10 * (delta_T)
+    
+    for t in model.time_input:
+        if t == model.time_input.first():
+            continue
+        # link input 2 to input
+        model.input_var_constraints.add(expr=model.input_2[t,d] == model.input_param[t,d])
+        model.input_var_constraints.add(expr=model.input_2[t,d2] == model.input_param[t,d2])
+    
+    for t in model.time_input_2:
+        # link input 2 to input_var
+        model.input_var_constraints.add(expr=model.input_2[t,d] == model.input_var[t,d])
+        model.input_var_constraints.add(expr=model.input_2[t,d2] == model.input_var[t,d2])
+    
+    # last input of input 2 is output of tnn 1
+    model.input_var_constraints.add(expr=model.input_2[model.time_input_2.last(),d] == t_Block.FFN_2[d]) 
+    model.input_var_constraints.add(expr=model.input_var[model.time.last(),d] == t_Block_2.FFN_22[d])       
+    
         
-    for t_index, t in enumerate(model.time):
-        # if t > model.time_input.first() and t < model.time_input.last():
-        #     model.input_var_constraints.add(expr=model.input_2[t,d] == model.input_var[t,d])
-        #     model.input_var_constraints.add(expr=model.input_2[t,d2] == model.input_var[t,d2])
-            
-        if t == model.time_input.last():
-            last_time_1  = True
-            # model.input_var_constraints.add(expr=model.input_2[t,d] == model.input_var[t,d]) #second last value of input 2
-            # model.input_var_constraints.add(expr=model.input_2[t,d2] == model.input_var[t,d2])
-            
-        elif last_time_1 :
-            model.input_var_constraints.add(expr=model.input_var[t,d] == model.FFN_2[d])
-            #model.input_var_constraints.add(expr=model.input_2[t,d] == model.FFN_2[d])  # lastvalue of input 2
-            last_time_1  = False
-            #last_time_2  = True
-            
-        # elif last_time_2 :
-        #     model.input_var_constraints.add(expr=model.input_var[t,d] == model.FFN_22[d])
-        #     last_time_2  = False
-            
-        # if  t < model.time.last():
-        #     # u (control) continuous: u_n+1 - u_n <= x_n+1 - x_n
-        #     #print(t, model.time.at(t_index + 2))
-        #     model.input_var_constraints.add(expr= model.input_var[model.time.at(t_index + 2),d2] - model.input_var[t ,d2]
-        #                                     <= M
-        #                                     )
-            
-        
-        
+ 
     # # Convert to gurobipy
-    gurobi_model, map_var = convert_pyomo.to_gurobi(model)
+    gurobi_model, map_var, _ = convert_pyomo.to_gurobi(model)
+            
 
-    ## Add FNN1 to gurobi model
+    # Add FNN1 to gurobi model
     inputs_1, outputs_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
     pred_constr1 = add_predictor_constr(gurobi_model, nn, inputs_1, outputs_1)
 
     inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
     pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
 
-    # inputs_21, outputs_21 = get_inputs_gurobipy_FNN(input_nn21, output_nn21, map_var)
-    # pred_constr21 = add_predictor_constr(gurobi_model, nn21, inputs_21, outputs_21)
+    inputs_21, outputs_21 = get_inputs_gurobipy_FNN(input_nn21, output_nn21, map_var)
+    pred_constr21 = add_predictor_constr(gurobi_model, nn21, inputs_21, outputs_21)
 
-    # inputs_22, outputs_22 = get_inputs_gurobipy_FNN(input_nn22, output_nn22, map_var)
-    # pred_constr22 = add_predictor_constr(gurobi_model, nn22, inputs_22, outputs_22)
+    inputs_22, outputs_22 = get_inputs_gurobipy_FNN(input_nn22, output_nn22, map_var)
+    pred_constr22 = add_predictor_constr(gurobi_model, nn22, inputs_22, outputs_22)
     gurobi_model.update()
-    #pred_constr.print_stats()
+    # #pred_constr.print_stats()
 
     ## Print Header
     print("------------------------------------------------------")
@@ -162,7 +157,7 @@ for start_time in start_indices: #[600]: # \
     ## Optimize
     # gurobi_model.params.SolutionLimit = 10 ##
     # gurobi_model.params.MIPFocus = 1 ## focus on finding feasible solution
-    time_limit = 21600 # 24 hrs
+    time_limit = 3600 # 24 hrs
     
     
     # gurobi_model.feasRelaxS(0, False, True, True)
@@ -196,7 +191,7 @@ for start_time in start_indices: #[600]: # \
         ## Get optimal parameters
         if gurobi_model.status == GRB.OPTIMAL:
             optimal_parameters = {}
-            print(model.intXU)
+            
             
             for v in gurobi_model.getVars():
                 
@@ -217,11 +212,41 @@ for start_time in start_indices: #[600]: # \
 
         ## Print X, U --> input var, control var 
         input_var_soltuion = np.array(optimal_parameters["input_var"])
-        # for item, val  in optimal_parameters.items():
-        #     for elem in [".s_cv", ".s_cc", ".t_cv", ".t_cc"]:
-        #         if elem in str(item):
-        #             print(f"{item}: {val}")
+        input_par_soltuion = np.array(optimal_parameters["input_param"])
+        input_2_soltuion = np.array(optimal_parameters["input_2"])
 
+        x = []
+        u = []
+        for i in range(len(input_var_soltuion)):
+            if i % 2 == 0:
+                x += [input_var_soltuion[i]]
+            else: 
+                u += [input_var_soltuion[i]]
+        
+        xp = []
+        up = []
+        for i in range(len(input_par_soltuion)):
+            if i % 2 == 0:
+                xp += [input_par_soltuion[i]]
+            else: 
+                up += [input_par_soltuion[i]]
+
+        x2 = []
+        u2 = []
+        for i in range(len(input_2_soltuion)):
+            if i % 2 == 0:
+                x2 += [input_2_soltuion[i]]
+            else: 
+                u2 += [input_2_soltuion[i]]
+                
+        print("X: ", x )
+        print("X param: ", xp )
+        print("X 2: ", x2 )
+        
+        print("U: ", u )
+        print("U param: ", up )
+        print("U 2: ", u2 )
+        
         x = []
         u = []
         for i in range(len(input_var_soltuion)):
@@ -231,19 +256,22 @@ for start_time in start_indices: #[600]: # \
                 u += [input_var_soltuion[i]]
         print("X: ", x )
         print("U: ", u )
+        
         preds_x += [x[-pred_len:]]
         preds_u += [u[-pred_len:]]
         pred_times += [tps.time_sample[start_time + seq_len + i] for i in range(pred_len)]
 
-        # find result of trained TNN
-        output = tir.generate_TNN_outputs(model_path, input_data)
-        print(output)
-        Trained_preds_x += [output[0]]
-        print("trained X: ", Trained_preds_x )
+        # # find result of trained TNN
+        # output = tir.generate_TNN_outputs(model_path, input_data)
+        # print(output)
+        # Trained_preds_x += [output[0]]
+        # print("trained X: ", Trained_preds_x )
     
-        # update input
-        input_data = [ x[1:] , u[1:]]
-        print("next input_data: ", input_data)
+        # # update input
+        # x_input = gen_x[0, start_time : start_time  + seq_len]
+        # u_input = gen_u[0, start_time : start_time  + seq_len]
+        # input_data = [x_input, u_input ]
+        # print("next input_data: ", input_data)
             
     print("actual X: ", gen_x[0, start_time : start_time + window])
     print("actual U: ", gen_u[0, start_time : start_time + window])
@@ -264,24 +292,31 @@ with open(file_name, 'a', newline='') as file:
     writer.writerow(values)
     
 #plot results  
-preds_x = np.array(preds_x)
-preds_u = np.array(preds_u)
- 
+preds_x = np.array(preds_x).flatten()
+preds_u = np.array(preds_u).flatten()
+
+
 print(preds_x)
+print(preds_u)
 print(pred_times)
 
 import matplotlib.pyplot as plt
 plt.figure(figsize=(6, 4))
 # plt.plot(tps.time_sample, tps.gen_x[0,0:], 's-', label = 'X* Analytical')
 # plt.plot(tps.time_sample, tps.gen_u[0,0:], 's-', label = 'U* Analytical')
-plt.plot(pred_times, gen_x[0,0: len(pred_times)], 's-', label = 'X* Analytical')
-plt.plot(pred_times, gen_u[0,0: len(pred_times)], 's-', label = 'U* Analytical')
+plt.plot(tps.time[start_time : start_time + window], gen_x[0, start_time : start_time + window], 's-', label = 'X* Analytical')
+plt.plot(tps.time[start_time : start_time + window], gen_u[0, start_time : start_time + window], 's-', label = 'U* Analytical')
+# plt.plot(tps.time[start_time : start_time + window], x, '--x', 
+#          linewidth= 2, label = 'X* Solver')
+# plt.plot(tps.time[start_time : start_time + window], u, '--x', 
+#          linewidth= 2, label = 'U* Solver')
+
 plt.plot(pred_times, preds_x, '--x', 
          linewidth= 2, label = 'X* Solver')
-plt.plot(pred_times, preds_u, '--x', 
+plt.plot(pred_times, preds_u, '--o', 
          linewidth= 2, label = 'U* Solver')
-plt.plot(pred_times, Trained_preds_x, '--', 
-         linewidth= 2, label = 'X* Trained TNN')
+# plt.plot(pred_times, Trained_preds_x, '--', 
+#          linewidth= 2, label = 'X* Trained TNN')
 
 plt.legend()
 plt.show()

@@ -5,6 +5,7 @@ from pyomo import dae
 from gurobipy import Model, GRB
 import numpy as np
 import omlt
+import re
 
 def to_gurobi(pyomo_model, func_nonlinear=1):
     
@@ -14,34 +15,46 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
     
     # Mapping of Pyomo variables to Gurobi variables
     var_map = {}
+    block_map = {}
         
     # Convert Vars and Params
     for attr in dir(pyomo_model):
         var = getattr(pyomo_model, attr)
         
-        if isinstance(var, (omlt.OmltBlock, pyo.Block)): # Check for Block()
-            if "NN" in str(var):
-                for attr in dir(var): # iterate over Block attributes
-                    block_attr = getattr(var, attr)
+        if isinstance(var, (omlt.OmltBlock, pyo.Block)): # Check for tnn Block()
+            
+            if var.is_indexed():
+                index_set = list(var.index_set().data())
+                
+                for index in index_set:
                     
-                    # Handle OMLT NN Block layer
-                    if "NN_Block.layer" in str(block_attr):
-                        
-                        if isinstance(block_attr, (omlt.OmltBlock, pyo.Block)):
-                            for attr2 in dir(block_attr): # iterate over Block attributes
-                                block_attr2 = getattr(block_attr, attr2)
+                    for attr in dir(var[index]): # iterate over Block attributes
+                        block_attr = getattr(var[index], attr)
+                       
+                        if isinstance(block_attr, (omlt.OmltBlock, pyo.Block, pyo.Var, pyo_base.var.VarData, pyo.Param)):
+                            if "NN_Block" in str(attr):
                                 
-                                if isinstance(block_attr2, dict) and isinstance(list(block_attr2.keys())[0], int):
-                                    for index, obj in block_attr2.items():    
-                                        var_map = convert_block(obj, var_map, gurobi_model)      
-                    else:
-                        var_map = convert_block(var, var_map, gurobi_model)   
+                                
+                                # Handle OMLT NN Block layer
+                                if "NN_Block.layer" in str(block_attr):
+                                    
+                                    if isinstance(block_attr, (omlt.OmltBlock, pyo.Block)):
+                                        for attr2 in dir(block_attr): # iterate over Block attributes
+                                            block_attr2 = getattr(block_attr, attr2)
+                                            
+                                            if isinstance(block_attr2, dict) and isinstance(list(block_attr2.keys())[0], int):
+                                                for index, obj in block_attr2.items():    
+                                                    var_map, block_map = convert_block(obj, var_map, gurobi_model, block_map)      
+                                # else:
+                                #     var_map, block_map = convert_block(var[index], var_map, gurobi_model)   
+                            else:
+                                var_map, block_map = convert_block(var[index], var_map, gurobi_model, block_map)    
             else:
-                var_map = convert_block(var, var_map, gurobi_model)
+                var_map, block_map = convert_block(var, var_map, gurobi_model, block_map) 
                          
         else:  
             # Map & convert model params and vars to gurobi vars  
-            var_map = create_gurobi_var(var, var_map, gurobi_model)
+            var_map, _ = create_gurobi_var(var, var_map, gurobi_model)
 
     gurobi_model.update()
     # Convert objective
@@ -111,7 +124,7 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
                         gurobi_model.addConstr(lhs_gurobi_expr <= rhs_gurobi_expr)
     
     gurobi_model.update()
-    return gurobi_model, var_map
+    return gurobi_model, var_map, block_map
 
 def get_gurobi_vtype(pyomo_var):
     try:
@@ -128,21 +141,35 @@ def get_gurobi_vtype(pyomo_var):
     else:
         return GRB.CONTINUOUS  # Default to continuous if the domain is not specified or different
 
-def convert_block(var, var_map, gurobi_model):
+def convert_block(var, var_map, gurobi_model, block_map):
     for attr in dir(var): # iterate over Block attributes
         block_attr = getattr(var, attr)
         
         # Map & convert block params and vars to gurobi vars
         if isinstance(block_attr, (pyo.Var, pyo_base.var.VarData, pyo.Param)):
-            var_map = create_gurobi_var(block_attr, var_map, gurobi_model) 
+            var_map, block_map = create_gurobi_var(block_attr, var_map, gurobi_model, block_map) 
             
         # Check for sub-block
         elif isinstance(block_attr, (omlt.OmltBlock, pyo.Block)):
-            var_map = convert_block(block_attr, var_map, gurobi_model)
+            var_map, block_map = convert_block(block_attr, var_map, gurobi_model, block_map)
 
-    return var_map
+    return var_map, block_map
+
+def create_nested_dict(dict, var_name, gurobi_var, reg_expr="[\[\]]"):
+    name_split = re.split(reg_expr, var_name) # split name on [, ., ]
+    name_split = [elem for elem in name_split if elem] # remove empties
+    
+    name = []
+    for elem in name_split:
+        if elem[0] == '.':
+            name.append(elem[1:])
+        else:
+            name.append(elem)
+    
+    dict[(tuple(name))] = gurobi_var
+    return dict
                     
-def create_gurobi_var(var, var_map, gurobi_model):
+def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
     
     # Variables
     if isinstance(var, (pyo.Var,pyo_base.var.VarData)):
@@ -159,12 +186,17 @@ def create_gurobi_var(var, var_map, gurobi_model):
                 gurobi_var[index].ub = pyomo_var.ub if pyomo_var.ub is not None else GRB.INFINITY
 
                 var_map[pyomo_var.name] = gurobi_var[index] 
+                if not (block_map is None):
+                    block_map = create_nested_dict(block_map, pyomo_var.name, gurobi_var[index])
         else:
             lb = var.lb if var.lb is not None else -GRB.INFINITY
             ub = var.ub if var.ub is not None else GRB.INFINITY
             vtype = get_gurobi_vtype(var)
             gurobi_var = gurobi_model.addVar(lb=lb, ub=ub, name=str(var), vtype=vtype)
             var_map[var.name] = gurobi_var
+                
+            if not (block_map is None):
+                block_map = create_nested_dict(block_map, var.name, gurobi_var)
         
     # Parameters   
     elif isinstance(var, pyo.Param):
@@ -173,6 +205,9 @@ def create_gurobi_var(var, var_map, gurobi_model):
             vtype = get_gurobi_vtype(var[index_set[0]])
             gurobi_var = gurobi_model.addVars(index_set, name=str(var), vtype=vtype)
             var_map[var.name] = gurobi_var
+            
+            if not (block_map is None):
+                block_map = create_nested_dict(block_map, var.name, gurobi_var)
             
             # add bounds
             for index in index_set:
@@ -184,19 +219,30 @@ def create_gurobi_var(var, var_map, gurobi_model):
                     gurobi_var[index].ub = pyomo_var
                     var_map[var.name+str(list(index))] = gurobi_var[index] 
                     
+                    if not (block_map is None):
+                        block_map = create_nested_dict(block_map, var.name+str(list(index)), gurobi_var[index])
+                    
                 elif isinstance(pyomo_var, pyo_base.param.ParamData):
                     gurobi_var[index].lb = pyomo_var.value
                     gurobi_var[index].ub = pyomo_var.value
                     var_map[pyomo_var.name] = gurobi_var[index] 
+                    
+                    if not (block_map is None):
+                        block_map = create_nested_dict(block_map, pyomo_var.name, gurobi_var[index])
+                        
                 else:
                     gurobi_var[index].lb = pyomo_var.data()
                     gurobi_var[index].ub = pyomo_var.data()
                     var_map[pyomo_var.name] = gurobi_var[index] 
+                    if not (block_map is None):
+                        block_map = create_nested_dict(block_map, pyomo_var.name, gurobi_var[index])
         else:
             gurobi_var = gurobi_model.setParam( str(var), var.value)
             var_map[var.name] = gurobi_var
+            if not (block_map is None):
+                        block_map = create_nested_dict(block_map, var.name, gurobi_var[index])
             
-    return var_map
+    return var_map, block_map
                 
 def expr_to_gurobi(expr, var_map, gurobi_model):
     # print("expression", expr, type(expr))

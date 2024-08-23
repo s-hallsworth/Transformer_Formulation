@@ -4,7 +4,7 @@ from pyomo.opt import TerminationCondition, SolverStatus
 import pyomo.environ as pyo
 import time
 
-def solve_gurobipy(model, time_limit):
+def solve_gurobipy(model, time_limit, callback=None):
     # Set a time limit
     model.setParam('TimeLimit',time_limit)
     print("------------------------------------------------------")
@@ -12,7 +12,7 @@ def solve_gurobipy(model, time_limit):
     
     try:
         # Optimize the model
-        model.optimize()
+        model.optimize(callback)
         
         print("------------------------------------------------------")
         print()
@@ -45,7 +45,7 @@ def solve_gurobipy(model, time_limit):
     print("------------------------------------------------------")
     print("------------------------------------------------------")
     print()
-    
+    return runtime, optimality_gap
     
 def solve_pyomo(model, solver, time_limit):
     if time_limit is not None:
