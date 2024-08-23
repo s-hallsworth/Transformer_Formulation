@@ -2,7 +2,7 @@ import pyomo.environ as pyo
 from pyomo import dae
 import numpy as np
 import extract_from_pretrained as extract_from_pretrained
-from data_gen import gen_x_u, positional_encoding
+from data_gen import positional_encoding
 
 """
 Define toy problem parametrs and var then run from another script like toy_problem.py or transformer_test.py
@@ -20,7 +20,7 @@ Define toy problem parametrs and var then run from another script like toy_probl
 
 ## create model
 
-def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
+def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file, input_data):
     model_path = model_path
     config_file = config_file
     model = pyo.ConcreteModel(name="(TOY_OPTIMAL_CONTROL)")
@@ -28,19 +28,17 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     window = seq_len + pred_len
     
     ## generate input data
-    gen_x, gen_u, _,_ = gen_x_u(T)
     pe = positional_encoding(T, d_model=2)
-    gen_x_pe = gen_x + pe[0,0]
-    gen_u_pe = gen_u + pe[0,1]
+    gen_x_pe = input_data[0] + pe[0,0]
+    gen_u_pe = input_data[1] + pe[0,1]
     
     ## define problem sets, vars, params
     time_sample = np.linspace(0, 1, num= T) # entire time t=0:1 including prediction times
-    time = time_sample[start_time : start_time + window]
+    time = time_sample
     model.time_input = dae.ContinuousSet(initialize=time[0: seq_len]) # t < prediction times
-    model.time_dx = dae.ContinuousSet(initialize=time[-pred_len: ])
     model.time = dae.ContinuousSet(initialize=time)
     set_variables = ['0','1'] ##--- NB: same order as trained input ---##
-    model.variables = pyo.Set(initialize=set_variables)
+    model.model_dims = pyo.Set(initialize=set_variables)
     
     
 
@@ -49,8 +47,8 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     LB_input = 0 
 
     # Define inputs
-    x_input = gen_x_pe[0, start_time : start_time + window]
-    u_input = gen_u_pe[0, start_time : start_time + window]
+    x_input = gen_x_pe[0, 0 :  seq_len]
+    u_input = gen_u_pe[0, 0 :  seq_len]
     print(x_input)
     print(u_input)
     
@@ -61,24 +59,24 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
         dicseq_lens[(t, '0')] = x_out
         dicseq_lens[(t, '1')] = u_out
 
-    #model.input_param = pyo.Var(model.time_input, model.variables, initialize=dicseq_lens, bounds=(LB_input, UB_input))
-    model.input_param = pyo.Param(model.time_input, model.variables, initialize=dicseq_lens)#, bounds=(LB_input, UB_input))
-
-    model.X= pyo.Var(model.time, model.variables, bounds=(LB_input, UB_input)) #t = 0 to t=1
-    model.dX= pyo.Var(model.time_dx)
+    #model.input_param = pyo.Var(model.time_input, model.model_dims, initialize=dicseq_lens, bounds=(LB_input, UB_input))
+    model.input_param = pyo.Param(model.time_input, model.model_dims, initialize=dicseq_lens)#, bounds=(LB_input, UB_input))
+   
+    model.X= pyo.Var(model.time, model.model_dims, bounds=(LB_input, UB_input)) #t = 0 to t=1
+    model.dX= pyo.Var(model.time)
 
 
     ## define transformer sets, vars, params
-    dict_gamma1 = {(v): val for v,val in zip(model.variables, parameters['layer_normalization_1','gamma'])}
-    dict_beta1 = {(v): val for v,val in zip(model.variables,  parameters['layer_normalization_1','beta'])}
-    model.gamma1 = pyo.Param(model.variables, initialize = dict_gamma1)
-    model.beta1 = pyo.Param(model.variables, initialize = dict_beta1)
+    dict_gamma1 = {(v): val for v,val in zip(model.model_dims, parameters['layer_normalization_1','gamma'])}
+    dict_beta1 = {(v): val for v,val in zip(model.model_dims,  parameters['layer_normalization_1','beta'])}
+    model.gamma1 = pyo.Param(model.model_dims, initialize = dict_gamma1)
+    model.beta1 = pyo.Param(model.model_dims, initialize = dict_beta1)
 
 
-    dict_gamma2 = {(v): val for v,val in zip(model.variables, parameters['layer_normalization_2','gamma'])}
-    dict_beta2 = {(v): val for v,val in zip(model.variables,  parameters['layer_normalization_2','beta'])}
-    model.gamma2 = pyo.Param(model.variables, initialize = dict_gamma2)
-    model.beta2 = pyo.Param(model.variables, initialize = dict_beta2)
+    dict_gamma2 = {(v): val for v,val in zip(model.model_dims, parameters['layer_normalization_2','gamma'])}
+    dict_beta2 = {(v): val for v,val in zip(model.model_dims,  parameters['layer_normalization_2','beta'])}
+    model.gamma2 = pyo.Param(model.model_dims, initialize = dict_gamma2)
+    model.beta2 = pyo.Param(model.model_dims, initialize = dict_beta2)
     
     
 
@@ -99,11 +97,14 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     for t_index, t in enumerate(model.time_input):
         model.input_constraints.add(expr=model.input_param[t,'0'] == model.X[t,'0'])
         model.input_constraints.add(expr=model.input_param[t,'1'] == model.X[t,'1'])
+        
+        if t_index < seq_len - 1:
+            model.input_constraints.add(expr= model.input_param[model.time_input.at[t_index+1],'0'] - model.input_param[t,'0'] == model.dX[t,'0'])
 
-
-    int_factor = 1/(3 * T)
-    model.intXU = pyo.Var(model.variables)
-    for d in model.variables:
+    del_x = 1/T # b-a / n
+    int_factor = del_x/3
+    model.intXU = pyo.Var(model.model_dims)
+    for d in model.model_dims:
         sum_d = model.X[model.time.first(), d ] + model.X[model.time.last(), d]
         for t_index, t in enumerate(model.time):
             if t < model.time.last() and t > model.time.first():
@@ -134,5 +135,5 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file):
     #     expr=model.intX - model.intU + model.X[model.time.last(),'0'], sense=1
     # )  # -1: maximize, +1: minimize (default)
 
-    globals().update(locals()) #make all variables from this function global
+    globals().update(locals()) #make all model_dims from this function global
     return model

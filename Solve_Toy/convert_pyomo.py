@@ -50,7 +50,7 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
                             else:
                                 var_map, block_map = convert_block(var[index], var_map, gurobi_model, block_map)    
             else:
-                var_map, block_map = convert_block(var, var_map, gurobi_model)
+                var_map, block_map = convert_block(var, var_map, gurobi_model, block_map) 
                          
         else:  
             # Map & convert model params and vars to gurobi vars  

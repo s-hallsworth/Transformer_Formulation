@@ -123,7 +123,7 @@ for start_time in [T-window-1]: #start_indices: #[600]: # \
         
  
     # # Convert to gurobipy
-    gurobi_model, map_var = convert_pyomo.to_gurobi(model)
+    gurobi_model, map_var, _ = convert_pyomo.to_gurobi(model)
             
 
     # Add FNN1 to gurobi model

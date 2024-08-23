@@ -120,8 +120,20 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file, input_d
     #     expr= model.intXU['0'] - model.intXU['1'] + model.input_var[model.time.last(),'0'], sense=1
     # )  # -1: maximize, +1: minimize (default)
     
+    # model.obj = pyo.Objective(
+    #     expr= sum( (model.input_var[t,'0'] - model.input_var[t,'1'])**2 for t in model.time) + model.input_var[model.time.last(),'0'], sense=1
+    # )
+    
+    delta = 100
+    for t_index, t in enumerate(model.time):
+        index = t_index + 1
+        for d in model.model_dims:
+            if t_index > 0:
+                # continours functions: dx/dt <= delta
+                model.input_constraints.add(expr= (model.input_var[t,d] - model.input_var[model.time.at(index - 1),d])/ (1/T) <= delta)
+            
     model.obj = pyo.Objective(
-        expr= sum( (model.input_var[t,'0'] - model.input_var[t,'1'])**2 for t in model.time) + model.input_var[model.time.last(),'0'], sense=1
+        expr= sum( (model.input_var[t,'0'] - model.input_var[t,'1']) for t in model.time) + model.input_var[model.time.last(),'0'], sense=1
     )
 
     globals().update(locals()) #make all variables from this function global

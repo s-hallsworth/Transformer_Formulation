@@ -32,7 +32,7 @@ seq_len = 10
 pred_len = 2
 gen_x, gen_u, _,_ = gen_x_u(T)
 
-for pred_len in [2]: #range(5, T-seq_len, 1): #[600]: # \
+for pred_len in [2,3,4]: #range(5, T-seq_len, 1): #[600]: # \
     print()
     print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
     window = seq_len + pred_len
@@ -88,16 +88,17 @@ for pred_len in [2]: #range(5, T-seq_len, 1): #[600]: # \
 
                 # output of previous time window TNN gives the last value of next time window
                 if t != model.pred_window.last():
-                    model.tnn_block_constraints.add(expr= model.tnn_block[t].FFN_2[d] == model.t_inputs[model.pred_window.at(index +1),model.seq_length.last(), d])
+                    model.tnn_block_constraints.add(expr= model.tnn_block[t].FFN_2[model.model_dims.first()] == model.t_inputs[model.pred_window.at(index +1),model.seq_length.last(), model.model_dims.first()])
                       
                 # link final tnn output
                 else: 
-                    model.tnn_block_constraints.add(expr= model.tnn_block[t].FFN_2[d] == model.input_var[model.time.last(), d]) 
+                    model.tnn_block_constraints.add(expr= model.tnn_block[t].FFN_2[model.model_dims.first()] == model.input_var[model.time.last(), model.model_dims.first()]) 
                              
                 # link time window inputs
                 if p > 0  and t < model.pred_window.last():
                     model.tnn_block_constraints.add(expr= model.t_inputs[t, pos, d] == model.t_inputs[model.pred_window.at(index +1), model.seq_length.at(index_p - 1), d])
 
+    
                
     # # Convert to gurobipy
     print("- converting to gurobipy")
@@ -142,15 +143,15 @@ for pred_len in [2]: #range(5, T-seq_len, 1): #[600]: # \
     print()
     
     ## Envelope call back
-    print("- define callback")
-    gurobi_model.Params.lazyConstraints = 1
-    def envelope_callback(gmodel,where):
-        if where == GRB.Callback.MIPNODE:
-            # get current solution
-            vals = model.cbGetSolution( gmodel._vars)
+    # print("- define callback")
+    # gurobi_model.Params.lazyConstraints = 1
+    # def envelope_callback(gmodel,where):
+    #     if where == GRB.Callback.MIPNODE:
+    #         # get current solution
+    #         vals = model.cbGetSolution( gmodel._vars)
             
-            print("- add convex/concave envelope to attention block")
-            add_envelope("attention_output", model.tnn_block, gmodel, vals)
+    #         print("- add convex/concave envelope to attention block")
+    #         add_envelope("attention_output", model.tnn_block, gmodel, vals)
     
     ## Optimize
     # gurobi_model.params.SolutionLimit = 10 ##
@@ -160,7 +161,7 @@ for pred_len in [2]: #range(5, T-seq_len, 1): #[600]: # \
     
     # gurobi_model.feasRelaxS(0, False, True, True)
     print("- solving optimization model")
-    runtime, optimality_gap = solve_gurobipy(gurobi_model, time_limit, envelope_callback) ## Solve and print
+    runtime, optimality_gap = solve_gurobipy(gurobi_model, time_limit) #, envelope_callback) ## Solve and print
     
     # print('\nSlack values:')
     # orignumvars = 92994
@@ -321,7 +322,7 @@ for pred_len in [2]: #range(5, T-seq_len, 1): #[600]: # \
     #          linewidth= 2, label = 'X* Trained TNN')
 
     plt.legend()
-    plt.savefig(".\\images\\prediction_blocks\\figure_pred_"+str(pred_len))
+    plt.savefig(".\\images\\prediction_blocks\\figure_pred__"+str(pred_len))
     plt.show()
 
 # print(optimal_parameters["input_2"])
