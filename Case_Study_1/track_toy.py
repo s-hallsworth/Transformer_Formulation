@@ -6,77 +6,69 @@ import matplotlib.pyplot as plt
 # from amplpy import AMPL
 
 """
-Control of mass-spring damper system with actuator to control the base motion (u) 
-and a disturbance acting on the mass (d)
 """
 
 # instantiate pyomo model component
 model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
 
 # define constants
-T = 10
-steps = 10
-time = np.linspace(0, T, num=steps)
+T_end = 30
+steps = 50
+time = np.linspace(0, T_end, num=steps)
 dt = time[1] - time[0]
-w  = 1
-D  = 8 #max amplitude of disturbance
-c  = 4
-m  = 1
-k  = 4
+
+g = 9.81
+v_l1 = 2
+v_l2 = 3
 
 # define sets
 model.time = pyo.Set(initialize=time)
 
 # define parameters
-def init_disturbance(model, t):
-    return  D * pyo.cos(w*t) 
-model.d = pyo.Param(model.time, initialize=init_disturbance )
+def target_location_rule(M, t):
+    return v_l1 * t
+model.loc1 = pyo.Param(model.time, rule=target_location_rule) 
+
+def target_location2_rule(M, t):
+    return (v_l2*t) - (0.5 * g * (t**2)) + (500*np.random.rand(1))
+model.loc2 = pyo.Param(model.time, rule=target_location2_rule) 
 
 # define variables
-model.x = pyo.Var(model.time, bounds=(-D, D)) # state vars
-model.dx_dt = pyo.Var(model.time)
-model.dx2_dt2 = pyo.Var(model.time)
-model.F_x = pyo.Var(model.time)
+model.x1 = pyo.Var(model.time) # distance path
+model.v1 = pyo.Var() # initial velocity of cannon ball
 
-model.u = pyo.Var(model.time, bounds=(-D, D)) # control vars
-model.du_dt = pyo.Var(model.time)
+model.x2 = pyo.Var(model.time) # height path
+model.v2 = pyo.Var() # initial velocity of cannon ball
+
+#model.T = pyo.Var(within=model.time)# time when cannon ball hits target
+
+# define initial conditions
+model.x1_constr = pyo.Constraint(expr= model.x1[0] == 0) 
+model.x2_constr = pyo.Constraint(expr= model.x2[0] == 0) 
 
 # define constraints
+def v1_rule(M, t):
+    return M.x1[t] == M.v1 * t
+model.v1_constr = pyo.Constraint(model.time, rule=v1_rule) 
 
-#initially no control input
-# model.x_init = pyo.Constraint(expr=model.x[0] == 0) 
-model.u_init = pyo.Constraint(expr=model.u[0] == -1) 
-model.dudt_init = pyo.Constraint(expr=model.du_dt[0] == -1) 
+def v2_rule(M, t):
+    return M.x2[t] == (M.v2 * t) - (0.5*g * (t**2))
+model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)
 
-# dx dt = delta x / delta t
-model.x_diff_con = pyo.ConstraintList() 
-for t_index, t in enumerate(model.time):
-    index = t_index + 1 # vars index starts at 1
-    if t_index > 1:
-        model.x_diff_con.add(expr= model.dx_dt[t] * dt == model.x[t] - model.x[model.time.at(t_index - 1)])
-        model.x_diff_con.add(expr= model.dx2_dt2[t] * dt == model.dx_dt[t] - model.dx_dt[model.time.at(t_index - 1)])
+model.v1_pos_constr = pyo.Constraint(expr = model.v1 >= 0)
+model.v2_pos_constr = pyo.Constraint(expr = model.v2 >= 0)
 
-# du dt = delta u / delta t
-model.u_diff_con = pyo.ConstraintList() 
-for t_index, t in enumerate(model.time):
-    index = t_index + 1 # vars index starts at 1
-    if t_index > 1:
-        model.u_diff_con.add(expr= model.du_dt[t] * dt == model.u[t] - model.u[model.time.at(t_index - 1)])
+# def x1_target_rule(M, t):
+#     return M.v1 * t == model.loc1[t]
+# model.x1_target_constr = pyo.Constraint(model.time, rule=x1_target_rule)
 
-# net force exerted on m
-def F_x_constr_rule(M, t):
-    return (m * M.dx2_dt2[t]) + (c * M.dx_dt[t]) + (k*M.x[t]) == M.F_x[t]
-model.F_x_constr = pyo.Constraint(model.time, rule=F_x_constr_rule) 
-
-# equation of motion
-def EOM_constr_rule(M, t):
-    return M.F_x[t] == (c * M.du_dt[t]) + (k*M.u[t]) + M.d[t]
-model.EOM_constr = pyo.Constraint(model.time, rule=EOM_constr_rule) 
-
+# def x2_target_rule(M, t):
+#     return (M.v2 * t) - (0.5*g * (t**2)) == model.loc2[t]
+# model.x2_target_constr = pyo.Constraint(model.time, rule=x2_target_rule)
 
 # Set objective
 model.obj = pyo.Objective(
-    expr= sum( model.x[t]**2 for t in model.time), sense=1
+    expr= sum((model.x1[t] - model.loc1[t])**2 + (model.x2[t] - model.loc2[t])**2 for t in model.time), sense=1
 )  # -1: maximize, +1: minimize (default)
 
 
@@ -104,37 +96,30 @@ def get_optimal_dict(result, model):
 #----------------------------
 optimal_parameters = get_optimal_dict(result, model) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
 
-Fx = np.array(list(optimal_parameters['F_x'].items()))[:,1]
-x = np.array(list(optimal_parameters['x'].items()))[:,1]
-u = np.array(list(optimal_parameters['u'].items()))[:,1]
-dudt = np.array(list(optimal_parameters['du_dt'].items()))[:,1]
-d = np.array([v for k,v in model.d.items()])
-print("d: ", d.shape, d)
-print("u: ", u.shape, u)
-print("x: ", x.shape, x)
-print("dudt: ", dudt.shape, dudt)
+x1 = np.array(list(optimal_parameters['x1'].items()))[:,1]
+x2 = np.array(list(optimal_parameters['x2'].items()))[:,1]
+loc1 = np.array([v for k,v in model.loc1.items()])
+loc2 = np.array([v for k,v in model.loc2.items()])
 
-u_expected = []
-Force_u = (c*dudt) + (k*u)
-Force_u_expected = []
-for t in time:
-    u_expected.append( - math.cos(t) - math.sin(t))
-    Force_u_expected.append( (c * (math.sin(t) - math.cos(t))) + (k* (- math.cos(t) - math.sin(t))))
-    
+v1= np.array(optimal_parameters['v1'])
+v2= np.array(optimal_parameters['v2'])
+# T= np.array(optimal_parameters['T'])
+
+
+
 plt.figure(1, figsize=(6, 4))
-plt.plot(time, x, '--o', label = f'state (mass displacement)')
-plt.plot(time, u, '--o', label = f'control input (base displacement)')
-plt.plot(time, u_expected, '--x', label = f'control input expected')
+plt.plot(time, loc2, 'o', label = f'target x2')
+plt.plot(time, x2, '--x', label = f'x2')
+plt.plot(time, loc1, 'o', label = f'target x1')
+plt.plot(time, x1, '--x', label = f'x1')
+plt.title(f'Trajectory of cannon ball')
 plt.legend()
 plt.show()
 
-
 plt.figure(2, figsize=(6, 4))
-plt.plot(time, d, '--o', label = f'disturbance force')
-plt.plot(time, Fx, '--o', label = f'net force acting on mass')
-plt.plot(time, Force_u, '--o', label = f'control force')
-plt.plot(time, Force_u_expected, '--x', label = f'control force expected')
-
+plt.plot(loc1, loc2, 'o', label = f'target trajectory')
+plt.plot(x1, x2, '--x', label = f'cannon ball trajectory')
+plt.title(f'Trajectory of cannon ball')
 plt.legend()
 plt.show()
 

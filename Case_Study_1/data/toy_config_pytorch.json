@@ -1,10 +1,10 @@
 {
     
     "hyper_params": {
-        "N": 9,
-        "d_model": 6,
-        "d_k": 3,
-        "d_H": 2,
-        "input_dim": 6
+        "N": 10,
+        "d_model": 64,
+        "d_k": 16,
+        "d_H": 4,
+        "input_dim": 2
     }
 }

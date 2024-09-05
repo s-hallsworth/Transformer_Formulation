@@ -75,53 +75,44 @@ class Transformer:
         """ Builds transformer formulation for a trained pytorchtransfomrer model with and enocder an decoder """
         
         # Get learned parameters
-        layer_names, parameters, _ = get_pytorch_learned_parameters(pytorch_model, enc_input, dec_input ,self.d_H)
-        enc_input_param, dec_input_param, output_var_name, ffn_parameter_dict = self.__build_layers( layer_names, parameters , enc_input, dec_input, enc_bounds, dec_bounds)
+        layer_names, parameters, _ = get_pytorch_learned_parameters(pytorch_model, enc_input, dec_input ,self.d_H, self.N)
+        enc_input_param, dec_input_param, output_var_name, ffn_parameter_dict = self.__build_layers( layer_names, parameters , enc_bounds, dec_bounds)
         
         return [enc_input_param, dec_input_param, output_var_name, ffn_parameter_dict]
         
-    def __build_layers(self, layer_names, parameters, enc_input, dec_input, enc_bounds = None, dec_bounds=None):
+    def __build_layers(self, layer_names, parameters, enc_bounds = None, dec_bounds=None):
         ffn_parameter_dict = {}
          
         input_name = None  #track previous layers output name
         enc_output_name = None #track encoder output
         count = [0, 0] # coutn enc and decoder occurances
         
-        # convert input tensors to array
-        if torch.is_tensor(enc_input):
-            enc_input = enc_input.detach().cpu().numpy()
-        if torch.is_tensor(dec_input):
-            dec_input = dec_input.detach().cpu().numpy()
-        
-        print("decoder input shape: ",dec_input.shape)
         # define sets for input params
-        enc_dim_1  = enc_input.shape[0]
-        dec_dim_1 = dec_input.shape[0]
-        dim_2 = enc_input.shape[1]
+        enc_dim_1  = self.N 
+        dec_dim_1 = self.N 
         self.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
         self.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
         self.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) # - 2
-        self.M.input_dims = pyo.Set(initialize= list(range(dim_2)))
-        
+        self.M.model_dims = pyo.Set(initialize= list(range(self.d_model)))
+        self.M.input_dims = pyo.Set(initialize= list(range(self.input_dim)))
         
         
         # add layers to transformer
         for l, layer in enumerate(layer_names):
             print("layer iteration", layer)
             
+            if l == 0: #input layer
+                self.M.input = pyo.Var(self.M.enc_time_dims,  self.M.input_dims, bounds=enc_bounds)
+                input_name = "input"
+                
             if "enc" in layer:
                 count[0] += 1
 
                 if count[0] == 1: # first layer encoder
-                    # create input param
-                    dict_enc_input = {}
-                    for t_index, t in enumerate(self.M.enc_time_dims):
-                        for d_index, d in enumerate( self.M.input_dims):
-                            dict_enc_input[(t,d)] = enc_input[t_index, d_index]
-
-
-                    self.M.enc_input_param = pyo.Param(self.M.enc_time_dims,  self.M.input_dims, initialize=dict_enc_input)  
-                    self.embed_input( "enc_input_param", "enc_input")
+                    if not enc_bounds is None:
+                        self.M.enc_input = pyo.Var(self.M.enc_time_dims,  self.M.model_dims, bounds=enc_bounds)  
+                    else: 
+                        raise ValueError('Provide bounds for encoder input') 
                     input_name = "enc_input" #update prev layer output name
                 
             elif "dec" in layer:
@@ -129,25 +120,11 @@ class Transformer:
             
                 if count[1] == 1: # first layer decoder
                     enc_output_name = input_name
-                    
-                    # create input param
-                    dict_dec_input = {}
-                    for t_index, t in enumerate(self.M.dec_time_dims_param):
-                        for d_index, d in enumerate( self.M.input_dims):
-                            dict_dec_input[(t,d)] = dec_input[t_index, d_index]
-                            
+
                     if not dec_bounds is None:
-                        self.M.dec_input_p= pyo.Param(self.M.dec_time_dims_param ,  self.M.input_dims, initialize=dict_dec_input)
-                        self.M.dec_input_param = pyo.Var(self.M.dec_time_dims,  self.M.input_dims, bounds=dec_bounds)
-                    
-                        self.M.input_p_constraints = pyo.ConstraintList()
-                        for index in self.M.dec_input_p.index_set():
-                            self.M.input_p_constraints.add(expr= self.M.dec_input_p[index] == self.M.dec_input_param[index])
-                            
+                        self.M.dec_input = pyo.Var(self.M.dec_time_dims,  self.M.model_dims, bounds=dec_bounds)
                     else:
                         raise ValueError('Provide bounds for decoder input')
-                    
-                    self.embed_input( "dec_input_param", "dec_input")
                     
                     input_name = "dec_input" #update prev layer output name
                 
@@ -205,6 +182,12 @@ class Transformer:
                 input_name = layer
                 
             if "linear" in layer:
+                print(l+1, len(layer_names))
+                if l == len(layer_names)-1: 
+                    embed_dim = self.M.input_dims # if last layer is linear, embed output dim = TNN input dim
+                else:
+                    embed_dim = self.M.model_dims # embed from current dim to self.M.model_dims
+                    
                 W_linear = parameters[layer,'W']
                 try:
                     b_linear = parameters[layer,'b']
@@ -212,9 +195,9 @@ class Transformer:
                     b_linear = None
                     
                 if not b_linear is None:    
-                    self.embed_input( input_name, layer, W_linear, b_linear)
+                    self.embed_input( input_name, layer, embed_dim, W_linear, b_linear) 
                 else:
-                    self.embed_input( input_name, layer, W_linear)
+                    self.embed_input( input_name, layer, embed_dim, W_linear)
                     
                 # update input_name var
                 input_name = layer
@@ -227,11 +210,13 @@ class Transformer:
                 # update input_name var
                 input_name = layer
                 
+            print("- input name: ", input_name)
+                
         output_var_name = input_name 
             
         return ["enc_input_param", "dec_input_param", output_var_name, ffn_parameter_dict]
 
-    def embed_input(self, input_var_name, embed_var_name, W_emb=None, b_emb = None):
+    def embed_input(self, input_var_name, embed_var_name, embed_dim_2, W_emb=None, b_emb = None):
         """
         Embed the feature dimensions of input
         """
@@ -245,10 +230,12 @@ class Transformer:
             indices = []
             for set in str(set_var).split("*"):
                 indices.append( getattr( self.M, set) )
-                
+            print(input_var_name)
+            print(set_var)
+
             # define embedding var
             if not hasattr(self.M, embed_var_name):
-                setattr(self.M, embed_var_name, pyo.Var(indices[0], self.M.model_dims, within=pyo.Reals, initialize= 0))
+                setattr(self.M, embed_var_name, pyo.Var(indices[0], embed_dim_2 , within=pyo.Reals, initialize= 0))
                 embed_var = getattr(self.M, embed_var_name)   
             else:
                 raise ValueError('Attempting to overwrite variable')
@@ -267,25 +254,27 @@ class Transformer:
                         embed_var[index].lb = input_var[index_input]         
             else: # w_emb has a value
                 # Create weight variable
+                print(np.array(W_emb).shape)
+                print(len(indices[1]), len(embed_dim_2 ) )
                 W_emb_dict = {
-                    (indices[1].at(s+1),self.M.model_dims.at(d+1)): W_emb[s][d]
+                    (indices[1].at(s+1),embed_dim_2 .at(d+1)): W_emb[d][s]
                     for s in range(len(indices[1]))
-                    for d in range(len(self.M.model_dims))
+                    for d in range(len(embed_dim_2))
                 }
-                setattr(self.M, embed_var_name+"_W_emb", pyo.Param(indices[1], self.M.model_dims, initialize=W_emb_dict))
+                setattr(self.M, embed_var_name+"_W_emb", pyo.Param(indices[1], embed_dim_2 , initialize=W_emb_dict))
                 W_emb= getattr(self.M, embed_var_name+"_W_emb")   
                 
                 if b_emb:
                     # Create bias variable
                     b_emb_dict = {
-                        (self.M.model_dims.at(d+1)): b_emb[d]
-                        for d in range(len(self.M.model_dims))
+                        (embed_dim_2.at(d+1)): b_emb[d]
+                        for d in range(len(embed_dim_2))
                     }
                     
-                    setattr(self.M, embed_var_name+"_b_emb", pyo.Param(self.M.model_dims, initialize=b_emb_dict))
+                    setattr(self.M, embed_var_name+"_b_emb", pyo.Param(embed_dim_2 , initialize=b_emb_dict))
                     b_emb= getattr(self.M, embed_var_name+"_b_emb")  
                 
-                    for d in self.M.model_dims:
+                    for d in embed_dim_2 :
                         for t in indices[0]:
                             self.M.embed_constraints.add(embed_var[t, d] 
                                                     == sum(input_var[t,s] * W_emb[s,d] for s in indices[1]) +  b_emb[d]
@@ -300,7 +289,7 @@ class Transformer:
                                 embed_var[t, d].ub = sum(input_var[t,s] * W_emb[s,d] for s in indices[1]) +  b_emb[d]
                                 embed_var[t, d].lb = sum(input_var[t,s] * W_emb[s,d] for s in indices[1]) +  b_emb[d]
                 else:
-                    for d in self.M.model_dims:
+                    for d in embed_dim_2 :
                         for t in indices[0]:
                             self.M.embed_constraints.add(embed_var[t, d] 
                                                     == sum(input_var[t,s] * W_emb[s,d] for s in indices[1])
@@ -787,7 +776,11 @@ class Transformer:
                     MHA_Block.compatibility[h,n,p].ub = MHA_Block.compatibility_pos[h,n,p].ub
                     MHA_Block.compatibility[h,n,p].lb = -MHA_Block.compatibility_pos[h,n,p].ub
                     
-                    MHA_Block.compatibility_exp[h,n,p].ub = math.exp(MHA_Block.compatibility[h,n,p].ub)
+                    print(MHA_Block.compatibility[h,n,p].ub)
+                    try:
+                        MHA_Block.compatibility_exp[h,n,p].ub = math.exp(MHA_Block.compatibility[h,n,p].ub)
+                    except:
+                        MHA_Block.compatibility_exp[h,n,p].ub = MHA_Block.compatibility[h,n,p].ub
                     MHA_Block.compatibility_exp[h,n,p].lb = max(0, 1 + MHA_Block.compatibility[h,n,p].lb)
                     
                 MHA_Block.compatibility_exp_sum[h, n].ub = sum( MHA_Block.compatibility_exp[h,n,p].ub for p in time_dim) 

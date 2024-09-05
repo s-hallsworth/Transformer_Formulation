@@ -20,7 +20,7 @@ import toy_problem_setup as tps
 import transformer_intermediate_results as tir
 
 """
-Test each module of transformer
+Test each module of transformer for optimal control toy tnn 1
 """
 # ------- Transformer Test Class ------------------------------------------------------------------------------------
 class TestTransformer(unittest.TestCase):    

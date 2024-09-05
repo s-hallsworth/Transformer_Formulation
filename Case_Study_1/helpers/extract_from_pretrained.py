@@ -211,7 +211,7 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     else:
         return model_weights, model_bias
     
-def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size):
+def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, sequence_size):
     """
     Read model parameters and store in dict with associated name. 
     ** NB: Assumes ReLU Activation function **
@@ -232,7 +232,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size):
     for name, layer in model.named_modules():
         if "dropout" not in name:
             layer.register_forward_hook(lambda module, input, output, name=name: hook_fn(module, input, output, name))
-    model(src, tgt)
+    model(src, tgt, sequence_size)
     
 
     # # Print the input shapes
@@ -257,12 +257,13 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size):
     
     # for each layer
     for i, layer in enumerate(layers):
-        
         layer_name = layer[0]
         if "encoder" in layer_name:
             prefix = "enc_"
         elif "decoder" in layer_name:
             prefix = "dec_"
+        else:
+            prefix = ""
         
         # store layer information in dict
         if "dropout" not in layer_name:
@@ -304,6 +305,9 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size):
                     b_q = transformer_bias.get(layer_name + ".q_proj", None)
                     b_k = transformer_bias.get(layer_name + ".k_proj", None)
                     W_v = transformer_bias.get(layer_name + ".v_proj", None)
+                
+                if  W_q is None:
+                    continue
                 
                 # set name of type of attention
                 if 'self_attn' in layer_name.lower():    
