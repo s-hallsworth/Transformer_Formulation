@@ -182,7 +182,7 @@ class Transformer:
                 input_name = layer
                 
             if "linear" in layer:
-                print(l+1, len(layer_names))
+                
                 if l == len(layer_names)-1: 
                     embed_dim = self.M.input_dims # if last layer is linear, embed output dim = TNN input dim
                 else:
@@ -210,7 +210,6 @@ class Transformer:
                 # update input_name var
                 input_name = layer
                 
-            print("- input name: ", input_name)
                 
         output_var_name = input_name 
             
@@ -230,8 +229,6 @@ class Transformer:
             indices = []
             for set in str(set_var).split("*"):
                 indices.append( getattr( self.M, set) )
-            print(input_var_name)
-            print(set_var)
 
             # define embedding var
             if not hasattr(self.M, embed_var_name):
@@ -254,8 +251,6 @@ class Transformer:
                         embed_var[index].lb = input_var[index_input]         
             else: # w_emb has a value
                 # Create weight variable
-                print(np.array(W_emb).shape)
-                print(len(indices[1]), len(embed_dim_2 ) )
                 W_emb_dict = {
                     (indices[1].at(s+1),embed_dim_2 .at(d+1)): W_emb[d][s]
                     for s in range(len(indices[1]))
@@ -776,7 +771,7 @@ class Transformer:
                     MHA_Block.compatibility[h,n,p].ub = MHA_Block.compatibility_pos[h,n,p].ub
                     MHA_Block.compatibility[h,n,p].lb = -MHA_Block.compatibility_pos[h,n,p].ub
                     
-                    print(MHA_Block.compatibility[h,n,p].ub)
+                    
                     try:
                         MHA_Block.compatibility_exp[h,n,p].ub = math.exp(MHA_Block.compatibility[h,n,p].ub)
                     except:
