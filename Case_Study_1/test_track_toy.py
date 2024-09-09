@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import unittest
 import os
 from omlt import OmltBlock
+import torch
+from helpers.print_stats import solve_pyomo, solve_gurobipy
 import helpers.convert_pyomo as convert_pyomo
 from gurobipy import Model, GRB
 from gurobi_ml import add_predictor_constr
@@ -15,9 +17,9 @@ from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
-import transformer as TNN
-# import toy_problem_setup as tps
-# import transformer_intermediate_results as tir
+import transformer_b as TNN
+from trained_transformer.Tmodel import TransformerModel
+import helpers.extract_from_pretrained as extract_from_pretrained
 
 """
 Test each module of transformer for optimal control toy tnn 1
@@ -25,124 +27,193 @@ Test each module of transformer for optimal control toy tnn 1
 # ------- Transformer Test Class ------------------------------------------------------------------------------------
 class TestTransformer(unittest.TestCase):    
 
-    def test_pyomo_input(self): #, model, pyomo_input_name ,transformer_input):
-        # Define Test Case Params
-        model = tps.model.clone()
-        pyomo_input_name = "input_param"
+    def test_instantiation_input(self): #, model, pyomo_input_name ,transformer_input):
+        m = model.clone()
+        enc_input_name = "enc_input"
+        dec_input_name = "dec_input"
         
-        # Get input var
-        input_var = getattr(model, pyomo_input_name)
+        # create optimization transformer
+        transformer = TNN.Transformer( ".\\data\\toy_config_pytorch.json", m) 
         
+        # define sets for inputs
+        enc_dim_1 = transformer.N 
+        dec_dim_1 = transformer.N 
+        transformer.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
+        transformer.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
+        transformer.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) # - 2
+        transformer.M.model_dims = pyo.Set(initialize= list(range(transformer.d_model)))
+        transformer.M.input_dims = pyo.Set(initialize= list(range(transformer.input_dim)))
+        enc_flag = False
+        dec_flag = False
+        
+        # Add TNN input vars
+        transformer.M.enc_input= pyo.Var(transformer.M.enc_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+        transformer.M.dec_input = pyo.Var(transformer.M.enc_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+        
+        # add constraints to trained TNN input
+        m.tnn_input_constraints = pyo.ConstraintList()
+        indices = []
+        for set in str(transformer.M.enc_input.index_set()).split("*"):
+            indices.append( getattr(m, set) )
+        for tnn_index, index in zip(indices[0], m.time_history):
+            print(tnn_index, index)
+            m.tnn_input_constraints.add(expr= transformer.M.enc_input[tnn_index, indices[1].first()]== m.history_loc1[index])
+            m.tnn_input_constraints.add(expr= transformer.M.enc_input[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+            
+        indices = []
+        for set in str(transformer.M.dec_input.index_set()).split("*"):
+            indices.append( getattr(m, set) )
+        for t_index, t in enumerate(m.time):
+            index = t_index + 1 # 1 indexing
+            
+            if index > pred_len and index < tt + pred_len + 1:
+                m.tnn_input_constraints.add(expr= transformer.M.dec_input[indices[0].at(index - pred_len), indices[1].first()] == m.loc1[t])
+                m.tnn_input_constraints.add(expr= transformer.M.dec_input[indices[0].at(index - pred_len), indices[1].last()]  == m.loc2[t])
+                
+        # Set objective
+        m.obj = pyo.Objective(
+            expr= sum((m.x1[t] - m.loc1[t])**2 + (m.x2[t] - m.loc2[t])**2 for t in m.time), sense=1
+        )  # -1: maximize, +1: minimize (default)
+    
+    
         # Convert to gurobipy
-        gurobi_model, _ = convert_pyomo.to_gurobi(model)
-        parameters = {}
+        gurobi_model, _, _ = convert_pyomo.to_gurobi(m)
+        
+        
+        # Solve
+        gurobi_model.optimize()
+
+        if gurobi_model.status == GRB.INFEASIBLE:
+                gurobi_model.computeIIS()
+                gurobi_model.write("pytorch_model.ilp")
         
         # Get input value (before solve)
+        parameters = {}
         for v in gurobi_model.getVars():
-            # print(f'var name: {v.varName}, var type {type(v)}')
+            #print(f'var name: {v.varName}, var type {type(v)}')
             # print(v.LB, v.UB)
             if "[" in v.varName:
                 name = v.varname.split("[")[0]
                 if name in parameters.keys():
-                    parameters[name] += [v.LB]
+                    parameters[name] += [v.x]
                 else:
-                    parameters[name] = [v.LB]
+                    parameters[name] = [v.x]
             else:    
-                parameters[v.varName] = v.LB
+                parameters[v.varName] = v.x
 
         # model input
-        model_input = np.array(parameters[pyomo_input_name])
+        model_enc_input = np.array(parameters[enc_input_name])
+        model_dec_input = np.array(parameters[dec_input_name])
         
-        ## TNN outputs  
-        transformer_input = np.array(layer_outputs_dict['input_layer_1']).flatten()
+        expected_enc_input = transformer_input[0, 0:tt, :].flatten() 
+        expected_dec_input = transformer_input[0, 1:tt+1, :].flatten() 
+
+        # Assertions
+        self.assertIsNone(np.testing.assert_array_equal(model_enc_input.shape, expected_enc_input.shape)) # pyomo input data and transformer input data must be the same shape
+        self.assertIsNone(np.testing.assert_array_almost_equal(model_enc_input, expected_enc_input, decimal = 7))             # both inputs must be equal
+        
+        self.assertIsNone(np.testing.assert_array_equal(model_dec_input.shape, expected_dec_input.shape)) # pyomo input data and transformer input data must be the same shape
+        self.assertIsNone(np.testing.assert_array_almost_equal(model_dec_input, expected_dec_input, decimal = 7))             # both inputs must be equal
+        
+
+    def test_embed_input(self):
+        # create optimization transformer
+        m = model.clone()
+        transformer = TNN.Transformer( ".\\data\\toy_config_pytorch.json", m) 
+        
+        # define sets for inputs
+        enc_dim_1 = transformer.N 
+        dec_dim_1 = transformer.N 
+        transformer.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
+        transformer.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
+        transformer.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) # - 2
+        transformer.M.model_dims = pyo.Set(initialize= list(range(transformer.d_model)))
+        transformer.M.input_dims = pyo.Set(initialize= list(range(transformer.input_dim)))
+        enc_flag = False
+        dec_flag = False
+        
+        # Add TNN input vars
+        transformer.M.enc_input= pyo.Var(transformer.M.enc_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+        transformer.M.dec_input = pyo.Var(transformer.M.enc_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+
+        # Add Embedding (linear) layer
+        embed_dim = transformer.M.model_dims # embed from current dim to self.M.model_dims
+        layer = "linear_1"
+        W_linear = parameters[layer,'W']
+        try:
+            b_linear = parameters[layer,'b']
+        except:
+            b_linear = None
+        transformer.embed_input( "enc_input", "enc_linear_1", embed_dim, W_linear, b_linear)
+        transformer.embed_input( "dec_input", "dec_linear_1", embed_dim, W_linear, b_linear)
+        
+        # add constraints to trained TNN input
+        m.tnn_input_constraints = pyo.ConstraintList()
+        indices = []
+        for set in str(transformer.M.enc_input.index_set()).split("*"):
+            indices.append( getattr(m, set) )
+        for tnn_index, index in zip(indices[0], m.time_history):
+            print(tnn_index, index)
+            m.tnn_input_constraints.add(expr= transformer.M.enc_input[tnn_index, indices[1].first()]== m.history_loc1[index])
+            m.tnn_input_constraints.add(expr= transformer.M.enc_input[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+            
+        indices = []
+        for set in str(transformer.M.dec_input.index_set()).split("*"):
+            indices.append( getattr(m, set) )
+        for t_index, t in enumerate(m.time):
+            index = t_index + 1 # 1 indexing
+            
+            if index > pred_len and index < tt + pred_len + 1:
+                m.tnn_input_constraints.add(expr= transformer.M.dec_input[indices[0].at(index - pred_len), indices[1].first()] == m.loc1[t])
+                m.tnn_input_constraints.add(expr= transformer.M.dec_input[indices[0].at(index - pred_len), indices[1].last()]  == m.loc2[t])
+                
+        # Set objective
+        m.obj = pyo.Objective(
+            expr= sum((m.x1[t] - m.loc1[t])**2 + (m.x2[t] - m.loc2[t])**2 for t in m.time), sense=1
+        )  # -1: maximize, +1: minimize (default)
+    
+    
+        # Convert to gurobipy
+        gurobi_model, _, _ = convert_pyomo.to_gurobi(m)
+
+        # Check new model attributes added
+        self.assertIn("enc_linear_1", dir(transformer.M))                        # check var created
+        self.assertIn("dec_linear_1", dir(transformer.M))                        # check var created
+        self.assertIsInstance(transformer.M.enc_linear_1, pyo.Var)               # check data type
+        self.assertIsInstance(transformer.M.dec_linear_1, pyo.Var)               # check data type
+        self.assertTrue(hasattr(transformer.M, 'embed_constraints'))            # check constraints created
+        
+        # Convert to gurobipy
+        gurobi_model, _ , _ = convert_pyomo.to_gurobi(m)
+        gurobi_model.optimize()
+
+        if gurobi_model.status == GRB.OPTIMAL:
+            optimal_parameters = {}
+            for v in gurobi_model.getVars():
+                #print(f'var name: {v.varName}, var type {type(v)}')
+                if "[" in v.varName:
+                    name = v.varname.split("[")[0]
+                    if name in optimal_parameters.keys():
+                        optimal_parameters[name] += [v.x]
+                    else:
+                        optimal_parameters[name] = [v.x]
+                else:    
+                    optimal_parameters[v.varName] = v.x
+            
+        # outputs
+        
+        embed_enc = np.array(optimal_parameters["enc_linear_1"])
+        embed_dec = np.array(optimal_parameters["dec_linear_1"])
+        
+        expected_enc = np.array(list(layer_outputs_dict['linear1'])[0]).flatten()
+        expected_dec = np.array(list(layer_outputs_dict['linear1'])[1]).flatten()
         
         # Assertions
-        self.assertIsNone(np.testing.assert_array_equal(model_input.shape, transformer_input.shape)) # pyomo input data and transformer input data must be the same shape
-        self.assertIsNone(np.testing.assert_array_almost_equal(model_input, transformer_input, decimal = 7))             # both inputs must be equal
-        
-        
-    # def test_no_embed_input(self):
-    #     # Define Test Case Params
-    #     model = tps.model.clone()
-    #     #config_file = '.\\data\\toy_config_relu_2.json'
-    #     config_file = tps.config_file 
-    #     T = 11 
-        
-    #     # Define tranformer and execute up to embed
-    #     transformer = TNN.Transformer(model, config_file, "time_input")  
-    #     transformer.embed_input(model, "input_param","input_embed", "variables")
-        
-    #     # Convert to gurobipy
-    #     gurobi_model, _  = convert_pyomo.to_gurobi(model)
-    #     gurobi_model.optimize()
-
-    #     if gurobi_model.status == GRB.OPTIMAL:
-    #         optimal_parameters = {}
-    #         for v in gurobi_model.getVars():
-    #             #print(f'var name: {v.varName}, var type {type(v)}')
-    #             if "[" in v.varName:
-    #                 name = v.varname.split("[")[0]
-    #                 if name in optimal_parameters.keys():
-    #                     optimal_parameters[name] += [v.x]
-    #                 else:
-    #                     optimal_parameters[name] = [v.x]
-    #             else:    
-    #                 optimal_parameters[v.varName] = v.x
-
-    #     # model input
-    #     embed_output = np.array(optimal_parameters["input_embed"])
-        
-    #     ## layer outputs  
-    #     transformer_input = np.array(layer_outputs_dict['input_layer_1']).flatten()
-        
-    #     # Assertions
-    #     self.assertIsNone(np.testing.assert_array_equal(embed_output.shape, transformer_input.shape)) # same shape
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(embed_output, transformer_input, decimal = 7))             # equal vlaues
-    #     # with self.assertRaises(ValueError):  # attempt to overwrite layer_norm var
-    #     #     transformer.embed_input(model, "input_param","input_embed", "variables")
+        self.assertIsNone(np.testing.assert_array_equal(embed_enc.shape, expected_enc.shape)) # same shape
+        self.assertIsNone(np.testing.assert_array_almost_equal(embed_enc, expected_enc, decimal=2))  # almost same values
     
-    # # def test_embed_input(self):
-    # #     # Define Test Case Params
-    # #     model = tps.model.clone()
-    # #     config_file = '.\\data\\toy_config_embed_3.json' 
-    # #     T = 11
-        
-    # #     # Define tranformer and execute up to embed
-    # #     transformer = TNN.Transformer(model, config_file, "time_input")  
-    # #     W_emb = np.random.rand(transformer.input_dim, transformer.d_model) # define rand embedding matrix
-    # #     transformer.embed_input(model, "input_param","input_embed", "variables",W_emb)
-        
-    # #     self.assertIn("input_embed", dir(model))                       # check var created
-    # #     self.assertIsInstance(model.input_embed, pyo.Var)               # check data type
-    # #     self.assertTrue(hasattr(model, 'embed_constraints'))      # check constraints created
-        
-    # #     # Convert to gurobipy
-    # #     gurobi_model, _  = convert_pyomo.to_gurobi(model)
-    # #     gurobi_model.optimize()
-
-    # #     if gurobi_model.status == GRB.OPTIMAL:
-    # #         optimal_parameters = {}
-    # #         for v in gurobi_model.getVars():
-    # #             #print(f'var name: {v.varName}, var type {type(v)}')
-    # #             if "[" in v.varName:
-    # #                 name = v.varname.split("[")[0]
-    # #                 if name in optimal_parameters.keys():
-    # #                     optimal_parameters[name] += [v.x]
-    # #                 else:
-    # #                     optimal_parameters[name] = [v.x]
-    # #             else:    
-    # #                 optimal_parameters[v.varName] = v.x
-            
-    # #     # model input
-    # #     embed_output = np.array(optimal_parameters["input_embed"])
-        
-    # #     # Calculate embedded value
-    # #     transformer_input = np.array(layer_outputs_dict['input_layer_1'])
-    # #     transformer_embed = np.dot(transformer_input, W_emb).flatten() # W_emb dim: (2, 3), transformer_input dim: (1,10,2)
-
-    # #     # Assertions
-    # #     self.assertIsNone(np.testing.assert_array_equal(embed_output.shape, transformer_embed.shape)) # same shape
-    # #     self.assertIsNone(np.testing.assert_array_almost_equal(embed_output, transformer_embed, decimal=2))  # almost same values
+        self.assertIsNone(np.testing.assert_array_equal(embed_dec.shape, expected_dec.shape)) # same shape
+        self.assertIsNone(np.testing.assert_array_almost_equal(embed_dec, expected_dec, decimal=2))  # almost same values
     
     
     # def test_layer_norm(self):
@@ -667,13 +738,103 @@ def reformat(dict, layer_name):
 
 # ------- MAIN -----------------------------------------------------------------------------------
 if __name__ == '__main__': 
-    model_path = ".\\TNN_enc_0002.keras"
-    config_file = '.\\data\\toy_config_relu_10.json' 
-    T = 9000 # time steps
-    seq_len = 10
-    pred_len = 2
-    window = seq_len + pred_len
-    model = tps.setup_toy( T, seq_len, pred_len, model_path, config_file)
-    layer_outputs_dict = tir.generate_layer_outputs()
+    # instantiate pyomo model component
+    model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
+
+    # define constants
+    T_end = 0.0105
+    steps = 11 ##CHANGE THIS ##
+    time = np.linspace(0, T_end, num=steps)
+    dt = time[1] - time[0]
+    tt = 10 # sequence size
+    time_history = time[0:tt]
+    pred_len = 1
+
+    g = 9.81
+    v_l1 = 0.2
+    v_l2 = 1.5
+
+    src = np.array([np.random.rand(1)*time[0:-1] , (2*np.random.rand(1) * time[0:-1]) - (0.5 * 9.81* time[0:-1] * time[0:-1])])# random sample input [x1_targte, x2_target]
+    src = src.transpose(1,0)
+
+    # define sets
+    model.time = pyo.Set(initialize=time)
+    model.time_history = pyo.Set(initialize=time[0:-1])
+    # print(time, time[0:-1])
+    
+    # define parameters
+    def target_location_rule(M, t):
+        return v_l1 * t
+    model.history_loc1 = pyo.Param(model.time_history, rule=target_location_rule) 
+
+    def target_location2_rule(M, t):
+        return (v_l2*t) - (0.5 * g * (t**2))
+    model.history_loc2 = pyo.Param(model.time_history, rule=target_location2_rule) 
+    
+    history_loc1 = np.array([v for k,v in model.history_loc1.items()])
+    history_loc2 = np.array([v for k,v in model.history_loc2.items()])
+    print(history_loc1, history_loc2)
+
+    bounds_target = (-3,3)
+    # define variables
+    model.loc1 = pyo.Var(model.time, bounds = bounds_target )
+    model.loc2 = pyo.Var(model.time, bounds = bounds_target )
+
+    model.x1 = pyo.Var(model.time) # distance path
+    model.v1 = pyo.Var() # initial velocity of cannon ball
+
+    model.x2 = pyo.Var(model.time) # height path
+    model.v2 = pyo.Var() # initial velocity of cannon ball
+
+    #model.T = pyo.Var(within=model.time)# time when cannon ball hits target
+
+    # define initial conditions
+    model.x1_constr = pyo.Constraint(expr= model.x1[0] == 0) 
+    model.x2_constr = pyo.Constraint(expr= model.x2[0] == 0) 
+
+    # define constraints
+    def v1_rule(M, t):
+        return M.x1[t] == M.v1 * t
+    model.v1_constr = pyo.Constraint(model.time, rule=v1_rule) 
+
+    def v2_rule(M, t):
+        return M.x2[t] == (M.v2 * t) - (0.5*g * (t**2))
+    model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)
+
+    model.v1_pos_constr = pyo.Constraint(expr = model.v1 >= 0)
+    model.v2_pos_constr = pyo.Constraint(expr = model.v2 >= 0)
+
+    def loc1_rule(M, t):
+        return M.loc1[t] == model.history_loc1[t]
+    model.loc1_constr = pyo.Constraint(model.time_history, rule=loc1_rule)
+
+    def loc2_rule(M, t):
+        return M.loc2[t] == model.history_loc2[t]
+    model.loc2_constr = pyo.Constraint(model.time_history, rule=loc2_rule)
+
+    # load trained transformer
+    sequence_size = tt
+    head_size = 4
+    device = torch.device('cpu')
+    tnn_path = ".\\trained_transformer\\toy_pytorch_model_1.pt"
+    tnn_model = TransformerModel(input_dim=2, output_dim =2, d_model=12, nhead=head_size, num_encoder_layers=1, num_decoder_layers=1)
+    tnn_model.load_state_dict(torch.load(tnn_path, map_location=device))
+    
+    # Fix model solution
+    input_x1 =   v_l1 * time  
+    input_x2 =  (v_l2*time) - (0.5 * g * (time*time))
+    model.x1_last = pyo.Constraint(expr= input_x1[-1] == model.loc1[model.time.last()])
+    model.x2_last = pyo.Constraint(expr= input_x2[-1]  == model.loc2[model.time.last()])
+
+    # get intermediate results dictionary for optimal input values
+    transformer_input = np.array([[ [x1,x2] for x1,x2 in zip(input_x1, input_x2)]], dtype=np.float32)
+    print(transformer_input.shape)
+    
+    layer_names, parameters, _, enc_dec_count, layer_outputs_dict = extract_from_pretrained.get_pytorch_learned_parameters(tnn_model,transformer_input[0, 0:tt, :] ,transformer_input[0, 1:tt+1, :], head_size, tt)
+    
+    # print(dict_outputs)
+    #output_dense_4 = layer_outputs_dict["dense_4"]
+    
+    # unit test
     unittest.main() 
 

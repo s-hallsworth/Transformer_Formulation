@@ -3,6 +3,7 @@ import numpy as np
 import math
 from helpers.print_stats import solve_pyomo
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
 # from amplpy import AMPL
 
 """
@@ -12,14 +13,16 @@ import matplotlib.pyplot as plt
 model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
 
 # define constants
-T_end = 30
-steps = 50
+T_end = 0.5
+steps = 100
 time = np.linspace(0, T_end, num=steps)
 dt = time[1] - time[0]
+print(time)
 
 g = 9.81
-v_l1 = 2
-v_l2 = 3
+v_l1 = 0.2
+v_l2 = 1.5
+
 
 # define sets
 model.time = pyo.Set(initialize=time)
@@ -30,8 +33,9 @@ def target_location_rule(M, t):
 model.loc1 = pyo.Param(model.time, rule=target_location_rule) 
 
 def target_location2_rule(M, t):
-    return (v_l2*t) - (0.5 * g * (t**2)) + (500*np.random.rand(1))
+    return (v_l2*t) - (0.5 * g * (t**2)) #+ (np.random.rand(1)/30)
 model.loc2 = pyo.Param(model.time, rule=target_location2_rule) 
+
 
 # define variables
 model.x1 = pyo.Var(model.time) # distance path
@@ -73,7 +77,7 @@ model.obj = pyo.Objective(
 
 
 # view model
-model.pprint()  # pyomo solve test.py --solver=gurobi --stream-solver --summary
+#model.pprint()  # pyomo solve test.py --solver=gurobi --stream-solver --summary
 
 solver = pyo.SolverFactory("gurobi")
 time_limit = None

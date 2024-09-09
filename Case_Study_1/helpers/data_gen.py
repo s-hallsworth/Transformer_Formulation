@@ -4,28 +4,28 @@ import matplotlib.pyplot as plt
 import os
 
 
-N = 5    # number of functions
-T = 5    # number of time steps
-steps = 10 * T
+N = 20   # number of functions
+T = 0.5   # number of time steps
+steps = 100
 time = np.linspace(0, T, num=steps)
 dt = time[1] - time[0]  # time step
-
+scale = 10
 # Generate training data
 def generate_data(num_samples, time):
     x1_list = []  
     x2_list = []  
 
     for n in range(num_samples):
-        v1 = 1*  np.random.rand(1)
-        v2 = ( 200 * np.random.rand(1))
+        v1 =  np.random.rand(1)
+        v2 = ( 2*np.random.rand(1))
         
         x1 = np.zeros_like(time)
         x2 = np.zeros_like(time)
-        print(x1.shape)
+
         for t in range(len(time)):
-            print(t)
-            x1[t] = (v1 * t)
-            x2[t] = (v2 * t) - (0.5 * 9.81* t * t)
+            print(v1, v2, 0.5 * 9.81* time[t] * time[t])
+            x1[t] = (v1 * time[t])
+            x2[t] = (v2 * time[t]) - (0.5 * 9.81* time[t] * time[t])
             
         x1_list.append(x1)
         x2_list.append(x2)

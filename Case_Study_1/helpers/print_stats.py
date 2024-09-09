@@ -9,9 +9,10 @@ import matplotlib.pyplot as plt
 
 def solve_gurobipy(model, time_limit, callback=None):
     # Set a time limit
-    model.setParam('TimeLimit',time_limit)
-    print("------------------------------------------------------")
-    print()
+    if not time_limit is None:
+        model.setParam('TimeLimit',time_limit)
+        print("------------------------------------------------------")
+        print()
     
     try:
         # Optimize the model
@@ -34,11 +35,15 @@ def solve_gurobipy(model, time_limit, callback=None):
         # Print runtime, number of solutions, and optimality gap
         runtime = model.Runtime
         num_solutions = model.SolCount
-        optimality_gap = model.MIPGap
+        try:
+            optimality_gap = model.MIPGap
+            print(f"Optimality gap: {optimality_gap:.4f}")
+        except:
+            optimality_gap = None
         
         print(f"Runtime: {runtime:.2f} seconds")
         print(f"Number of solutions found: {num_solutions}")
-        print(f"Optimality gap: {optimality_gap:.4f}")
+        
 
     except GurobiError as e:
         print(f"Gurobi Error: {e.errno} - {e}")

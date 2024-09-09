@@ -160,7 +160,7 @@ def get_intermediate_values(model_path, sample_input, file_name=None):
             layer_name = model.layers[i].name.rsplit('_', maxsplit=1)[0]
         else:
             layer_name = model.layers[i].name
-        count = count_layer_names.count(layer_name) + 1
+        count = layer_names.count(layer_name) + 1
         layer_outputs_dict[layer_name+'_'+str(count)] = outputs_list[i]
         layer_names += [layer_name]
         
@@ -214,24 +214,35 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, seque
     Read model parameters and store in dict with associated name. 
     ** NB: Assumes ReLU Activation function **
     """
+    # src = torch.rand(enc_input.shape)
+    # tgt = torch.rand(dec_input.shape)
+    src = torch.as_tensor(enc_input).float()
+    tgt = torch.as_tensor(dec_input).float()
     
-    src = torch.rand(enc_input.shape)
-    tgt = torch.rand(dec_input.shape)
     input_shapes = collections.OrderedDict()
     output_shapes = collections.OrderedDict()
+    dict_outputs = {}
 
     ## Get layer input shapes
     # Function to capture the input shape
     def hook_fn(module, input, output, name):
         input_shapes[name]  = input[0].shape
         output_shapes[name] = output[0].shape
+        if name in dict_outputs.keys():
+            dict_outputs[name] |= {output}
+        else:
+            dict_outputs[name] = {output}
         
     
     # Register hooks to all layers
     for name, layer in model.named_modules():
         if "dropout" not in name:
             layer.register_forward_hook(lambda module, input, output, name=name: hook_fn(module, input, output, name))
-    model(src, tgt, sequence_size)
+    
+    
+    model.eval()
+    with torch.no_grad():
+        _ = model(src, tgt, sequence_size)
     
     layers = [i for i in list(input_shapes.keys()) if i ]
 
@@ -404,7 +415,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, seque
                 dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
 
-    return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers]
+    return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
 def arrange_qkv(W, head_size):
     " reshape W to match expected shape [model_dims, headsize, qkv_dim]"
@@ -419,9 +430,13 @@ def arrange_o(W, head_size):
     W = torch.reshape(W, (head_size, int(W.shape[-1]/head_size), W.shape[-1]))
     return W
 
-def get_pytorch_intermediate_values(model, sample_input1, sample_input2, file_name=None):
-    # model.eval()
-
+def get_pytorch_intermediate_values(model, sample_input1, sample_input2, sequence_size):
+    model.eval()
+    sample_input1 = torch.as_tensor(sample_input1)
+    sample_input2 = torch.as_tensor(sample_input2)
+    
+    print(sample_input1.dtype, sample_input2.dtype, type(sequence_size))
+    
     # Dictionary to store the output of each layer
     layer_outputs_dict = {}
     layer_names = []
@@ -437,37 +452,37 @@ def get_pytorch_intermediate_values(model, sample_input1, sample_input2, file_na
 
     # Make a forward pass with the sample input
     with torch.no_grad():
-        _ = model(sample_input1, sample_input2)
+        model(sample_input1, sample_input2, sequence_size)
 
-    # Format the layer names
-    formatted_layer_outputs = {}
-    for name, output in layer_outputs_dict.items():
+    # # Format the layer names
+    # formatted_layer_outputs = {}
+    # for name, output in layer_outputs_dict.items():
 
-        if name == 'encoder':
-            layer_name = name
+    #     if name == 'encoder':
+    #         layer_name = name
             
-        elif name.endswith('self_attn'):
-            layer_name = 'self_attention'
+    #     elif name.endswith('self_attn'):
+    #         layer_name = 'self_attention'
             
-        elif name.endswith('mutlihead_attn'):
-            layer_name = 'mutli_head_attention'
+    #     elif name.endswith('mutlihead_attn'):
+    #         layer_name = 'mutli_head_attention'
             
-        elif 'linear' in name:
-            layer_name = 'dense'
+    #     elif 'linear' in name:
+    #         layer_name = 'dense'
             
-        elif 'norm' in name:
-            layer_name = 'layer_normalization'
+    #     elif 'norm' in name:
+    #         layer_name = 'layer_normalization'
 
-        else:
-            continue
+    #     else:
+    #         continue
                 
-        count = count_layer_names.count(layer_name) + 1
-        formatted_layer_outputs[f"{layer_name}_{count}"] = output
-        layer_names.append(layer_name)
+    #     count = layer_names.count(layer_name) + 1
+    #     formatted_layer_outputs[f"{layer_name}_{count}"] = output
+    #     layer_names.append(layer_name)
 
-    if file_name:
-        with open(file_name, 'w') as file:
-            json.dump(formatted_layer_outputs, file, indent=4)
-        print(f"Intermediate outputs of the model have been saved to {file_name}")
+    # if file_name:
+    #     with open(file_name, 'w') as file:
+    #         json.dump(formatted_layer_outputs, file, indent=4)
+    #     print(f"Intermediate outputs of the model have been saved to {file_name}")
 
-    return formatted_layer_outputs
+    return layer_outputs_dict 

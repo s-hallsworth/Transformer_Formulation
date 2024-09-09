@@ -75,7 +75,7 @@ class Transformer:
         """ Builds transformer formulation for a trained pytorchtransfomrer model with and enocder an decoder """
         
         # Get learned parameters
-        layer_names, parameters, _, enc_dec_count = get_pytorch_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, self.N)
+        layer_names, parameters, _, enc_dec_count, _ = get_pytorch_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, self.N)
         input_var_name, output_var_name, ffn_parameter_dict = self.__build_layers( layer_names, parameters, enc_dec_count , enc_bounds, dec_bounds)
         
         return [input_var_name, output_var_name, ffn_parameter_dict]
@@ -285,9 +285,7 @@ class Transformer:
                 
                 self.M.dec_input = pyo.Var(self.M.enc_time_dims,  self.M.input_dims, bounds=dec_bounds)
                 dec_input_name = "dec_input"
-                
-            print("- ", enc_input_name)
-            print("- ", dec_input_name)    
+                   
             if "enc" in layer:
                 if not enc_flag:
                     enc_flag = True
