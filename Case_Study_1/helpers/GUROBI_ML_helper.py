@@ -22,7 +22,6 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
             weights = np.array(val['W'])
             bias = np.array(val['b'])
             n_layer_inputs, n_layer_nodes = np.shape(weights)
-                
             
             # Determine activation function
             if val['activation'] =='relu':
@@ -45,29 +44,47 @@ def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
     outputs = []
     prev_input = {}
     prev_output = {}
+    i = ""
+    o = ""
+
     for index, value in map_var.items():
-        
-        if input_nn.name in str(index):
+    
+        if  str(index).startswith(input_nn.name):
             if "," in str(index):
-                try: 
-                    inputs += [ [prev_input[str(index).split(',')[0]], value]]
-                except:
-                    prev_input[str(index).split(',')[0]] = value
+                if i == "":
+                    i = str(index).split(',')[0]
+                    prev_input[str(index).split(',')[0]] = [value]
+                    
+                elif str(index).split(',')[0] != i:
+                    inputs += [prev_input[i]]
+                    i = str(index).split(',')[0]
+                    prev_input[str(index).split(',')[0]] = [value]
+                else:
+                    prev_input[str(index).split(',')[0]] += [value]
             else:
                 inputs += [value]
-                
+              
                        
             
-        elif output_nn.name in str(index):
+        elif str(index).startswith(output_nn.name):
             if "," in str(index):
-                try: 
-                    outputs += [ [prev_output[str(index).split(',')[0]], value]]
-                except:
-                    prev_output[str(index).split(',')[0]] = value
+                if o == "":
+                    o = str(index).split(',')[0]
+                    prev_output[str(index).split(',')[0]] = [value]
+                    
+                elif str(index).split(',')[0] != o:
+                    outputs += [prev_output[o]]
+                    o = str(index).split(',')[0]
+                    prev_output[str(index).split(',')[0]] = [value]
+                else:
+                    prev_output[str(index).split(',')[0]] += [value]
             else:
-                outputs += [value]        
-         
-              
+                outputs += [value]  
+                
+    # add last vars to list
+    inputs += [prev_input[i]]     
+    outputs += [prev_output[o]]            
+
     return inputs, outputs 
 
 def add_envelope(attention_output_name, transformer_block, gurobi_model, block_map):

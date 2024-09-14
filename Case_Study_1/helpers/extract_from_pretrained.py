@@ -209,7 +209,7 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     else:
         return model_weights, model_bias
     
-def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, sequence_size):
+def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, sequence_size, Transformer='torch'):
     """
     Read model parameters and store in dict with associated name. 
     ** NB: Assumes ReLU Activation function **
@@ -232,18 +232,32 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, seque
             dict_outputs[name] |= {output}
         else:
             dict_outputs[name] = {output}
-        
     
-    # Register hooks to all layers
+     # Register hooks to all layers
     for name, layer in model.named_modules():
         if "dropout" not in name:
             layer.register_forward_hook(lambda module, input, output, name=name: hook_fn(module, input, output, name))
     
-    
-    model.eval()
-    with torch.no_grad():
-        _ = model(src, tgt, sequence_size)
-    
+    if Transformer == 'torch':
+        model.eval()
+        with torch.no_grad():
+            _ = model(src, tgt, tgt.shape[0])
+  
+    # elif Transformer == 'huggingface':
+    #     model.eval()
+    #     x_val = src
+    #     y_val = tgt
+        # DEVICE = 'cpu'
+        # past_time_features =  z[:, 0:1].repeat(x_val.size(0), CONTEXT_LENGTH, 1).to(DEVICE).float()#torch.zeros_like(torch.linspace(-1, 0, CONTEXT_LENGTH).reshape(1, -1, 1).repeat(x_batch.size(0), 1, 1)).to(device)
+        # future_time_features = z.repeat(x_val.size(0), 1, 1).to(DEVICE).float() #torch.zeros_like(y_batch[..., 0]).unsqueeze(-1).to(device)
+        # past_values = x_val.repeat(1, CONTEXT_LENGTH, 1).to(DEVICE)
+        # past_observed_mask = torch.zeros_like(past_values).to(DEVICE)
+        # past_observed_mask[:, -1:, :] = 1
+        # _ = model.generate(past_values=past_values, 
+        #                         past_time_features= past_time_features, 
+        #                         past_observed_mask = past_observed_mask,
+        #                         future_time_features = future_time_features)
+        
     layers = [i for i in list(input_shapes.keys()) if i ]
 
     # # Print the input shapes
@@ -414,7 +428,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, seque
                 dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
                 dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
-
+        print(layer, new_layer_name)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
 def arrange_qkv(W, head_size):

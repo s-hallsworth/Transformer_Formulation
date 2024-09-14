@@ -14,7 +14,7 @@ class TransformerModel(torch.nn.Module):
         src = self.linear1(src)
         tgt = self.linear1(tgt)
         
-        src_mask = self.transformer.generate_square_subsequent_mask(sequence_size)
-        output = self.transformer(src, tgt, src_mask)
+        tgt_mask = self.transformer.generate_square_subsequent_mask(sequence_size)
+        output = self.transformer(src, tgt, tgt_mask=tgt_mask)
         output = self.linear2(output)
         return output
