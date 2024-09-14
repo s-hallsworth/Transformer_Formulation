@@ -26,13 +26,138 @@ Test each module of transformer for optimal control toy tnn 1
 """
 # ------- Transformer Test Class ------------------------------------------------------------------------------------
 class TestTransformer(unittest.TestCase):    
-
-    def test_FFN2(self):
-        print("======= FFN2 =======")
+    def test_input(self):
+        print("======= INPUT =======")
         
         # Define Test Case Params
         m = model.clone()
         seq_len = 10
+        
+        # Define tranformer and execute 
+        transformer = TNN.Transformer(config_file, m)  
+        transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
+        
+        # add constraints to trained TNN input
+        m.tnn_constraints = pyo.ConstraintList()
+        indices = []
+        for set in str(transformer.M.input_embed.index_set()).split("*"):
+            indices.append( getattr(m, set) )
+        for tnn_index, index in zip(indices[0], m.time_history):
+            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
+            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+        
+        # # Convert to gurobipy
+        gurobi_model, map_var, _ = convert_pyomo.to_gurobi(m)
+        
+        ## Optimizes
+        # gurobi_model.setParam('DualReductions',0)
+        gurobi_model.optimize()
+
+        if gurobi_model.status == GRB.OPTIMAL:
+            optimal_parameters = {}
+            for v in gurobi_model.getVars():
+                #print(f'var name: {v.varName}, var type {type(v)}')
+                if "[" in v.varName:
+                    name = v.varname.split("[")[0]
+                    if name in optimal_parameters.keys():
+                        optimal_parameters[name] += [v.x]
+                    else:
+                        optimal_parameters[name] = [v.x]
+                else:    
+                    optimal_parameters[v.varName] = v.x
+                    
+        if gurobi_model.status == GRB.INFEASIBLE:
+                gurobi_model.computeIIS()
+                gurobi_model.write("pytorch_model.ilp")
+                
+        
+        ## Check output
+        actual = np.array(list(optimal_parameters['input_embed']))
+        expected = input[0,0:seq_len,:].flatten()
+        
+        self.assertIsNone(np.testing.assert_array_equal(actual.shape, expected.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=5)) # compare value with transformer output
+        print("- input formulation == input model")
+      
+    def test_LN1(self):
+        print("======= LN1 =======")
+        
+        # Define Test Case Params
+        m = model.clone()
+        seq_len = 10
+        layer = 'mutli_head_attention_1'
+
+        gamma1 = parameters['layer_normalization_1', 'gamma']
+        beta1  = parameters['layer_normalization_1', 'beta']
+
+        
+        # Define tranformer and execute 
+        transformer = TNN.Transformer(config_file, m)  
+        transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
+        transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
+        
+        
+        # add constraints to trained TNN input
+        m.tnn_constraints = pyo.ConstraintList()
+        indices = []
+        for set in str(transformer.M.input_embed.index_set()).split("*"):
+            indices.append( getattr(m, set) )
+        for tnn_index, index in zip(indices[0], m.time_history):
+            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
+            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+            
+        
+        # # Convert to gurobipy
+        gurobi_model, map_var, _ = convert_pyomo.to_gurobi(m)
+        
+        ## Optimizes
+        # gurobi_model.setParam('DualReductions',0)
+        gurobi_model.optimize()
+
+        if gurobi_model.status == GRB.OPTIMAL:
+            optimal_parameters = {}
+            for v in gurobi_model.getVars():
+                #print(f'var name: {v.varName}, var type {type(v)}')
+                if "[" in v.varName:
+                    name = v.varname.split("[")[0]
+                    if name in optimal_parameters.keys():
+                        optimal_parameters[name] += [v.x]
+                    else:
+                        optimal_parameters[name] = [v.x]
+                else:    
+                    optimal_parameters[v.varName] = v.x
+                    
+        if gurobi_model.status == GRB.INFEASIBLE:
+                gurobi_model.computeIIS()
+                gurobi_model.write("pytorch_model.ilp")
+                
+        ## Check output
+        actual = np.array(list(optimal_parameters['input_embed']))
+        expected = input[0,0:seq_len,:].flatten()
+        
+        self.assertIsNone(np.testing.assert_array_equal(actual.shape, expected.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=5)) # compare value with transformer output
+        print("- input formulation == input model")            
+        
+        ## Check output
+        actual = np.array(list(optimal_parameters['layer_norm']))
+        expected = np.array(layer_outputs_dict['layer_normalization_1'])[0].flatten()
+        
+        self.assertIsNone(np.testing.assert_array_equal(actual.shape, expected.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=5)) # compare value with transformer output
+        print("- LN1 formulation == LN1 model")
+                    
+    def test_MHA(self):
+        print("======= MHA =======")
+        
+        # Define Test Case Params
+        m = model.clone()
+        seq_len = 10
+        layer = 'mutli_head_attention_1'
+
+        gamma1 = parameters['layer_normalization_1', 'gamma']
+        beta1  = parameters['layer_normalization_1', 'beta']
+
         layer = 'mutli_head_attention_1'
         W_q = parameters[layer,'W_q']
         W_k = parameters[layer,'W_k']
@@ -49,77 +174,29 @@ class TestTransformer(unittest.TestCase):
                 b_k = 0
                 b_v = 0
                 b_o = 0
-
-        gamma1 = parameters['layer_normalization_1', 'gamma']
-        beta1  = parameters['layer_normalization_1', 'beta']
         
-        gamma2 = parameters['layer_normalization_2', 'gamma']
-        beta2  = parameters['layer_normalization_2', 'beta']
+        # Define tranformer and execute 
+        transformer = TNN.Transformer(config_file, m)  
+        transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
+        transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
+        transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+         
         
-        ffn_1_params = parameters['ffn_1']
-        parameters['ffn_2']  = {'input_shape':ffn_1_params['input_shape']}#, "input": ffn_1_params['input']}
-        parameters['ffn_2'] |= {'dense_2':  ffn_1_params['dense_2']}
-        parameters['ffn_2'] |= {'dense_3':ffn_1_params['dense_3']}
-        
-        parameters['ffn_1']  = {'input_shape': ffn_1_params['input_shape']}
-        parameters['ffn_1'] |= {'dense': ffn_1_params['dense']}
-        parameters['ffn_1'] |= {'dense_1': ffn_1_params['dense_1']}
-        
-        
-        # # Define tranformer and execute 
-        # transformer = TNN.Transformer(config_file, m)  
-        # transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
-        # transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
-        # transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
-        # transformer.add_residual_connection("input_embed", "attention_output", "residual_1")
-        # transformer.add_layer_norm( "residual_1", "layer_norm_2", gamma2, beta2)
-        # nn, input_nn, output_nn = transformer.get_fnn("layer_norm_2", "ffn_1", "ffn_1", (seq_len,2), parameters)
-        # transformer.add_residual_connection("residual_1", "ffn_1", "residual_2")  
-        # transformer.add_avg_pool( "residual_2", "avg_pool")
-        # nn2, input_nn2, output_nn2 = transformer.get_fnn( "residual_2", "ffn_2", "ffn_2", (pred_len+1, 2), parameters)
-        
-        
-        # # add constraints to trained TNN input
-        # m.tnn_constraints = pyo.ConstraintList()
-        # indices = []
-        # for set in str(transformer.M.input_embed.index_set()).split("*"):
-        #     indices.append( getattr(m, set) )
-        # for tnn_index, index in zip(indices[0], m.time_history):
-        #     m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
-        #     m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+        # add constraints to trained TNN input
+        m.tnn_constraints = pyo.ConstraintList()
+        indices = []
+        for set in str(transformer.M.input_embed.index_set()).split("*"):
+            indices.append( getattr(m, set) )
+        for tnn_index, index in zip(indices[0], m.time_history):
+            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
+            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
             
-        # # add constraints to trained TNN output
-        # m.tnn_constraints = pyo.ConstraintList()
-        # indices = []
-        # for set in str(output_nn2.index_set()).split("*"): 
-        #     indices.append( getattr(m, set) )
-        # out_index = 0
-        # for t_index, t in enumerate(m.time):
-        #     index = t_index + 1 # 1 indexing
-            
-        #     if t >= m.time_history.last():
-        #         out_index += 1
-        #         print(out_index, t )
-        #         m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.loc1[t])
-        #         m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.loc2[t])
         
-
         # # Convert to gurobipy
         gurobi_model, map_var, _ = convert_pyomo.to_gurobi(m)
         
-        # for i,v in map_var.items():
-        #     print(i, v)
-
-        # ## Add FNN1 to gurobi model
-        # input_1, output_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
-        # pred_constr1 = add_predictor_constr(gurobi_model, nn, input_1, output_1)
-        
-        # inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
-        # pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
-        # gurobi_model.update()
-        #pred_constr.print_stats()
-        
         ## Optimizes
+        # gurobi_model.setParam('DualReductions',0)
         gurobi_model.optimize()
 
         if gurobi_model.status == GRB.OPTIMAL:
@@ -135,57 +212,253 @@ class TestTransformer(unittest.TestCase):
                 else:    
                     optimal_parameters[v.varName] = v.x
                     
-        x1 = np.array(optimal_parameters['x1'])
-        x2 = np.array(optimal_parameters['x2'])
-        loc1 = np.array(optimal_parameters['loc1'])
-        loc2 = np.array(optimal_parameters['loc2'])
+        if gurobi_model.status == GRB.INFEASIBLE:
+                gurobi_model.computeIIS()
+                gurobi_model.write("pytorch_model.ilp")
+                
+        
+        # model output
+        LN_output = np.array(optimal_parameters["layer_norm"])
+        Q_form = np.array(optimal_parameters["Block_attention_output.Q"])
+        K_form = np.array(optimal_parameters["Block_attention_output.K"])
+        V_form = np.array(optimal_parameters["Block_attention_output.V"])
+ 
+        # Check Solve calculations
+        input = np.array(layer_outputs_dict['input_layer_1']).squeeze(0)
+        transformer_input = np.array(layer_outputs_dict["layer_normalization_1"])[0]
+        Q = np.dot( transformer_input, np.transpose(np.array(W_q),(1,0,2))) 
+        K = np.dot( transformer_input, np.transpose(np.array(W_k),(1,0,2))) 
+        V = np.dot( transformer_input, np.transpose(np.array(W_v),(1,0,2))) 
 
-        v1= np.array(optimal_parameters['v1'])
-        v2= np.array(optimal_parameters['v2'])
-        # T= np.array(optimal_parameters['T'])
+        Q = np.transpose(Q,(1,0,2)) + np.repeat(np.expand_dims(np.array(b_q),axis=1), transformer.N ,axis=1)
+        K = np.transpose(K,(1,0,2)) + np.repeat(np.expand_dims(np.array(b_k),axis=1), transformer.N ,axis=1)
+        V = np.transpose(V,(1,0,2)) + np.repeat(np.expand_dims(np.array(b_v),axis=1), transformer.N ,axis=1)
+        
+        ####################
+        print("Q shape", Q.shape)
+        print("V shape", V.shape)
+        q = Q
+        k = K
+        v = V
+        d_k = Q.shape[-1]
+        q_scaled = q / np.sqrt(d_k)
+
+        # Attention scores: (batch_size, num_heads, seq_len_q, seq_len_k)
+        attn_scores = np.matmul(q_scaled, np.transpose(k, (0, 2, 1)))
+
+        # Apply softmax to get attention weights
+        # Softmax along the last axis (seq_len_k) for each query position
+        attn_weights = np.exp(attn_scores - np.max(attn_scores, axis=-1, keepdims=True))
+        attn_weights /= np.sum(attn_weights, axis=-1, keepdims=True)
+
+        # Attention output: weighted sum of the values (batch_size, num_heads, seq_len_q, depth_per_head)
+        attn_output = np.matmul(attn_weights, v)
+
+        # Combine heads (projected output): (batch_size, seq_len_q, num_heads, depth_per_head)
+        # Final output projection (optional squeezing if needed)
+        computed_attn_output = np.matmul(attn_output, W_o) + b_o
+        
+        print(computed_attn_output.shape, computed_attn_output)
+        
+        ####################
+        
+        Q = Q.flatten()
+        K = K.flatten()
+        V = V.flatten()
+        
+        self.assertIsNone(np.testing.assert_array_almost_equal(np.array(layer_outputs_dict["layer_normalization_1"]).flatten(),LN_output, decimal =4))
+        print("- MHA input formulation == MHA input model")
+        
+        self.assertIsNone(np.testing.assert_array_equal(Q.shape, Q_form.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal( Q_form,Q, decimal =3))
+        print("- Query formulation == Query model")
+        
+        self.assertIsNone(np.testing.assert_array_equal(K.shape, K_form.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal( K_form,K, decimal =3))
+        print("- Key formulation == Key model")
+        
+        self.assertIsNone(np.testing.assert_array_equal(V.shape, V_form.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal( V_form,V, decimal =3))
+        print("- Value formulation == Value model")            
+        
+        ## Check output 
+        actual = np.array(optimal_parameters["attention_output"]) 
+        expected = np.array(layer_outputs_dict["multi_head_attention_1"]).flatten()
+        
+        print(actual)
+        print(np.array(layer_outputs_dict["multi_head_attention_1"]))
+        self.assertIsNone(np.testing.assert_array_almost_equal(computed_attn_output.flatten(), expected, decimal=4))
+        self.assertIsNone(np.testing.assert_array_equal(actual.shape, expected.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=3)) # compare value with transformer output
+        print("- MHA formulation == MHA model")
+                        
+    # def test_FFN2(self):
+    #     print("======= FFN2 =======")
+        
+    #     # Define Test Case Params
+    #     m = model.clone()
+    #     seq_len = 10
+    #     layer = 'mutli_head_attention_1'
+    #     W_q = parameters[layer,'W_q']
+    #     W_k = parameters[layer,'W_k']
+    #     W_v = parameters[layer,'W_v']
+    #     W_o = parameters[layer,'W_o']
+
+    #     try:
+    #         b_q = parameters[layer,'b_q']
+    #         b_k = parameters[layer,'b_k']
+    #         b_v = parameters[layer,'b_v']
+    #         b_o = parameters[layer,'b_o']
+    #     except: # no bias values found
+    #             b_q = 0
+    #             b_k = 0
+    #             b_v = 0
+    #             b_o = 0
+
+    #     gamma1 = parameters['layer_normalization_1', 'gamma']
+    #     beta1  = parameters['layer_normalization_1', 'beta']
+        
+    #     gamma2 = parameters['layer_normalization_2', 'gamma']
+    #     beta2  = parameters['layer_normalization_2', 'beta']
+        
+    #     for i,v in parameters.items():
+    #         print(f"{i}: {v}")
+            
+    #     ffn_1_params = parameters['ffn_1']
+    #     parameters['ffn_2']  = {'input_shape':ffn_1_params['input_shape']}#, "input": ffn_1_params['input']}
+    #     parameters['ffn_2'] |= {'dense_14':  ffn_1_params['dense_14']}
+    #     parameters['ffn_2'] |= {'dense_15':ffn_1_params['dense_15']}
+        
+    #     parameters['ffn_1']  = {'input_shape': ffn_1_params['input_shape']}
+    #     parameters['ffn_1'] |= {'dense_12': ffn_1_params['dense_12']}
+    #     parameters['ffn_1'] |= {'dense_13': ffn_1_params['dense_13']}
+        
+        
+    #     # Define tranformer and execute 
+    #     transformer = TNN.Transformer(config_file, m)  
+    #     transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
+    #     transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
+    #     transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+    #     transformer.add_residual_connection("input_embed", "attention_output", "residual_1")
+    #     transformer.add_layer_norm( "residual_1", "layer_norm_2", gamma2, beta2)
+    #     nn, input_nn, output_nn = transformer.get_fnn("layer_norm_2", "ffn_1", "ffn_1", (seq_len,2), parameters)
+    #     transformer.add_residual_connection("residual_1", "ffn_1", "residual_2")  
+    #     transformer.add_avg_pool( "residual_2", "avg_pool")
+    #     nn2, input_nn2, output_nn2 = transformer.get_fnn( "residual_2", "ffn_2", "ffn_2", (pred_len+1, 2), parameters)
+        
+        
+    #     # add constraints to trained TNN input
+    #     m.tnn_constraints = pyo.ConstraintList()
+    #     indices = []
+    #     for set in str(transformer.M.input_embed.index_set()).split("*"):
+    #         indices.append( getattr(m, set) )
+    #     for tnn_index, index in zip(indices[0], m.time_history):
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+            
+    #     # add constraints to trained TNN output
+    #     m.tnn_constraints = pyo.ConstraintList()
+    #     indices = []
+    #     for set in str(output_nn2.index_set()).split("*"): 
+    #         indices.append( getattr(m, set) )
+    #     out_index = 0
+    #     for t_index, t in enumerate(m.time):
+    #         index = t_index + 1 # 1 indexing
+            
+    #         if t >= m.time_history.last():
+    #             out_index += 1
+    #             print(out_index, t )
+    #             m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.loc1[t])
+    #             m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.loc2[t])
+        
+
+    #     # # Convert to gurobipy
+    #     gurobi_model, map_var, _ = convert_pyomo.to_gurobi(m)
+        
+    #     # for i,v in map_var.items():
+    #     #     print(i, v)
+
+    #     ## Add FNN1 to gurobi model
+    #     input_1, output_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+    #     pred_constr1 = add_predictor_constr(gurobi_model, nn, input_1, output_1)
+        
+    #     inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
+    #     pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
+    #     gurobi_model.update()
+    #     #pred_constr.print_stats()
+        
+    #     ## Optimizes
+    #     # gurobi_model.setParam('DualReductions',0)
+    #     gurobi_model.optimize()
+
+    #     if gurobi_model.status == GRB.OPTIMAL:
+    #         optimal_parameters = {}
+    #         for v in gurobi_model.getVars():
+    #             #print(f'var name: {v.varName}, var type {type(v)}')
+    #             if "[" in v.varName:
+    #                 name = v.varname.split("[")[0]
+    #                 if name in optimal_parameters.keys():
+    #                     optimal_parameters[name] += [v.x]
+    #                 else:
+    #                     optimal_parameters[name] = [v.x]
+    #             else:    
+    #                 optimal_parameters[v.varName] = v.x
+                    
+    #     if gurobi_model.status == GRB.INFEASIBLE:
+    #             gurobi_model.computeIIS()
+    #             gurobi_model.write("pytorch_model.ilp")
+                
+    #     x1 = np.array(optimal_parameters['x1'])
+    #     x2 = np.array(optimal_parameters['x2'])
+    #     loc1 = np.array(optimal_parameters['loc1'])
+    #     loc2 = np.array(optimal_parameters['loc2'])
+
+    #     v1= np.array(optimal_parameters['v1'])
+    #     v2= np.array(optimal_parameters['v2'])
+    #     # T= np.array(optimal_parameters['T'])
 
 
-        print(x1)
-        print(x2)
-        print()
-        print(v1)
-        print(v2)
+    #     print(x1)
+    #     print(x2)
+    #     print()
+    #     print(v1)
+    #     print(v2)
               
-        plt.figure(1, figsize=(6, 4))
-        plt.plot(time, input[0,:,:], label= ["1", "2"])
-        plt.plot(time, loc2, 'o', label = f'x2 data')
-        plt.plot(time, x2, '--x', label = f'x2 predicted')
-        plt.plot(time, loc1, 'o', label = f'x1 data')
-        plt.plot(time, x1, '--x', label = f'x1 predicted')
-        plt.title(f'Example')
-        plt.legend()
-        plt.show()
+    #     plt.figure(1, figsize=(6, 4))
+    #     plt.plot(time, input[0,:,:], label= ["1", "2"])
+    #     plt.plot(time, loc2, 'o', label = f'x2 data')
+    #     plt.plot(time, x2, '--x', label = f'x2 predicted')
+    #     plt.plot(time, loc1, 'o', label = f'x1 data')
+    #     plt.plot(time, x1, '--x', label = f'x1 predicted')
+    #     plt.title(f'Example')
+    #     plt.legend()
+    #     plt.show()
 
-        plt.figure(2, figsize=(6, 4))
-        plt.plot(loc1, loc2, 'o', label = f'target trajectory')
-        plt.plot(x1, x2, '--x', label = f'cannon ball trajectory')
-        plt.title(f'Trajectory of cannon ball')
-        plt.legend()
-        plt.show()
+    #     plt.figure(2, figsize=(6, 4))
+    #     plt.plot(loc1, loc2, 'o', label = f'target trajectory')
+    #     plt.plot(x1, x2, '--x', label = f'cannon ball trajectory')
+    #     plt.title(f'Trajectory of cannon ball')
+    #     plt.legend()
+    #     plt.show()
                     
-        ## Check MHA output
-        attention_output= np.array(optimal_parameters["attention_output"]) 
-        MHA_output = np.array(layer_outputs_dict["multi_head_attention_1"]).flatten()
-        self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=5)) # compare value with transformer output
-        print("- MHA output formulation == MHA output model")
+    #     ## Check MHA output
+    #     attention_output= np.array(optimal_parameters["attention_output"]) 
+    #     MHA_output = np.array(layer_outputs_dict["multi_head_attention_1"]).flatten()
+    #     self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=5)) # compare value with transformer output
+    #     print("- MHA output formulation == MHA output model")
                     
         
-        #Check outputs
-        ffn_2_output = np.array([optimal_parameters["ffn_2"][0]])
-        FFN_out = np.array(layer_outputs_dict["dense_4"])[0]
-        print(ffn_2_output.shape, FFN_out.shape )
-        print(ffn_2_output,  FFN_out)
-        self.assertIsNone(np.testing.assert_array_equal(ffn_2_output.shape,  FFN_out.shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(ffn_2_output,  FFN_out, decimal=5)) # compare value with transformer output
-        print("- FFN2 output formulation == FFN2 output model")   
+    #     #Check outputs
+    #     ffn_2_output = np.array([optimal_parameters["ffn_2"][0]])
+    #     FFN_out = np.array(layer_outputs_dict["dense_4"])[0]
+    #     print(ffn_2_output.shape, FFN_out.shape )
+    #     print(ffn_2_output,  FFN_out)
+    #     self.assertIsNone(np.testing.assert_array_equal(ffn_2_output.shape,  FFN_out.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(ffn_2_output,  FFN_out, decimal=5)) # compare value with transformer output
+    #     print("- FFN2 output formulation == FFN2 output model")   
         
-        print("Output: ", ffn_2_output)
+    #     print("Output: ", ffn_2_output)
 # -------- Helper functions ---------------------------------------------------------------------------------- 
 
 
@@ -244,7 +517,7 @@ if __name__ == '__main__':
     config_file = '.\\data\\toy_track_k_enc_config.json' 
     
     # define constants
-    T_end = 0.5
+    T_end = 0.5#0.0105
     steps = 19 ##CHANGE THIS ##
     time = np.linspace(0, T_end, num=steps)
     dt = time[1] - time[0]
@@ -264,18 +537,18 @@ if __name__ == '__main__':
     model.time_history = pyo.Set(initialize=time_history)
     # print(time, time[0:-1])
     
-    # define parameters
-    # def target_location_rule(M, t):
-    #     return v_l1 * t
-    # model.history_loc1 = pyo.Param(model.time_history, rule=target_location_rule) 
+    #define parameters
+    def target_location_rule(M, t):
+        return v_l1 * t
+    model.history_loc1 = pyo.Param(model.time_history, rule=target_location_rule) 
 
-    # def target_location2_rule(M, t):
-    #     return (v_l2*t) - (0.5 * g * (t**2))
-    # model.history_loc2 = pyo.Param(model.time_history, rule=target_location2_rule) 
+    def target_location2_rule(M, t):
+        return (v_l2*t) - (0.5 * g * (t**2))
+    model.history_loc2 = pyo.Param(model.time_history, rule=target_location2_rule) 
     
-    # history_loc1 = np.array([v for k,v in model.history_loc1.items()])
-    # history_loc2 = np.array([v for k,v in model.history_loc2.items()])
-    # # print(history_loc1, history_loc2)
+    history_loc1 = np.array([v for k,v in model.history_loc1.items()])
+    history_loc2 = np.array([v for k,v in model.history_loc2.items()])
+    # print(history_loc1, history_loc2)
 
     bounds_target = (-3,3)
     # define variables
@@ -303,18 +576,16 @@ if __name__ == '__main__':
         return M.x2[t] == (M.v2 * t) - (0.5* g * (t**2))
     model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)   
         
-    # model.v1_pos_constr = pyo.Constraint(expr = model.v1  >= 0.001)
-    # model.v2_pos_constr = pyo.Constraint(expr = model.v2  >= 0.001)
 
-    # def loc1_rule(M, t):
-    #     return M.loc1[t] == model.history_loc1[t]
-    # model.loc1_constr = pyo.Constraint(model.time_history, rule=loc1_rule)
+    def loc1_rule(M, t):
+        return M.loc1[t] == model.history_loc1[t]
+    model.loc1_constr = pyo.Constraint(model.time_history, rule=loc1_rule)
 
-    # def loc2_rule(M, t):
-    #     return M.loc2[t] == model.history_loc2[t]
-    # model.loc2_constr = pyo.Constraint(model.time_history, rule=loc2_rule)
+    def loc2_rule(M, t):
+        return M.loc2[t] == model.history_loc2[t]
+    model.loc2_constr = pyo.Constraint(model.time_history, rule=loc2_rule)
 
-    # Fix model solution
+    ##------ Fix model solution ------##
     input_x1 =   v_l1 * time  
     input_x2 =  (v_l2*time) - (0.5 * g * (time*time))
     
@@ -322,6 +593,9 @@ if __name__ == '__main__':
     for i,t in enumerate(model.time):
         model.fixed_loc_constraints.add(expr= input_x1[i] == model.loc1[t])
         model.fixed_loc_constraints.add(expr= input_x2[i]  == model.loc2[t])
+        
+    model.fixed_loc_constraints.add(expr= model.v1 == v_l1)
+    model.fixed_loc_constraints.add(expr= model.v2 == v_l2)
 
     # Set objective
     model.obj = pyo.Objective(
@@ -338,7 +612,8 @@ if __name__ == '__main__':
     input = np.array([[ [x1,x2] for x1,x2 in zip(input_x1, input_x2)]], dtype=np.float32)
     layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path, input[:, 0:tt, :])
 
-    
+    for i,v in layer_outputs_dict.items():
+        print(i)
     # unit test
     unittest.main() 
 
