@@ -62,14 +62,17 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
         expr = obj.expr
         sense = GRB.MINIMIZE if obj.sense == pyo.minimize else GRB.MAXIMIZE
         expr, _= expr_to_gurobi(expr, var_map, gurobi_model)
-        gurobi_model.setObjective(expr, sense=sense)
+        gurobi_model.setObjective(expr=expr, sense=sense)
+        
+    gurobi_model.update()
        
     # Convert constraints
-    for con in pyomo_model.component_objects(pyo.Constraint, active=True):
+    for con in pyomo_model.component_objects(pyo.Constraint, active=True): 
+        #print(con)
         for index in con:
-            
+            #print("-", con[index])
             lhs, rhs = con[index].expr.args
-            
+            #print("-- ", lhs, rhs)
             ## UNARY FUNCTIONS
             unary = False
             if isinstance(lhs, pyo_expr.numeric_expr.UnaryFunctionExpression):

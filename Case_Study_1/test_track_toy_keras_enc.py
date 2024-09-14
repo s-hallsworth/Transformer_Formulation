@@ -66,59 +66,57 @@ class TestTransformer(unittest.TestCase):
         parameters['ffn_1'] |= {'dense_1': ffn_1_params['dense_1']}
         
         
-        # Define tranformer and execute 
-        transformer = TNN.Transformer(config_file, m)  
-        transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
-        transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
-        transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
-        transformer.add_residual_connection("input_embed", "attention_output", "residual_1")
-        transformer.add_layer_norm( "residual_1", "layer_norm_2", gamma2, beta2)
-        nn, input_nn, output_nn = transformer.get_fnn("layer_norm_2", "ffn_1", "ffn_1", (seq_len,2), parameters)
-        transformer.add_residual_connection("residual_1", "ffn_1", "residual_2")  
-        transformer.add_avg_pool( "residual_2", "avg_pool")
-        nn2, input_nn2, output_nn2 = transformer.get_fnn( "residual_2", "ffn_2", "ffn_2", (pred_len+1, 2), parameters)
+        # # Define tranformer and execute 
+        # transformer = TNN.Transformer(config_file, m)  
+        # transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
+        # transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
+        # transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+        # transformer.add_residual_connection("input_embed", "attention_output", "residual_1")
+        # transformer.add_layer_norm( "residual_1", "layer_norm_2", gamma2, beta2)
+        # nn, input_nn, output_nn = transformer.get_fnn("layer_norm_2", "ffn_1", "ffn_1", (seq_len,2), parameters)
+        # transformer.add_residual_connection("residual_1", "ffn_1", "residual_2")  
+        # transformer.add_avg_pool( "residual_2", "avg_pool")
+        # nn2, input_nn2, output_nn2 = transformer.get_fnn( "residual_2", "ffn_2", "ffn_2", (pred_len+1, 2), parameters)
         
         
-        # add constraints to trained TNN input
-        m.tnn_constraints = pyo.ConstraintList()
-        indices = []
-        for set in str(transformer.M.input_embed.index_set()).split("*"):
-            indices.append( getattr(m, set) )
-        for tnn_index, index in zip(indices[0], m.time_history):
-            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
-            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+        # # add constraints to trained TNN input
+        # m.tnn_constraints = pyo.ConstraintList()
+        # indices = []
+        # for set in str(transformer.M.input_embed.index_set()).split("*"):
+        #     indices.append( getattr(m, set) )
+        # for tnn_index, index in zip(indices[0], m.time_history):
+        #     m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
+        #     m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
             
-        # add constraints to trained TNN output
-        m.tnn_constraints = pyo.ConstraintList()
-        indices = []
-        for set in str(output_nn2.index_set()).split("*"): 
-            indices.append( getattr(m, set) )
-        out_index = 0
-        for t_index, t in enumerate(m.time):
-            index = t_index + 1 # 1 indexing
+        # # add constraints to trained TNN output
+        # m.tnn_constraints = pyo.ConstraintList()
+        # indices = []
+        # for set in str(output_nn2.index_set()).split("*"): 
+        #     indices.append( getattr(m, set) )
+        # out_index = 0
+        # for t_index, t in enumerate(m.time):
+        #     index = t_index + 1 # 1 indexing
             
-            if t >= m.time_history.last():
-                out_index += 1
-                print(out_index, t )
-                m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.loc1[t])
-                m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.loc2[t])
+        #     if t >= m.time_history.last():
+        #         out_index += 1
+        #         print(out_index, t )
+        #         m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.loc1[t])
+        #         m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.loc2[t])
         
-        # Set objective
-        m.obj = pyo.Objective(
-            expr= sum((m.x1[t] - m.loc1[t])**2 + (m.x2[t] - m.loc2[t])**2 for t in m.time), sense=1
-        )  # -1: maximize, +1: minimize (default)
-            
 
         # # Convert to gurobipy
         gurobi_model, map_var, _ = convert_pyomo.to_gurobi(m)
-
-        ## Add FNN1 to gurobi model
-        input_1, output_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
-        pred_constr1 = add_predictor_constr(gurobi_model, nn, input_1, output_1)
         
-        inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
-        pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
-        gurobi_model.update()
+        # for i,v in map_var.items():
+        #     print(i, v)
+
+        # ## Add FNN1 to gurobi model
+        # input_1, output_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+        # pred_constr1 = add_predictor_constr(gurobi_model, nn, input_1, output_1)
+        
+        # inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
+        # pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
+        # gurobi_model.update()
         #pred_constr.print_stats()
         
         ## Optimizes
@@ -136,6 +134,39 @@ class TestTransformer(unittest.TestCase):
                         optimal_parameters[name] = [v.x]
                 else:    
                     optimal_parameters[v.varName] = v.x
+                    
+        x1 = np.array(optimal_parameters['x1'])
+        x2 = np.array(optimal_parameters['x2'])
+        loc1 = np.array(optimal_parameters['loc1'])
+        loc2 = np.array(optimal_parameters['loc2'])
+
+        v1= np.array(optimal_parameters['v1'])
+        v2= np.array(optimal_parameters['v2'])
+        # T= np.array(optimal_parameters['T'])
+
+
+        print(x1)
+        print(x2)
+        print()
+        print(v1)
+        print(v2)
+              
+        plt.figure(1, figsize=(6, 4))
+        plt.plot(time, input[0,:,:], label= ["1", "2"])
+        plt.plot(time, loc2, 'o', label = f'x2 data')
+        plt.plot(time, x2, '--x', label = f'x2 predicted')
+        plt.plot(time, loc1, 'o', label = f'x1 data')
+        plt.plot(time, x1, '--x', label = f'x1 predicted')
+        plt.title(f'Example')
+        plt.legend()
+        plt.show()
+
+        plt.figure(2, figsize=(6, 4))
+        plt.plot(loc1, loc2, 'o', label = f'target trajectory')
+        plt.plot(x1, x2, '--x', label = f'cannon ball trajectory')
+        plt.title(f'Trajectory of cannon ball')
+        plt.legend()
+        plt.show()
                     
         ## Check MHA output
         attention_output= np.array(optimal_parameters["attention_output"]) 
@@ -213,7 +244,7 @@ if __name__ == '__main__':
     config_file = '.\\data\\toy_track_k_enc_config.json' 
     
     # define constants
-    T_end = 0.0105
+    T_end = 0.5
     steps = 19 ##CHANGE THIS ##
     time = np.linspace(0, T_end, num=steps)
     dt = time[1] - time[0]
@@ -225,37 +256,37 @@ if __name__ == '__main__':
     v_l1 = 0.2
     v_l2 = 1.5
 
-    src = np.array([np.random.rand(1)*time[0:-1] , (2*np.random.rand(1) * time[0:-1]) - (0.5 * 9.81* time[0:-1] * time[0:-1])])# random sample input [x1_targte, x2_target]
-    src = src.transpose(1,0)
+    # src = np.array([np.random.rand(1)*time[0:-1] , (2*np.random.rand(1) * time[0:-1]) - (0.5 * 9.81* time[0:-1] * time[0:-1])])# random sample input [x1_targte, x2_target]
+    # src = src.transpose(1,0)
 
     # define sets
     model.time = pyo.Set(initialize=time)
-    model.time_history = pyo.Set(initialize=time[0:tt])
+    model.time_history = pyo.Set(initialize=time_history)
     # print(time, time[0:-1])
     
     # define parameters
-    def target_location_rule(M, t):
-        return v_l1 * t
-    model.history_loc1 = pyo.Param(model.time_history, rule=target_location_rule) 
+    # def target_location_rule(M, t):
+    #     return v_l1 * t
+    # model.history_loc1 = pyo.Param(model.time_history, rule=target_location_rule) 
 
-    def target_location2_rule(M, t):
-        return (v_l2*t) - (0.5 * g * (t**2))
-    model.history_loc2 = pyo.Param(model.time_history, rule=target_location2_rule) 
+    # def target_location2_rule(M, t):
+    #     return (v_l2*t) - (0.5 * g * (t**2))
+    # model.history_loc2 = pyo.Param(model.time_history, rule=target_location2_rule) 
     
-    history_loc1 = np.array([v for k,v in model.history_loc1.items()])
-    history_loc2 = np.array([v for k,v in model.history_loc2.items()])
-    # print(history_loc1, history_loc2)
+    # history_loc1 = np.array([v for k,v in model.history_loc1.items()])
+    # history_loc2 = np.array([v for k,v in model.history_loc2.items()])
+    # # print(history_loc1, history_loc2)
 
     bounds_target = (-3,3)
     # define variables
     model.loc1 = pyo.Var(model.time, bounds = bounds_target )
     model.loc2 = pyo.Var(model.time, bounds = bounds_target )
 
-    model.x1 = pyo.Var(model.time) # distance path
-    model.v1 = pyo.Var() # initial velocity of cannon ball
+    model.x1 = pyo.Var(model.time, bounds = bounds_target ) # distance path
+    model.v1 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
 
-    model.x2 = pyo.Var(model.time) # height path
-    model.v2 = pyo.Var() # initial velocity of cannon ball
+    model.x2 = pyo.Var(model.time, bounds = bounds_target ) # height path
+    model.v2 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
 
     #model.T = pyo.Var(within=model.time)# time when cannon ball hits target
 
@@ -269,19 +300,19 @@ if __name__ == '__main__':
     model.v1_constr = pyo.Constraint(model.time, rule=v1_rule) 
 
     def v2_rule(M, t):
-        return M.x2[t] == (M.v2 * t) - (0.5*g * (t**2))
-    model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)
+        return M.x2[t] == (M.v2 * t) - (0.5* g * (t**2))
+    model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)   
+        
+    # model.v1_pos_constr = pyo.Constraint(expr = model.v1  >= 0.001)
+    # model.v2_pos_constr = pyo.Constraint(expr = model.v2  >= 0.001)
 
-    model.v1_pos_constr = pyo.Constraint(expr = model.v1 >= 0)
-    model.v2_pos_constr = pyo.Constraint(expr = model.v2 >= 0)
+    # def loc1_rule(M, t):
+    #     return M.loc1[t] == model.history_loc1[t]
+    # model.loc1_constr = pyo.Constraint(model.time_history, rule=loc1_rule)
 
-    def loc1_rule(M, t):
-        return M.loc1[t] == model.history_loc1[t]
-    model.loc1_constr = pyo.Constraint(model.time_history, rule=loc1_rule)
-
-    def loc2_rule(M, t):
-        return M.loc2[t] == model.history_loc2[t]
-    model.loc2_constr = pyo.Constraint(model.time_history, rule=loc2_rule)
+    # def loc2_rule(M, t):
+    #     return M.loc2[t] == model.history_loc2[t]
+    # model.loc2_constr = pyo.Constraint(model.time_history, rule=loc2_rule)
 
     # Fix model solution
     input_x1 =   v_l1 * time  
@@ -292,7 +323,13 @@ if __name__ == '__main__':
         model.fixed_loc_constraints.add(expr= input_x1[i] == model.loc1[t])
         model.fixed_loc_constraints.add(expr= input_x2[i]  == model.loc2[t])
 
+    # Set objective
+    model.obj = pyo.Objective(
+        expr= sum((model.x1[t] - model.loc1[t])**2 + (model.x2[t] - model.loc2[t])**2 for t in model.time), sense=pyo.minimize
+    )  # -1: maximize, +1: minimize (default)
 
+    
+            
     # load trained transformer
     model_path = ".\\trained_transformer\\TNN_traj_enc.keras" # dmodel 4, num heads 1, n ence 1, n dec 1, head dim 4, pred_len 2+1 
     layer_names, parameters ,_ = extract_from_pretrained.get_learned_parameters(model_path)

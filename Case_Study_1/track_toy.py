@@ -13,8 +13,8 @@ from sklearn.preprocessing import MinMaxScaler
 model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
 
 # define constants
-T_end = 0.5
-steps = 100
+T_end = 0.0105#0.5
+steps = 19 #100
 time = np.linspace(0, T_end, num=steps)
 dt = time[1] - time[0]
 print(time)
@@ -28,21 +28,24 @@ v_l2 = 1.5
 model.time = pyo.Set(initialize=time)
 
 # define parameters
-def target_location_rule(M, t):
-    return v_l1 * t
-model.loc1 = pyo.Param(model.time, rule=target_location_rule) 
+# def target_location_rule(M, t):
+#     return v_l1 * t
+# model.loc1 = pyo.Param(model.time, rule=target_location_rule) 
 
-def target_location2_rule(M, t):
-    return (v_l2*t) - (0.5 * g * (t**2)) #+ (np.random.rand(1)/30)
-model.loc2 = pyo.Param(model.time, rule=target_location2_rule) 
-
+# def target_location2_rule(M, t):
+#     return (v_l2*t) - (0.5 * g * (t**2)) #+ (np.random.rand(1)/30)
+# model.loc2 = pyo.Param(model.time, rule=target_location2_rule) 
+bounds_target = (-3,3)
+# define variables
+model.loc1 = pyo.Var(model.time, bounds = bounds_target )
+model.loc2 = pyo.Var(model.time, bounds = bounds_target )
 
 # define variables
 model.x1 = pyo.Var(model.time) # distance path
-model.v1 = pyo.Var() # initial velocity of cannon ball
+model.v1 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
 
 model.x2 = pyo.Var(model.time) # height path
-model.v2 = pyo.Var() # initial velocity of cannon ball
+model.v2 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
 
 #model.T = pyo.Var(within=model.time)# time when cannon ball hits target
 
@@ -59,9 +62,6 @@ def v2_rule(M, t):
     return M.x2[t] == (M.v2 * t) - (0.5*g * (t**2))
 model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)
 
-model.v1_pos_constr = pyo.Constraint(expr = model.v1 >= 0)
-model.v2_pos_constr = pyo.Constraint(expr = model.v2 >= 0)
-
 # def x1_target_rule(M, t):
 #     return M.v1 * t == model.loc1[t]
 # model.x1_target_constr = pyo.Constraint(model.time, rule=x1_target_rule)
@@ -69,6 +69,18 @@ model.v2_pos_constr = pyo.Constraint(expr = model.v2 >= 0)
 # def x2_target_rule(M, t):
 #     return (M.v2 * t) - (0.5*g * (t**2)) == model.loc2[t]
 # model.x2_target_constr = pyo.Constraint(model.time, rule=x2_target_rule)
+
+# Fix model solution
+input_x1 =   v_l1 * time  
+input_x2 =  (v_l2*time) - (0.5 * g * (time*time))
+
+model.fixed_loc_constraints = pyo.ConstraintList()
+for i,t in enumerate(model.time):
+    model.fixed_loc_constraints.add(expr= input_x1[i] == model.loc1[t])
+    model.fixed_loc_constraints.add(expr= input_x2[i]  == model.loc2[t])
+
+
+
 
 # Set objective
 model.obj = pyo.Objective(
@@ -112,11 +124,11 @@ v2= np.array(optimal_parameters['v2'])
 
 
 plt.figure(1, figsize=(6, 4))
-plt.plot(time, loc2, 'o', label = f'target x2')
-plt.plot(time, x2, '--x', label = f'x2')
-plt.plot(time, loc1, 'o', label = f'target x1')
-plt.plot(time, x1, '--x', label = f'x1')
-plt.title(f'Trajectory of cannon ball')
+plt.plot(time, loc2, 'o', label = f'x2 data')
+plt.plot(time, x2, '--x', label = f'x2 predicted')
+plt.plot(time, loc1, 'o', label = f'x1 data')
+plt.plot(time, x1, '--x', label = f'x1 predicted')
+plt.title(f'Example')
 plt.legend()
 plt.show()
 
