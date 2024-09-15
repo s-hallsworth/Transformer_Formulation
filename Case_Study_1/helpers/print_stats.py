@@ -1,3 +1,4 @@
+from fileinput import filename
 from gurobipy import Model, GRB, GurobiError
 from pyomo.environ import SolverFactory, value
 from pyomo.opt import TerminationCondition, SolverStatus
@@ -6,6 +7,70 @@ import time
 import csv
 import os
 import matplotlib.pyplot as plt
+
+
+def save_gurobi_results(model, file_name, descr_short, rep, tnn_config):
+    # Collect the required information
+    time_limit = model.Params.TimeLimit
+    threads = model.Params.Threads
+    num_vars = model.NumVars
+    num_constraints = model.NumConstrs
+    num_integer_vars = sum(1 for v in model.getVars() if v.VType == gp.GRB.INTEGER)
+    num_binary_vars = sum(1 for v in model.getVars() if v.VType == gp.GRB.BINARY)
+    num_continuous_vars = sum(1 for v in model.getVars() if v.VType == gp.GRB.CONTINUOUS)
+    runtime_seconds = model.Runtime
+    runtime_work_units = model.Work
+    num_iterations = model.IterCount
+    num_nodes_explored = model.NodeCount
+    num_solutions_found = model.SolCount
+    optimality_gap = model.MIPGap if model.IsMIP else None
+    objective_value = model.ObjVal if model.Status == gp.GRB.OPTIMAL else None
+    root_node_relax_obj_value = model.ObjBoundC
+    root_node_relax_time = model.NodeWork
+    root_node_iterations = model.BarIterCount
+
+    # Write to CSV
+    output_data = [
+        ['Name', file_name],
+        ['Exp', descr_short],
+        ['Rep', rep],
+    ]
+
+    for key, value in tnn_config.items():
+        output_data += [key, value]
+
+    framework = "gurobipy"
+    solver = "gurobi"
+    output_data += [
+        ['Framework', framework],
+        ['Solver', solver]
+        ['Time Limit (seconds)', time_limit],
+        ['Number of Threads', threads],
+        ['Number of Variables', num_vars],
+        ['Number of Constraints', num_constraints],
+        ['Number of Continuous Variables', num_continuous_vars],
+        ['Number of Integer Variables', num_integer_vars],
+        ['Number of Binary Variables', num_binary_vars],
+        ['Run Time (seconds)', runtime_seconds],
+        ['Run Time (work units)', runtime_work_units],
+        ['Number of Iterations', num_iterations],
+        ['Number of Nodes Explored', num_nodes_explored],
+        ['Number of Solutions Found', num_solutions_found],
+        ['Optimality Gap', optimality_gap],
+        ['Objective Value', objective_value],
+        ['Root Node Relaxation Objective Value', root_node_relax_obj_value],
+        ['Root Node Relaxation Time (work units)', root_node_relax_time],
+        ['Root Node Relaxation Iterations', root_node_iterations],
+    ]
+
+    # Save the data to a CSV file
+    with open(f'{file_name}.csv', 'w', newline='') as csvfile:
+        csvwriter = csv.writer(csvfile)
+        csvwriter.writerow(['Metric', 'Value'])
+        csvwriter.writerows(output_data)
+
+    print("Solve results saved to ", filename+".csv")
+
 
 def solve_gurobipy(model, time_limit, callback=None):
     # Set a time limit
