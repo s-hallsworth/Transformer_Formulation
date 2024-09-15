@@ -4,10 +4,14 @@ import matplotlib.pyplot as plt
 import os
 
 
-N = 20   # number of functions
-T = 0.5   # number of time steps
-steps = 100
-time = np.linspace(0, T, num=steps)
+N = 300   # number of functions
+T = 1   # number of time steps
+incr = 0.5/19
+#steps = 100
+#time = np.linspace(0, T, num=steps)
+time = np.arange(0, T,incr)
+steps = len(time)
+print(len(time), time)
 dt = time[1] - time[0]  # time step
 scale = 10
 # Generate training data
@@ -16,14 +20,14 @@ def generate_data(num_samples, time):
     x2_list = []  
 
     for n in range(num_samples):
-        v1 =  np.random.rand(1)
-        v2 = ( 2*np.random.rand(1))
+        v1 =  np.random.rand(1)[0]
+        v2 = ( 2*np.random.rand(1))[0]
         
         x1 = np.zeros_like(time)
         x2 = np.zeros_like(time)
 
         for t in range(len(time)):
-            print(v1, v2, 0.5 * 9.81* time[t] * time[t])
+            #print(v1, v2, 0.5 * 9.81* time[t] * time[t])
             x1[t] = (v1 * time[t])
             x2[t] = (v2 * time[t]) - (0.5 * 9.81* time[t] * time[t])
             
@@ -33,11 +37,11 @@ def generate_data(num_samples, time):
     return np.array(x1_list), np.array(x2_list)
 
 x1, x2 = generate_data(num_samples=N, time=time)
-print(x1.shape, x2.shape)
+# print(x1.shape, x2.shape)
 
 
 plt.figure(1, figsize=(12, 8))
-for i in range(N):  
+for i in range(1):  
     plt.plot(x1[i,:], x2[i, :], "-x",label=f"Trajectory from Func {i+1}")
     plt.xlabel("distance")
     plt.ylabel("height")
@@ -49,7 +53,7 @@ plt.show()
 ## Save data
 ID = []
 for i in range(N):
-    array = (i + 1) * np.ones((steps))
+    array = (i + 1) * np.ones(len(time))
     ID += [array]
     
 data = {

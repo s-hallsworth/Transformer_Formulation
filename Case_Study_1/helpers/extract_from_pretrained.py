@@ -110,9 +110,8 @@ def get_learned_parameters(model_path):
             dict_transformer_params[(new_layer_name, 'b')] = parameters[1] 
             
         if 'DENSE' in layer_name.upper(): 
-            
             # if previous layer also dense, count as part of previous FFN
-            if 'DENSE' in model_layers[i-1].upper() and model_activations[i-1] == model_activations[i]: 
+            if 'DENSE' in model_layers[i-1].upper(): # and model_activations[i-1] == model_activations[i]: 
                 count_Layers += 1
                 #new_layer_name = 'dense_'+str(count_Layers)
                 

@@ -39,7 +39,7 @@ config = TimeSeriesTransformerConfig(
     num_parallel_samples=1,
     #loss="mse"
 )
-model = TimeSeriesTransformerForPrediction(config=config).to(DEVICE)
+tnn_model = TimeSeriesTransformerForPrediction(config=config).to(DEVICE)
 
 
 
@@ -47,7 +47,18 @@ model = TimeSeriesTransformerForPrediction(config=config).to(DEVICE)
 # model = TimeSeriesTransformerForPrediction.from_pretrained(train_tnn_path).to(DEVICE)
 #model.load_state_dict(torch.load(train_tnn_path, weights_only=False, map_location=torch.device('cpu')))
 
-model = torch.load(train_tnn_path, weights_only=False, map_location=torch.device('cpu'))
-print(type(model), model)
-print(summary(model))
+tnn_model = torch.load(train_tnn_path, weights_only=False, map_location=torch.device('cpu'))
+print(type(tnn_model), tnn_model)
+print(summary(tnn_model))
 #torch_model = get_torch_model(train_tnn_path)
+
+src = torch.ones(NUMBER_OF_POINTS, len(data_files))
+tgt = src
+bounds_target = (-1,1)
+# create optimization transformer
+transformer = TNN.Transformer( ".\\data\\toy_config_pytorch.json", tnn_model) 
+result =  transformer.build_from_pytorch( tnn_model,sample_enc_input=src, sample_dec_input=src,enc_bounds = bounds_target , dec_bounds=bounds_target, Transfromer='huggingface' )
+print("transformer built: ",result)
+tnn_input_enc = getattr( tnn_model, result[0][0])
+tnn_input_dec = getattr( tnn_model, result[0][1])
+tnn_output = getattr( tnn_model, result[-2])

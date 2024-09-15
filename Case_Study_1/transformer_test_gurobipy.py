@@ -7,15 +7,16 @@ import matplotlib.pyplot as plt
 import unittest
 import os
 from omlt import OmltBlock
-import convert_pyomo
+from helpers import convert_pyomo
 from gurobipy import Model, GRB
 from gurobi_ml import add_predictor_constr
-from GUROBI_ML_helper import get_inputs_gurobipy_FNN
+from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
+
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
-import transformer as TNN
+import transformer_b as TNN
 import toy_problem_setup as tps
 import transformer_intermediate_results as tir
 
@@ -276,6 +277,7 @@ class TestTransformer(unittest.TestCase):
     #     print("- Value formulation == Value model")
         
     #     ## Check MHA output
+    #     attention_output= np.array(optimal_parameters["attention_output"]) 
     #     MHA_output = np.array(layer_outputs_dict["multi_head_attention_1"]).flatten()
     #     self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
     #     self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=5)) # compare value with transformer output
@@ -564,21 +566,26 @@ class TestTransformer(unittest.TestCase):
         # config_file = '.\\data\\toy_config_relu_2.json' 
         config_file = tps.config_file 
         T = 11
+        gamma1 = tps.parameters['layer_normalization_1', 'gamma']
+        beta1  = tps.parameters['layer_normalization_1', 'beta']
+        
+        gamma2 = tps.parameters['layer_normalization_2', 'gamma']
+        beta2  = tps.parameters['layer_normalization_2', 'beta']
         
         # Define tranformer and execute 
-        transformer = TNN.Transformer(model, config_file, "time_input")  
-        transformer.embed_input(model, "input_param","input_embed", "variables")
-        transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
-        transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
-        transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
-        transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-        nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,10), tps.parameters)
-        transformer.add_residual_connection(model,"residual_1", "ffn_1", "residual_2")  
-        transformer.add_avg_pool(model, "residual_2", "avg_pool")
-        nn2, input_nn2, output_nn2 = transformer.get_fnn(model, "avg_pool", "ffn_2", "ffn_2", (1,2), tps.parameters)
+        transformer = TNN.Transformer(config_file, model)  
+        transformer.embed_input("input_param","input_embed", model.model_dims)
+        transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
+        transformer.add_attention( "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
+        transformer.add_residual_connection("input_embed", "attention_output", "residual_1")
+        transformer.add_layer_norm( "residual_1", "layer_norm_2", gamma2, beta2)
+        nn, input_nn, output_nn = transformer.get_fnn("layer_norm_2", "ffn_1", "ffn_1", (seq_len,2), tps.parameters)
+        transformer.add_residual_connection("residual_1", "ffn_1", "residual_2")  
+        transformer.add_avg_pool( "residual_2", "avg_pool")
+        nn2, input_nn2, output_nn2 = transformer.get_fnn( "avg_pool", "ffn_2", "ffn_2", (1,2), tps.parameters)
 
         # # Convert to gurobipy
-        gurobi_model, map_var = convert_pyomo.to_gurobi(model)
+        gurobi_model, map_var, _ = convert_pyomo.to_gurobi(model)
 
         ## Add FNN1 to gurobi model
         inputs_1, outputs_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
@@ -604,10 +611,19 @@ class TestTransformer(unittest.TestCase):
                         optimal_parameters[name] = [v.x]
                 else:    
                     optimal_parameters[v.varName] = v.x
+                    
+        ## Check MHA output
+        attention_output= np.array(optimal_parameters["attention_output"]) 
+        MHA_output = np.array(layer_outputs_dict["multi_head_attention_1"]).flatten()
+        self.assertIsNone(np.testing.assert_array_equal(attention_output.shape, MHA_output.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(attention_output, MHA_output , decimal=5)) # compare value with transformer output
+        print("- MHA output formulation == MHA output model")
+                    
         
         #Check outputs
-        ffn_2_output = np.array(optimal_parameters["ffn_2"]) 
-        FFN_out = np.array(layer_outputs_dict["dense_4"]).flatten()
+        ffn_2_output = np.array([optimal_parameters["ffn_2"][0]])
+        FFN_out = np.array(layer_outputs_dict["dense_4"])[0]
+        print(ffn_2_output.shape, FFN_out.shape )
         print(ffn_2_output,  FFN_out)
         self.assertIsNone(np.testing.assert_array_equal(ffn_2_output.shape,  FFN_out.shape)) # compare shape with transformer
         self.assertIsNone(np.testing.assert_array_almost_equal(ffn_2_output,  FFN_out, decimal=5)) # compare value with transformer output
@@ -667,13 +683,21 @@ def reformat(dict, layer_name):
 
 # ------- MAIN -----------------------------------------------------------------------------------
 if __name__ == '__main__': 
-    model_path = ".\\TNN_enc_0002.keras"
-    config_file = '.\\data\\toy_config_relu_10.json' 
+    model_path = "..\\Solve_Toy\\TNN_enc_0002.keras"
+    config_file = '..\\Solve_Toy\\data\\toy_config_relu_10.json' 
     T = 9000 # time steps
     seq_len = 10
     pred_len = 2
     window = seq_len + pred_len
-    model = tps.setup_toy( T, seq_len, pred_len, model_path, config_file)
-    layer_outputs_dict = tir.generate_layer_outputs()
+    
+    x_input_10 = [1.0, 1.10657895, 1.21388889, 1.32205882, 1.43125, 1.54166667, 1.65357143, 1.76730769, 1.88333333, 2.00227273]
+    u_input_10 = [0.25, 0.26315789, 0.27777778, 0.29411765, 0.3125, 0.33333333, 0.35714286, 0.38461538, 0.41666667, 0.45454545]
+        
+    input_data = np.array([[ [x,u] for x,u in zip(x_input_10, u_input_10)]])
+
+    
+    model = tps.setup_toy( T, 0, seq_len, pred_len, model_path, config_file, input_data[0])
+    layer_outputs_dict = tir.generate_layer_outputs(model_path, define=False)
+    
     unittest.main() 
 

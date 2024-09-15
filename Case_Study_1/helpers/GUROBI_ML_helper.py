@@ -27,7 +27,9 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
             if val['activation'] =='relu':
                 weights_list += [[weights, bias]]
                 nn.add(Dense(n_layer_nodes, activation='relu',name=layer_name))
-
+            elif val['activation'] == None or val['activation'] == 'linear':
+                weights_list += [[weights, bias]]
+                nn.add(Dense(n_layer_nodes, activation=None,name=layer_name))
             else:
                 raise TypeError(f'Error in layer: {layer_name}. Activation function not currently supported for ', val['activation'])
 
@@ -46,7 +48,9 @@ def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
     prev_output = {}
     i = ""
     o = ""
-
+    i_flag = False
+    o_flag = False
+    
     for index, value in map_var.items():
     
         if  str(index).startswith(input_nn.name):
@@ -54,13 +58,17 @@ def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
                 if i == "":
                     i = str(index).split(',')[0]
                     prev_input[str(index).split(',')[0]] = [value]
+                    i_flag = True
                     
                 elif str(index).split(',')[0] != i:
                     inputs += [prev_input[i]]
                     i = str(index).split(',')[0]
                     prev_input[str(index).split(',')[0]] = [value]
+                    
+                    i_flag = False
                 else:
                     prev_input[str(index).split(',')[0]] += [value]
+                    i_flag = True
             else:
                 inputs += [value]
               
@@ -71,19 +79,24 @@ def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
                 if o == "":
                     o = str(index).split(',')[0]
                     prev_output[str(index).split(',')[0]] = [value]
+                    o_flag = True
                     
                 elif str(index).split(',')[0] != o:
                     outputs += [prev_output[o]]
                     o = str(index).split(',')[0]
                     prev_output[str(index).split(',')[0]] = [value]
+                    o_flag = False
                 else:
                     prev_output[str(index).split(',')[0]] += [value]
+                    o_flag = True
             else:
                 outputs += [value]  
                 
     # add last vars to list
-    inputs += [prev_input[i]]     
-    outputs += [prev_output[o]]            
+    if i_flag:
+        inputs  += [prev_input[i]]   
+    if o_flag:  
+        outputs += [prev_output[o]]            
 
     return inputs, outputs 
 

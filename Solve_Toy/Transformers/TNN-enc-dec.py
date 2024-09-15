@@ -254,7 +254,7 @@ model_params = {
 
 # Build and train the model.
 
-def run_model(x_train, y_train, x_test, y_test, x_test1, y_test1, x_test2, y_test2,x_test3, y_test3, save = False):
+def run_model(x_train, y_train, x_test, y_test, save = False):
     model = build_model(
         input_shape = model_params["input_shape"],
         head_size = model_params["head_size"],

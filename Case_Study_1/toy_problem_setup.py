@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 #from pyomo import dae
 import numpy as np
-import extract_from_pretrained as extract_from_pretrained
+from helpers import extract_from_pretrained 
 
 
 """
@@ -42,8 +42,8 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file, input_d
     LB_input = 0 
 
     # Define inputs
-    x_input = input_data[0]
-    u_input = input_data[1]
+    x_input = input_data[:,0]
+    u_input = input_data[:,1]
     
     print("------------- SET UP ---------------")
     print(x_input)
@@ -63,14 +63,14 @@ def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file, input_d
         model.input_constraints.add(expr=model.input_param[t,'1'] == model.input_var[t,'1'])  
         
     ## define transformer sets, vars, params
-    dict_gamma1 = {(v): val for v,val in zip(model.model_dims, parameters['layer_normalization_1','gamma'])}
-    dict_beta1 = {(v): val for v,val in zip(model.model_dims,  parameters['layer_normalization_1','beta'])}
+    # dict_gamma1 = {(v): val for v,val in zip(model.model_dims, parameters['layer_normalization_1','gamma'])}
+    # dict_beta1 = {(v): val for v,val in zip(model.model_dims,  parameters['layer_normalization_1','beta'])}
     # model.gamma1 = pyo.Param(model.model_dims, initialize = dict_gamma1)
     # model.beta1 = pyo.Param(model.model_dims, initialize = dict_beta1)
 
 
-    dict_gamma2 = {(v): val for v,val in zip(model.model_dims, parameters['layer_normalization_2','gamma'])}
-    dict_beta2 = {(v): val for v,val in zip(model.model_dims,  parameters['layer_normalization_2','beta'])}
+    # dict_gamma2 = {(v): val for v,val in zip(model.model_dims, parameters['layer_normalization_2','gamma'])}
+    # dict_beta2 = {(v): val for v,val in zip(model.model_dims,  parameters['layer_normalization_2','beta'])}
     # model.gamma2 = pyo.Param(model.model_dims, initialize = dict_gamma2)
     # model.beta2 = pyo.Param(model.model_dims, initialize = dict_beta2)
     
