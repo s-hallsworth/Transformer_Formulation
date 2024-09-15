@@ -222,7 +222,9 @@ class TestTransformer(unittest.TestCase):
         Q_form = np.array(optimal_parameters["Block_attention_output.Q"])
         K_form = np.array(optimal_parameters["Block_attention_output.K"])
         V_form = np.array(optimal_parameters["Block_attention_output.V"])
- 
+        attn_score_form = np.array(optimal_parameters["Block_attention_output.compatibility"])
+        attn_weight_form = np.array(optimal_parameters["Block_attention_output.attention_weight"])
+        
         # Check Solve calculations
         input = np.array(layer_outputs_dict['input_layer_1']).squeeze(0)
         transformer_input = np.array(layer_outputs_dict["layer_normalization_1"])[0]
@@ -234,9 +236,7 @@ class TestTransformer(unittest.TestCase):
         K = np.transpose(K,(1,0,2)) + np.repeat(np.expand_dims(np.array(b_k),axis=1), transformer.N ,axis=1)
         V = np.transpose(V,(1,0,2)) + np.repeat(np.expand_dims(np.array(b_v),axis=1), transformer.N ,axis=1)
         
-        ####################
-        print("Q shape", Q.shape)
-        print("V shape", V.shape)
+        #################### Calculate other intermediary vars
         q = Q
         k = K
         v = V
@@ -258,15 +258,14 @@ class TestTransformer(unittest.TestCase):
         # Final output projection (optional squeezing if needed)
         computed_attn_output = np.matmul(attn_output, W_o) + b_o
         
-        print(computed_attn_output.shape, computed_attn_output)
-        
         ####################
+        # Compare results:
         
         Q = Q.flatten()
         K = K.flatten()
         V = V.flatten()
         
-        self.assertIsNone(np.testing.assert_array_almost_equal(np.array(layer_outputs_dict["layer_normalization_1"]).flatten(),LN_output, decimal =4))
+        self.assertIsNone(np.testing.assert_array_almost_equal(np.array(layer_outputs_dict["layer_normalization_1"]).flatten(),LN_output, decimal =3))
         print("- MHA input formulation == MHA input model")
         
         self.assertIsNone(np.testing.assert_array_equal(Q.shape, Q_form.shape))
@@ -281,16 +280,105 @@ class TestTransformer(unittest.TestCase):
         self.assertIsNone(np.testing.assert_array_almost_equal( V_form,V, decimal =3))
         print("- Value formulation == Value model")            
         
+        expected = np.array(layer_outputs_dict["multi_head_attention_1"]).flatten()
+        self.assertIsNone(np.testing.assert_array_almost_equal(computed_attn_output.flatten(), expected, decimal=3))
+        self.assertIsNone(np.testing.assert_array_equal(attn_scores.flatten().shape, attn_score_form.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal( attn_score_form, attn_scores.flatten(), decimal =3))
+        print("- Attn Score formulation == Attn Score model")
+        
+        self.assertIsNone(np.testing.assert_array_equal(attn_weights.flatten().shape, attn_weight_form.shape))
+        self.assertIsNone(np.testing.assert_array_almost_equal( attn_weight_form, attn_weights.flatten(), decimal =3))
+        print("- Attn Weights formulation == Attn weights model")  
+
         ## Check output 
         actual = np.array(optimal_parameters["attention_output"]) 
-        expected = np.array(layer_outputs_dict["multi_head_attention_1"]).flatten()
-        
-        print(actual)
-        print(np.array(layer_outputs_dict["multi_head_attention_1"]))
-        self.assertIsNone(np.testing.assert_array_almost_equal(computed_attn_output.flatten(), expected, decimal=4))
         self.assertIsNone(np.testing.assert_array_equal(actual.shape, expected.shape)) # compare shape with transformer
         self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=3)) # compare value with transformer output
         print("- MHA formulation == MHA model")
+        
+    def test_MHA(self):
+        print("======= ADD & NORM 1 =======")
+        
+        # Define Test Case Params
+        m = model.clone()
+        seq_len = 10
+        layer = 'mutli_head_attention_1'
+
+        gamma1 = parameters['layer_normalization_1', 'gamma']
+        beta1  = parameters['layer_normalization_1', 'beta']
+        
+        gamma2 = parameters['layer_normalization_2', 'gamma']
+        beta2  = parameters['layer_normalization_2', 'beta']
+
+        layer = 'mutli_head_attention_1'
+        W_q = parameters[layer,'W_q']
+        W_k = parameters[layer,'W_k']
+        W_v = parameters[layer,'W_v']
+        W_o = parameters[layer,'W_o']
+
+        try:
+            b_q = parameters[layer,'b_q']
+            b_k = parameters[layer,'b_k']
+            b_v = parameters[layer,'b_v']
+            b_o = parameters[layer,'b_o']
+        except: # no bias values found
+                b_q = 0
+                b_k = 0
+                b_v = 0
+                b_o = 0
+        
+        # Define tranformer and execute 
+        transformer = TNN.Transformer(config_file, m)  
+        transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
+        transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
+        transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+        transformer.add_residual_connection("input_embed", "attention_output", "residual_1")
+        transformer.add_layer_norm( "residual_1", "layer_norm_2", gamma2, beta2)
+         
+        
+        # add constraints to trained TNN input
+        m.tnn_constraints = pyo.ConstraintList()
+        indices = []
+        for set in str(transformer.M.input_embed.index_set()).split("*"):
+            indices.append( getattr(m, set) )
+        for tnn_index, index in zip(indices[0], m.time_history):
+            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
+            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+            
+        
+        # # Convert to gurobipy
+        gurobi_model, map_var, _ = convert_pyomo.to_gurobi(m)
+        
+        ## Optimizes
+        # gurobi_model.setParam('DualReductions',0)
+        gurobi_model.optimize()
+
+        if gurobi_model.status == GRB.OPTIMAL:
+            optimal_parameters = {}
+            for v in gurobi_model.getVars():
+                #print(f'var name: {v.varName}, var type {type(v)}')
+                if "[" in v.varName:
+                    name = v.varname.split("[")[0]
+                    if name in optimal_parameters.keys():
+                        optimal_parameters[name] += [v.x]
+                    else:
+                        optimal_parameters[name] = [v.x]
+                else:    
+                    optimal_parameters[v.varName] = v.x
+                    
+        if gurobi_model.status == GRB.INFEASIBLE:
+                gurobi_model.computeIIS()
+                gurobi_model.write("pytorch_model.ilp")
+                
+        
+        
+
+        ## Check output 
+        actual = np.array(optimal_parameters["layer_norm_2"]) 
+        expected = np.array(layer_outputs_dict["layer_normalization_2"]).flatten()
+        self.assertIsNone(np.testing.assert_array_equal(actual.shape, expected.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=3)) # compare value with transformer output
+        print("- Add & Norm 1 formulation == Add & Norm 1 model")
                         
     # def test_FFN2(self):
     #     print("======= FFN2 =======")

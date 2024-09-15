@@ -699,7 +699,7 @@ class Transformer:
         MHA_Block.compatibility_max = pyo.Var(MHA_Block.heads, time_dim, within=pyo.Reals) 
         MHA_Block.compatibility_max_s = pyo.Var(MHA_Block.heads, time_dim, res_dim_1_kv, within=pyo.Binary) 
         MHA_Block.compatibility_scaled = pyo.Var(MHA_Block.heads, time_dim, res_dim_1_kv, within=pyo.Reals) 
-        scale = np.sqrt(self.d_k)
+        scale = 1.0/np.sqrt(self.d_k)
         
         MHA_Block.compatibility_exp = pyo.Var(MHA_Block.heads, time_dim, res_dim_1_kv, within=pyo.NonNegativeReals, bounds=(0,None)) # range: 0-->inf, initialize=init_compatibility_exp)
         MHA_Block.compatibility_exp_sum = pyo.Var(MHA_Block.heads, time_dim, within=pyo.NonNegativeReals, bounds=(0,None)) #, initialize=init_compatibility_sum)
@@ -851,18 +851,19 @@ class Transformer:
                         
                     for p in res_dim_1_kv:
                         #compatibility sqrt(Q * K) across all pairs of elements
-                        MHA_Block.attention_constraints.add(expr=MHA_Block.QK[h, n, p, k] == MHA_Block.Q[h, n, k] * MHA_Block.K[ h, p, k])
+                        for k in MHA_Block.k_dims:
+                            MHA_Block.attention_constraints.add(expr=MHA_Block.QK[h, n, p, k] == ( MHA_Block.Q[h, n, k]) * MHA_Block.K[ h, p, k])
                         
                         
                         MHA_Block.attention_constraints.add(
-                            expr=MHA_Block.compatibility[h, n, p] *scale
-                            == sum(MHA_Block.QK[h, n, p, k] for k in MHA_Block.k_dims)
+                            expr=MHA_Block.compatibility[h, n, p] 
+                            ==  scale * sum(MHA_Block.QK[h, n, p, k] for k in MHA_Block.k_dims)
                         ) 
                         
                             
                         # MHA_Block.attention_constraints.add(
-                        #     expr=MHA_Block.compatibility[h, n, p] *scale
-                        #     == sum(MHA_Block.Q[h, n, k] * (MHA_Block.K[ h, p, k] )for k in MHA_Block.k_dims)
+                        #     expr=MHA_Block.compatibility[h, n, p] 
+                        #     == scale * sum(MHA_Block.Q[h, n, k] * (MHA_Block.K[ h, p, k] )for k in MHA_Block.k_dims)
                         # )  
                         
                         # max compatibility
@@ -908,11 +909,11 @@ class Transformer:
             for n in time_dim:
                 for p in res_dim_1_kv:
 
-                    MHA_Block.compatibility[h,n,p].ub = (1/scale ) * (sum(max(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb,
+                    MHA_Block.compatibility[h,n,p].ub = scale * (sum(max(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb,
                                                                                 MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
                                                                                 MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
                                                                                 MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) for k in MHA_Block.k_dims) )
-                    MHA_Block.compatibility[h,n,p].lb = (1/scale ) * (sum(min(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb, 
+                    MHA_Block.compatibility[h,n,p].lb = scale * (sum(min(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb, 
                                                                                 MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
                                                                                 MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
                                                                                 MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) for k in MHA_Block.k_dims) )
@@ -1414,8 +1415,8 @@ class Transformer:
     #                     scale = np.sqrt(self.d_k) 
 
     #                     MHA_Block.attention_constraints.add(
-    #                         expr=MHA_Block.compatibility[h, n, p] *scale
-    #                         == sum(MHA_Block.Q[h, n, k] * (MHA_Block.K[ h, p, k] )for k in MHA_Block.k_dims)
+    #                         expr=MHA_Block.compatibility[h, n, p] 
+    #                         == scale * sum(MHA_Block.Q[h, n, k] * (MHA_Block.K[ h, p, k] )for k in MHA_Block.k_dims)
     #                     ) 
                         
                         
@@ -1468,7 +1469,7 @@ class Transformer:
     #                 MHA_Block.attention_constraints.add(
     #                             expr=MHA_Block.compatibility[h,n,p] == MHA_Block.compatibility_pos[h,n,p] - MHA_Block.compatibility_neg[h,n,p] 
     #                         )
-    #                 MHA_Block.compatibility_pos[h,n,p].ub = (1/scale ) * (sum( (MHA_Block.Q[h, n, k].ub)**2 for k in MHA_Block.k_dims)**0.5) * (sum( (MHA_Block.K[h, n, k].ub)**2 for k in MHA_Block.k_dims)**0.5)
+    #                 MHA_Block.compatibility_pos[h,n,p].ub = scale * (sum( (MHA_Block.Q[h, n, k].ub)**2 for k in MHA_Block.k_dims)**0.5) * (sum( (MHA_Block.K[h, n, k].ub)**2 for k in MHA_Block.k_dims)**0.5)
     #                 MHA_Block.compatibility_neg[h,n,p].ub = MHA_Block.compatibility_pos[h,n,p].ub
     #                 MHA_Block.compatibility[h,n,p].ub = MHA_Block.compatibility_pos[h,n,p].ub
     #                 MHA_Block.compatibility[h,n,p].lb = -MHA_Block.compatibility_pos[h,n,p].ub
@@ -1682,9 +1683,15 @@ class Transformer:
         if not hasattr( self.M, "mccormick_bb_constr_list"):
             setattr( self.M, "mccormick_bb_constr_list", pyo.ConstraintList())
             
-        constraints = getattr( self.M, "mccormick_bb_constr_list")    
-        constraints.add( expr= w >= (x.lb * y) + (x*y.lb) - (x.lb*y.lb))
-        constraints.add( expr= w >= (x.ub * y) + (x*y.ub) - (x.ub*y.ub))
-        constraints.add( expr= w <= (x.ub * y) + (x*y.lb) - (x.ub*y.lb))
-        constraints.add( expr= w <= (x * y.ub) + (x.lb*y) - (x.lb*y.ub))
+        constraints = getattr( self.M, "mccormick_bb_constr_list")   
+        
+        if x.lb >= 0 and y.lb >= 0: #(construction of mccormick relies on var - var.lb >=0)
+            # add cuts
+            constraints.add( expr= w >= (x.lb * y) + (x * y.lb) - (x.lb * y.lb))
+            constraints.add( expr= w <= (x.ub * y) + (x * y.lb) - (x.ub * y.lb))
+            constraints.add( expr= w <= (x * y.ub) + (x.lb * y) - (x.lb * y.ub))
+            
+        if x.ub >= 0 and y.ub >= 0:
+            # add cuts
+            constraints.add( expr= w >= (x.ub * y) + (x * y.ub) - (x.ub * y.ub))
 
