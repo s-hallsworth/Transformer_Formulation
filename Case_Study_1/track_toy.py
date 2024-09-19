@@ -13,8 +13,8 @@ from sklearn.preprocessing import MinMaxScaler
 model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
 
 # define constants
-T_end = 0.0105#0.5
-steps = 19 #100
+T_end = 0.5
+steps = 100
 time = np.linspace(0, T_end, num=steps)
 dt = time[1] - time[0]
 print(time)
@@ -27,18 +27,19 @@ v_l2 = 1.5
 # define sets
 model.time = pyo.Set(initialize=time)
 
-# define parameters
-# def target_location_rule(M, t):
-#     return v_l1 * t
-# model.loc1 = pyo.Param(model.time, rule=target_location_rule) 
 
-# def target_location2_rule(M, t):
-#     return (v_l2*t) - (0.5 * g * (t**2)) #+ (np.random.rand(1)/30)
-# model.loc2 = pyo.Param(model.time, rule=target_location2_rule) 
-bounds_target = (-3,3)
-# define variables
-model.loc1 = pyo.Var(model.time, bounds = bounds_target )
-model.loc2 = pyo.Var(model.time, bounds = bounds_target )
+#
+
+
+
+# define parameters
+def target_location_rule(M, t):
+    return v_l1 * t
+model.loc1 = pyo.Param(model.time, rule=target_location_rule) 
+
+def target_location2_rule(M, t):
+    return (v_l2*t) - (0.5 * g * (t**2)) + (np.random.rand(1)/30)
+model.loc2 = pyo.Param(model.time, rule=target_location2_rule) 
 
 # define variables
 model.x1 = pyo.Var(model.time) # distance path
@@ -53,40 +54,32 @@ model.v2 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
 model.x1_constr = pyo.Constraint(expr= model.x1[0] == 0) 
 model.x2_constr = pyo.Constraint(expr= model.x2[0] == 0) 
 
-# define constraints
-def v1_rule(M, t):
-    return M.x1[t] == M.v1 * t
-model.v1_constr = pyo.Constraint(model.time, rule=v1_rule) 
+# # define constraints
 
-def v2_rule(M, t):
-    return M.x2[t] == (M.v2 * t) - (0.5*g * (t**2))
-model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)
+model.x1_constr = pyo.Constraint(expr= model.v1 >= 0) 
+model.x2_constr = pyo.Constraint(expr= model.v2 >= 0) 
+# def v1_rule(M, t):
+#     return M.x1[t] == M.v1 * t
+# model.v1_constr = pyo.Constraint(model.time, rule=v1_rule) 
 
-# def x1_target_rule(M, t):
-#     return M.v1 * t == model.loc1[t]
-# model.x1_target_constr = pyo.Constraint(model.time, rule=x1_target_rule)
-
-# def x2_target_rule(M, t):
-#     return (M.v2 * t) - (0.5*g * (t**2)) == model.loc2[t]
-# model.x2_target_constr = pyo.Constraint(model.time, rule=x2_target_rule)
-
-# Fix model solution
-input_x1 =   v_l1 * time  
-input_x2 =  (v_l2*time) - (0.5 * g * (time*time))
-
-model.fixed_loc_constraints = pyo.ConstraintList()
-for i,t in enumerate(model.time):
-    model.fixed_loc_constraints.add(expr= input_x1[i] == model.loc1[t])
-    model.fixed_loc_constraints.add(expr= input_x2[i]  == model.loc2[t])
-
-
-
+# def v2_rule(M, t):
+#     return M.x2[t] == (M.v2 * t) - (0.5*g * (t**2))
+# model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)
 
 # Set objective
 model.obj = pyo.Objective(
     expr= sum((model.x1[t] - model.loc1[t])**2 + (model.x2[t] - model.loc2[t])**2 for t in model.time), sense=1
 )  # -1: maximize, +1: minimize (default)
 
+
+# ##------ Fix model solution ------##
+input_x1 =   v_l1 * time  
+input_x2 =  (v_l2*time) - (0.5 * g * (time*time))
+
+model.fixed_loc_constraints = pyo.ConstraintList()
+for i,t in enumerate(model.time):
+    model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
+    model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
 
 # view model
 #model.pprint()  # pyomo solve test.py --solver=gurobi --stream-solver --summary

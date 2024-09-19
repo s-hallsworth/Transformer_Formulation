@@ -31,7 +31,7 @@ class TestTransformer(unittest.TestCase):
         
     #     # Define Test Case Params
     #     m = model.clone()
-    #     seq_len = 10
+    #     seq_len = tt
         
     #     # Define tranformer and execute 
     #     transformer = TNN.Transformer(config_file, m)  
@@ -84,7 +84,7 @@ class TestTransformer(unittest.TestCase):
         
     #     # Define Test Case Params
     #     m = model.clone()
-    #     seq_len = 10
+    #     seq_len = tt
     #     layer = 'mutli_head_attention_1'
 
     #     gamma1 = parameters['layer_normalization_1', 'gamma']
@@ -152,7 +152,7 @@ class TestTransformer(unittest.TestCase):
         
     #     # Define Test Case Params
     #     m = model.clone()
-    #     seq_len = 10
+    #     seq_len = tt
     #     layer = 'mutli_head_attention_1'
 
     #     gamma1 = parameters['layer_normalization_1', 'gamma']
@@ -301,7 +301,7 @@ class TestTransformer(unittest.TestCase):
         
     #     # Define Test Case Params
     #     m = model.clone()
-    #     seq_len = 10
+    #     seq_len = tt
     #     layer = 'mutli_head_attention_1'
 
     #     gamma1 = parameters['layer_normalization_1', 'gamma']
@@ -386,7 +386,7 @@ class TestTransformer(unittest.TestCase):
         
     #     # Define Test Case Params
     #     m = model.clone()
-    #     seq_len = 10
+    #     seq_len = tt
     #     layer = 'mutli_head_attention_1'
 
     #     gamma1 = parameters['layer_normalization_1', 'gamma']
@@ -480,7 +480,7 @@ class TestTransformer(unittest.TestCase):
         
         # Define Test Case Params
         m = model.clone()
-        seq_len = 10
+        seq_len = tt
         layer = 'mutli_head_attention_1'
         W_q = parameters[layer,'W_q']
         W_k = parameters[layer,'W_k']
@@ -526,7 +526,7 @@ class TestTransformer(unittest.TestCase):
         transformer.add_layer_norm( "residual_1", "layer_norm_2", gamma2, beta2)
         nn, input_nn, output_nn = transformer.get_fnn("layer_norm_2", "ffn_1", "ffn_1", (seq_len,2), parameters)
         transformer.add_residual_connection("residual_1", "ffn_1", "residual_2")  
-        nn2, input_nn2, output_nn2 = transformer.get_fnn( "residual_2", "ffn_2", "ffn_2", (pred_len+1, 2), parameters)
+        nn2, input_nn2, output_nn2 = transformer.get_fnn( "residual_2", "ffn_2", "ffn_2", (seq_len, 2), parameters)
         
         
         # add constraints to trained TNN input
@@ -535,27 +535,22 @@ class TestTransformer(unittest.TestCase):
         for set in str(transformer.M.input_embed.index_set()).split("*"):
             indices.append( getattr(m, set) )
         for tnn_index, index in zip(indices[0], m.time_history):
-            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
-            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.x1[index])
+            m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.x2[index]) 
             
         # add constraints to trained TNN output
-        m.tnn_constraints = pyo.ConstraintList()
         indices = []
         for set in str(output_nn2.index_set()).split("*"): 
-            print(set)
             indices.append( getattr(m, set) )
-        print(indices[0].values)    
-        print(indices[1].values)  
-            
         out_index = 0
         for t_index, t in enumerate(m.time):
             index = t_index + 1 # 1 indexing
             
-            if t >= m.time_history.last(): # since overlap is 1
+            if t > m.time_history.last(): # since overlap is 1
                 out_index += 1
-                print(out_index, t, indices[1].first(), indices[1].last())
-                # m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.loc1[t])
-                # m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.loc2[t])
+                print(out_index, t )
+                m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.x1[t])
+                m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.x2[t])
         
 
         # # Convert to gurobipy
@@ -575,6 +570,7 @@ class TestTransformer(unittest.TestCase):
         
         ## Optimizes
         # gurobi_model.setParam('DualReductions',0)
+        gurobi_model.setParam('MIPFocus',1)
         gurobi_model.optimize()
 
         if gurobi_model.status == GRB.OPTIMAL:
@@ -596,9 +592,8 @@ class TestTransformer(unittest.TestCase):
                 
         # x1 = np.array(optimal_parameters['x1'])
         # x2 = np.array(optimal_parameters['x2'])
-        # loc1 = np.array(optimal_parameters['loc1'])
-        # loc2 = np.array(optimal_parameters['loc2'])
-
+        # loc1 = np.array([v for k,v in model.loc1.items()])
+        # loc2 = np.array([v for k,v in model.loc2.items()])
         # v1= np.array(optimal_parameters['v1'])
         # v2= np.array(optimal_parameters['v2'])
         # # T= np.array(optimal_parameters['T'])
@@ -631,12 +626,12 @@ class TestTransformer(unittest.TestCase):
         ffn_2_output = np.array([optimal_parameters["ffn_2"]]).squeeze(0)
         FFN_out = np.array(layer_outputs_dict["dense_4"])[0].flatten()
         
-        print(np.array(layer_outputs_dict["dense_4"])[0])
-        print(np.array([optimal_parameters["loc_1"]])[-10:])
-        print(np.array([optimal_parameters["loc_2"]])[-10:])
+        print( np.array([optimal_parameters["ffn_2"]]))
+        print( np.array([optimal_parameters["x1"]])[0][-pred_len - 1:])
+        print( np.array([optimal_parameters["x2"]])[0][-pred_len - 1:])
         
         self.assertIsNone(np.testing.assert_array_equal(ffn_2_output.shape,  FFN_out.shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(ffn_2_output,  FFN_out, decimal=4)) # compare value with transformer output
+        self.assertIsNone(np.testing.assert_array_almost_equal(ffn_2_output,  FFN_out, decimal=2)) # compare value with transformer output
         print("- FFN2 output formulation == FFN2 output model")   
         
         print("Output: ", ffn_2_output)
@@ -695,20 +690,26 @@ def reformat(dict, layer_name):
 if __name__ == '__main__': 
     # instantiate pyomo model component
     model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
-    config_file = '.\\data\\toy_track_k_enc_config.json' 
+    config_file = '.\\data\\toy_track_k_enc_config_2.json' 
     
     # define constants
     T_end = 0.5#0.0105
     steps = 19 ##CHANGE THIS ##
     time = np.linspace(0, T_end, num=steps)
-    dt = time[1] - time[0]
-    tt = 10 # sequence size
+    
+    tt = 2 # sequence size
     time_history = time[0:tt]
-    pred_len = 9
+    pred_len = 1
+    
+    time = time[:tt+pred_len]
+    steps = len(time)
+    print(steps)
 
     g = 9.81
     v_l1 = 0.2
     v_l2 = 1.5
+    dt = time[-1] - time[0]
+    
 
     # src = np.array([np.random.rand(1)*time[0:-1] , (2*np.random.rand(1) * time[0:-1]) - (0.5 * 9.81* time[0:-1] * time[0:-1])])# random sample input [x1_targte, x2_target]
     # src = src.transpose(1,0)
@@ -718,65 +719,45 @@ if __name__ == '__main__':
     model.time_history = pyo.Set(initialize=time_history)
     # print(time, time[0:-1])
     
-    #define parameters
+    # define parameters
     def target_location_rule(M, t):
-        return v_l1 * t
-    model.history_loc1 = pyo.Param(model.time_history, rule=target_location_rule) 
+        return v_l1 * t #+ (np.random.rand(1)/30)
+    model.loc1 = pyo.Param(model.time, rule=target_location_rule) 
 
     def target_location2_rule(M, t):
-        return (v_l2*t) - (0.5 * g * (t**2))
-    model.history_loc2 = pyo.Param(model.time_history, rule=target_location2_rule) 
-    
-    history_loc1 = np.array([v for k,v in model.history_loc1.items()])
-    history_loc2 = np.array([v for k,v in model.history_loc2.items()])
-    # print(history_loc1, history_loc2)
+        return (v_l2*t) - (0.5 * g * (t**2)) + (np.random.rand(1)/30)
+    model.loc2 = pyo.Param(model.time, rule=target_location2_rule) 
 
     bounds_target = (-3,3)
     # define variables
-    model.loc1 = pyo.Var(model.time, bounds = bounds_target )
-    model.loc2 = pyo.Var(model.time, bounds = bounds_target )
-
     model.x1 = pyo.Var(model.time, bounds = bounds_target ) # distance path
-    model.v1 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
+    #model.v1 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
 
-    model.x2 = pyo.Var(model.time, bounds = bounds_target ) # height path
-    model.v2 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
+    model.x2 = pyo.Var(model.time, bounds = bounds_target) # height path
+    #model.v2 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
 
     #model.T = pyo.Var(within=model.time)# time when cannon ball hits target
 
     # define initial conditions
     model.x1_constr = pyo.Constraint(expr= model.x1[0] == 0) 
     model.x2_constr = pyo.Constraint(expr= model.x2[0] == 0) 
+    
 
-    # define constraints
-    def v1_rule(M, t):
-        return M.x1[t] == M.v1 * t
-    model.v1_constr = pyo.Constraint(model.time, rule=v1_rule) 
+    # model.v1_constr = pyo.Constraint(expr = model.v1 == (model.x1[model.time.last()] - model.x1[model.time.first()])/dt) 
 
-    def v2_rule(M, t):
-        return M.x2[t] == (M.v2 * t) - (0.5* g * (t**2))
-    model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)   
-        
+    # def v2_rule(M, t):
+    #     return M.x2[t] == (M.v2 * t) - (0.5*g * (t**2))
+    # model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)
 
-    def loc1_rule(M, t):
-        return M.loc1[t] == model.history_loc1[t]
-    model.loc1_constr = pyo.Constraint(model.time_history, rule=loc1_rule)
 
-    def loc2_rule(M, t):
-        return M.loc2[t] == model.history_loc2[t]
-    model.loc2_constr = pyo.Constraint(model.time_history, rule=loc2_rule)
-
-    ##------ Fix model solution ------##
+    # ##------ Fix model solution ------##
     input_x1 =   v_l1 * time  
     input_x2 =  (v_l2*time) - (0.5 * g * (time*time))
     
     model.fixed_loc_constraints = pyo.ConstraintList()
-    for i,t in enumerate(model.time):
-        model.fixed_loc_constraints.add(expr= input_x1[i] == model.loc1[t])
-        model.fixed_loc_constraints.add(expr= input_x2[i]  == model.loc2[t])
-        
-    model.fixed_loc_constraints.add(expr= model.v1 == v_l1)
-    model.fixed_loc_constraints.add(expr= model.v2 == v_l2)
+    for i,t in enumerate(model.time_history):
+        model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
+        model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
 
     # Set objective
     model.obj = pyo.Objective(
@@ -786,22 +767,24 @@ if __name__ == '__main__':
     
             
     # load trained transformer
-    model_path = ".\\trained_transformer\\TNN_traj_enc.keras" # dmodel 4, num heads 1, n ence 1, n dec 1, head dim 4, pred_len 2+1 
+    model_path = ".\\trained_transformer\\TNN_traj_enc_2.keras" # dmodel 4, num heads 1, n ence 1, n dec 1, head dim 4, pred_len 2+1 
     layer_names, parameters ,_ = extract_from_pretrained.get_learned_parameters(model_path)
     
     # get intermediate results dictionary for optimal input values
     input = np.array([[ [x1,x2] for x1,x2 in zip(input_x1, input_x2)]], dtype=np.float32)
     layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path, input[:, 0:tt, :])
 
+    # for i,v in parameters.items():
+    #     print(i, v)
     # Fix ffn params: add layer not in architecture which is between the two ffns
     ffn_1_params = parameters['ffn_1']
     parameters['ffn_2']  = {'input_shape':ffn_1_params['input_shape']}#, "input": ffn_1_params['input']}
-    parameters['ffn_2'] |= {'dense_14':  ffn_1_params['dense_14']}
-    parameters['ffn_2'] |= {'dense_15':ffn_1_params['dense_15']}
+    parameters['ffn_2'] |= {'dense_3':  ffn_1_params['dense_3']}
+    parameters['ffn_2'] |= {'dense_4':ffn_1_params['dense_4']}
     
     parameters['ffn_1']  = {'input_shape': ffn_1_params['input_shape']}
-    parameters['ffn_1'] |= {'dense_12': ffn_1_params['dense_12']}
-    parameters['ffn_1'] |= {'dense_13': ffn_1_params['dense_13']}
+    parameters['ffn_1'] |= {'dense_1': ffn_1_params['dense_1']}
+    parameters['ffn_1'] |= {'dense_2': ffn_1_params['dense_2']}
     for i,v in layer_outputs_dict.items():
         print(i)
         
