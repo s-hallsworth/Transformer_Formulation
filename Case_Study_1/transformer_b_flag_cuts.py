@@ -40,7 +40,7 @@ def activate_envelope_att(model):
 
 class Transformer:
     """ A Time Series Transformer based on Vaswani et al's "Attention is All You Need" paper."""
-    def __init__(self, config_file, opt_model, set_bound_cut):
+    def __init__(self, config_file, opt_model, set_bound_cut=None):
         
         self.M = opt_model
         # # time set
@@ -59,7 +59,21 @@ class Transformer:
         file.close()
 
         #Dict of bounds and cuts to activate
-        self.bound_cut_activation = set_bound_cut 
+        list_act= [ "embed_var",
+        "LN_var", "LN_mean", "LN_num", "LN_num_squ", "LN_denom", "LN_num_squ_sum",
+        "MHA_softmax_env", "MHA_Q", "MHA_K", "MHA_V", "MHA_attn_weight_sum", "MHA_attn_weight",
+        "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_QK_MC", "MHA_WK_MC", "MHA_attn_score","MHA_output", 
+        "RES_var", "AVG_POOL_var"] #names of bounds and cuts to activate
+        
+        self.bound_cut_activation = {}
+        if set_bound_cut is None:
+            for item in list_act:
+                self.bound_cut_activation[item] = True
+            self.bound_cut_activation["MHA_softmax_env"] = False ## add this as dynamic cut in callback
+        else:
+            self.bound_cut_activation = set_bound_cut 
+            
+        print('Percentage activated bounds+cuts: ', 100 * sum(self.bound_cut_activation.values())/ len(list_act))
 
         
         # initialise set of model dims
@@ -329,8 +343,7 @@ class Transformer:
         
         #return [[encoder input name, decoder input name], transformer output name, ffn parameters dictionary]
         return [["enc_input","dec_input"], dec_input_name , ffn_parameter_dict] 
-
-    def add_input_var(self, input_var_name, dims=(2,2), bounds=(None, None)):
+    def add_input_var(self, input_var_name, dims=(2,2), bounds=(-1,1)):
         if not hasattr(self.M, input_var_name+"dim_0"):
             setattr(self.M, input_var_name+"dim_0", pyo.Set(initialize= list(range(dims[0]))))
             dim_0 = getattr(self.M, input_var_name+"dim_0")  
@@ -544,11 +557,11 @@ class Transformer:
                     self.M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == numerator_scaled[t,d] + beta[d])
 
                     if self.bound_cut_activation["LN_var"]:
-                        layer_norm_var[t, d].ub = beta[d] + 5*gamma[d]
-                        layer_norm_var[t, d].lb = beta[d] - 5*gamma[d]
+                        layer_norm_var[t, d].ub = max( beta[d] + 5*gamma[d], beta[d] - 5*gamma[d])
+                        layer_norm_var[t, d].lb = min( beta[d] + 5*gamma[d], beta[d] - 5*gamma[d])
                         
-                        div[t,d].ub = 5 #range of normalized values assuming normal distribution
-                        div[t,d].lb = -5
+                        # div[t,d].ub = 5 #range of normalized values assuming normal distribution
+                        # div[t,d].lb = -5
                     
                 else: 
                     self.M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == div[t,d])
@@ -573,8 +586,8 @@ class Transformer:
 
                     if self.bound_cut_activation["LN_denom"]:
                         if std:
-                            denominator[t].ub = std
-                            denominator[t].lb = -std
+                            denominator[t].ub = abs(std)
+                            denominator[t].lb = -abs(std)
                         else :
                             denominator[t].ub = abs( max(input_var[t,:].ub) - min(input_var[t,:].lb)) #standard deviation
                             denominator[t].lb = - abs( max(input_var[t,:].ub) - min(input_var[t,:].lb))#/8
@@ -583,12 +596,14 @@ class Transformer:
                     numerator_squared[t,d].lb = 0
                     
             if self.bound_cut_activation["LN_num_squ"]:       
-                if input_var[t, d].ub and input_var[t, d].lb:
+                try:
                     numerator_squared_sum[t].ub = sum( (numerator_squared[t,d_prime].ub) for d_prime in model_dims) 
+                except: 
+                    pass
                 numerator_squared_sum[t].lb = 0
             
         
-    def add_attention(self, input_var_name, output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, cross_attn=False, encoder_output=None, exp_approx=False):
+    def add_attention(self, input_var_name, output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, cross_attn=False, encoder_output=None, exp_approx=False, tnn_from='keras'):
         """
         Multihead attention between each element of embedded sequence
         
@@ -777,7 +792,7 @@ class Transformer:
             MHA_Block.tp_cc_sct_mult_1_2 = pyo.Var(MHA_Block.heads, time_dim, res_dim_1_kv, within=pyo.Reals)
             MHA_Block.tp_cc_sct_mult_3 = pyo.Var(MHA_Block.heads, time_dim, res_dim_1_kv, within=pyo.Reals)
         
-        MHA_Block.attention_weight = pyo.Var(MHA_Block.heads, time_dim, res_dim_1_kv, within=pyo.Reals, bounds=(0,1))  # softmax ( (Q * K)/sqrt(d_k) )
+        MHA_Block.attention_weight = pyo.Var(MHA_Block.heads, time_dim, res_dim_1_kv, within=pyo.Reals)#, bounds=(0,1))  # softmax ( (Q * K)/sqrt(d_k) )
         MHA_Block.attention_score = pyo.Var(
             MHA_Block.heads, time_dim, MHA_Block.k_dims, within=pyo.Reals
         )  # softmax ( (Q * K)/sqrt(d_k) ) * V
@@ -802,9 +817,11 @@ class Transformer:
                             )  
                             #Add bounds
                             if self.bound_cut_activation["MHA_K"]: 
-                                MHA_Block.K[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in W_dim_1_kv ) + MHA_Block.b_k[h,k]
-                                MHA_Block.K[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in W_dim_1_kv ) + MHA_Block.b_k[h,k]
- 
+                                try:
+                                    MHA_Block.K[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in W_dim_1_kv ) + MHA_Block.b_k[h,k]
+                                    MHA_Block.K[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in W_dim_1_kv ) + MHA_Block.b_k[h,k]
+                                except:
+                                    pass
                         else: 
                             MHA_Block.attention_constraints.add(
                                 expr=MHA_Block.K[h, n, k]
@@ -812,9 +829,11 @@ class Transformer:
                             )
                             #Add bounds
                             if self.bound_cut_activation["MHA_K"]: 
-                                MHA_Block.K[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in W_dim_1_kv ) 
-                                MHA_Block.K[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in W_dim_1_kv ) 
-                            
+                                try:
+                                    MHA_Block.K[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in W_dim_1_kv ) 
+                                    MHA_Block.K[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in W_dim_1_kv ) 
+                                except:
+                                    pass
                         # constraints for Value    
                         if not b_v is None:
                             MHA_Block.attention_constraints.add(
@@ -823,9 +842,11 @@ class Transformer:
                             )  
                             #Add bounds
                             if self.bound_cut_activation["MHA_V"]: 
-                                MHA_Block.V[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in W_dim_1_kv ) + MHA_Block.b_v[h,k]
-                                MHA_Block.V[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in W_dim_1_kv ) + MHA_Block.b_v[h,k]
-           
+                                try:
+                                    MHA_Block.V[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in W_dim_1_kv ) + MHA_Block.b_v[h,k]
+                                    MHA_Block.V[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in W_dim_1_kv ) + MHA_Block.b_v[h,k]
+                                except:
+                                    pass
                         else: 
                             MHA_Block.attention_constraints.add(
                                 expr=MHA_Block.V[h, n, k]
@@ -833,9 +854,11 @@ class Transformer:
                             )
                             #Add bounds 
                             if self.bound_cut_activation["MHA_V"]:     
-                                MHA_Block.V[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in W_dim_1_kv )
-                                MHA_Block.V[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in W_dim_1_kv )
-    
+                                try: 
+                                    MHA_Block.V[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in W_dim_1_kv )
+                                    MHA_Block.V[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in W_dim_1_kv )
+                                except:
+                                    pass
             for n in time_dim:
                     for k in MHA_Block.k_dims:
                         
@@ -848,19 +871,25 @@ class Transformer:
                             
                             #Add bounds
                             if self.bound_cut_activation["MHA_Q"]: 
-                                MHA_Block.Q[h, n, k].ub = sum( max(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims ) + MHA_Block.b_q[h,k]
-                                MHA_Block.Q[h, n, k].lb = sum( min(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims ) + MHA_Block.b_q[h,k]
-
+                                try:
+                                    MHA_Block.Q[h, n, k].ub = sum( max(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims ) + MHA_Block.b_q[h,k]
+                                    MHA_Block.Q[h, n, k].lb = sum( min(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims ) + MHA_Block.b_q[h,k]
+                                except:
+                                    pass
+                                
                         else: 
                             MHA_Block.attention_constraints.add(
                                 expr=MHA_Block.Q[h, n, k]
                                 == sum(input_var[n, d] * MHA_Block.W_q[d, h, k] for d in model_dims )
                             )
                             #Add bounds
-                            if self.bound_cut_activation["MHA_Q"]: 
-                                MHA_Block.Q[h, n, k].ub = sum( max(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims )
-                                MHA_Block.Q[h, n, k].lb = sum( min(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims )
-
+                            if self.bound_cut_activation["MHA_Q"]:
+                                try: 
+                                    MHA_Block.Q[h, n, k].ub = sum( max(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims )
+                                    MHA_Block.Q[h, n, k].lb = sum( min(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims )
+                                except:
+                                    pass
+                                
                         # attention score = sum(attention_weight * V)
                         for p in res_dim_1_kv:
                             MHA_Block.attention_constraints.add(expr= MHA_Block.attWK[h, n, k, p] == MHA_Block.attention_weight[h, n, p] * MHA_Block.V[h, p, k])
@@ -869,40 +898,31 @@ class Transformer:
                             == sum( MHA_Block.attWK[h, n, k, n2] for n2 in res_dim_1_kv)
                         )   
                         
-                        # MHA_Block.attention_constraints.add(
-                        #     expr=MHA_Block.attention_score[h, n, k]
-                        #     == sum(
-                        #         MHA_Block.attention_weight[h, n, n2] * MHA_Block.V[h, n2, k]
-                        #         for n2 in res_dim_1_kv
-                        #     )
-                        # )
-                        
                         
                     for p in res_dim_1_kv:
                         #compatibility sqrt(Q * K) across all pairs of elements
                         for k in MHA_Block.k_dims:
                             MHA_Block.attention_constraints.add(expr=MHA_Block.QK[h, n, p, k] == ( MHA_Block.Q[h, n, k]) * MHA_Block.K[ h, p, k])
-                        
-                        
+
                         MHA_Block.attention_constraints.add(
                             expr=MHA_Block.compatibility[h, n, p] 
                             ==  scale * sum(MHA_Block.QK[h, n, p, k] for k in MHA_Block.k_dims)
                         ) 
                         
-                            
-                        # MHA_Block.attention_constraints.add(
-                        #     expr=MHA_Block.compatibility[h, n, p] 
-                        #     == scale * sum(MHA_Block.Q[h, n, k] * (MHA_Block.K[ h, p, k] )for k in MHA_Block.k_dims)
-                        # )  
-                        
                         # max compatibility
-                        MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_max[h,n] >=  MHA_Block.compatibility[h,n,p])
-                        M_max_compat = sum( max(MHA_Block.Q[h, n, k].ub * MHA_Block.K[h, n, k].ub, MHA_Block.Q[h, n, k].ub * MHA_Block.K[h, n, k].lb, MHA_Block.Q[h, n, k].lb * MHA_Block.K[h, n, k].ub, MHA_Block.Q[h, n, k].lb * MHA_Block.K[h, n, k].lb) for k in MHA_Block.k_dims)
-                        MHA_Block.attention_constraints.add(expr=  MHA_Block.compatibility[h,n,p]  >= MHA_Block.compatibility_max[h,n] - (M_max_compat * (1 - MHA_Block.compatibility_max_s[h,n,p])))
-                        
-                        
-                        MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_scaled[h,n,p] == MHA_Block.compatibility[h,n,p] - MHA_Block.compatibility_max[h,n])
-                        
+                        if tnn_from == 'keras':
+                            MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_max[h,n] >=  MHA_Block.compatibility[h,n,p])
+                            try:
+                                M_max_compat = sum( max(MHA_Block.Q[h, n, k].ub * MHA_Block.K[h, n, k].ub, MHA_Block.Q[h, n, k].ub * MHA_Block.K[h, n, k].lb, MHA_Block.Q[h, n, k].lb * MHA_Block.K[h, n, k].ub, MHA_Block.Q[h, n, k].lb * MHA_Block.K[h, n, k].lb) for k in MHA_Block.k_dims)
+                            except:
+                                M_max_compat = 100 #expect that 100 >> values calculated in TNN (NN values usually in range -1 to 1)
+                                
+                            MHA_Block.attention_constraints.add(expr=  MHA_Block.compatibility[h,n,p]  >= MHA_Block.compatibility_max[h,n] - (M_max_compat * (1 - MHA_Block.compatibility_max_s[h,n,p])))
+                            MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_scaled[h,n,p] == MHA_Block.compatibility[h,n,p] - MHA_Block.compatibility_max[h,n])
+                        elif tnn_from == 'pytorch':
+                            MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_scaled[h,n,p] == MHA_Block.compatibility[h,n,p])
+                        else:
+                            raise ValueError(f'Error: tnn_from = {tnn_from}. Only tansformers trained using keras or pytorch supported')
                         
                         if exp_approx: # usepower series approx exp()
                             
@@ -936,8 +956,6 @@ class Transformer:
                                                         # + (0.000000275573192*MHA_Block.compatibility_10[h, n, p])
                                                         # + (0.0000000250521084*MHA_Block.compatibility_11[h, n, p])
                                                         )# pyo.exp() only seems to work for constant args and pow operator must be <= 2
-                        
-                            
                         else:     
                             MHA_Block.attention_constraints.add(expr= pyo.exp(MHA_Block.compatibility_scaled[h,n,p]) == MHA_Block.compatibility_exp[h, n, p] )
                         
@@ -949,14 +967,16 @@ class Transformer:
                     # sum over exp(compatbility)
                     MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_exp_sum[h, n] == sum(MHA_Block.compatibility_exp[h, n, p] for p in res_dim_1_kv))
                     
-                    # sum over softmax = 1    
-                    MHA_Block.attention_constraints.add(
-                        expr=sum(MHA_Block.attention_weight[h, n, n_prime] for n_prime in res_dim_1_kv) == 1
-                    )
+                    # sum over softmax = 1  
+                    if self.bound_cut_activation["MHA_attn_weight_sum"]:   
+                        MHA_Block.attention_constraints.add(
+                            expr=sum(MHA_Block.attention_weight[h, n, n_prime] for n_prime in res_dim_1_kv) == 1
+                        )
                     
                     for n2 in res_dim_1_kv:
-                        MHA_Block.attention_weight[h, n, n2].ub = 1
-                        MHA_Block.attention_weight[h, n, n2].lb = 0
+                        if self.bound_cut_activation["MHA_attn_weight"]: 
+                            MHA_Block.attention_weight[h, n, n2].ub = 1
+                            MHA_Block.attention_weight[h, n, n2].lb = 0
                 
                         # attention weights softmax(compatibility)   
                         MHA_Block.attention_constraints.add(
@@ -968,232 +988,268 @@ class Transformer:
             #Add bounds            
             for n in time_dim:
                 for p in res_dim_1_kv:
-
-                    MHA_Block.compatibility[h,n,p].ub = scale * (sum(max(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb,
-                                                                                MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
-                                                                                MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
-                                                                                MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) for k in MHA_Block.k_dims) )
-                    MHA_Block.compatibility[h,n,p].lb = scale * (sum(min(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb, 
-                                                                                MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
-                                                                                MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
-                                                                                MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) for k in MHA_Block.k_dims) )
-
-                        
-                    MHA_Block.compatibility_exp[h,n,p].ub = math.exp(MHA_Block.compatibility[h,n,p].ub)
-                    MHA_Block.compatibility_exp[h,n,p].lb = max(0, 1 + MHA_Block.compatibility[h,n,p].lb - M_max_compat)
+                    if self.bound_cut_activation["MHA_compat"]: 
+                        try: 
+                            MHA_Block.compatibility[h,n,p].ub = scale * (sum(max(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb,
+                                                                                        MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
+                                                                                        MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
+                                                                                        MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) for k in MHA_Block.k_dims) )
+                            MHA_Block.compatibility[h,n,p].lb = scale * (sum(min(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb, 
+                                                                                        MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
+                                                                                        MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
+                                                                                        MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) for k in MHA_Block.k_dims) )
+                            for k in MHA_Block.k_dims:    
+                                MHA_Block.QK[h,n,p,k].ub =  (max(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb,
+                                                                                            MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
+                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
+                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) )
+                                MHA_Block.QK[h,n,p,k].lb =  (min(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb, 
+                                                                                            MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
+                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
+                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) )
+                        except:
+                            pass
                     
+                    if self.bound_cut_activation["MHA_compat_exp"]: 
+                        try: 
+                            MHA_Block.compatibility_exp[h,n,p].ub = math.exp(MHA_Block.compatibility[h,n,p].ub)
+                            MHA_Block.compatibility_exp[h,n,p].lb = max(0, 1 + MHA_Block.compatibility[h,n,p].lb - M_max_compat)
+                        except:
+                            pass    
                     for k in MHA_Block.k_dims:  
-                        
-                        self.__McCormick_bb(MHA_Block.QK[h, n, p, k], MHA_Block.Q[h, n, k], MHA_Block.K[ h, p, k]) # add McCromick Envelope
-                        self.__McCormick_bb(MHA_Block.attWK[h, n, k, p], MHA_Block.attention_weight[h, n, p], MHA_Block.V[h, p, k]) # add McCromick Envelope
-                
+                        if self.bound_cut_activation["MHA_QK_MC"]: 
+                            try:
+                                self.__McCormick_bb(MHA_Block.QK[h, n, p, k], MHA_Block.Q[h, n, k], MHA_Block.K[ h, p, k]) # add McCromick Envelope
+                            except:
+                                pass 
+                        if self.bound_cut_activation["MHA_WK_MC"]: 
+                            try:
+                                self.__McCormick_bb(MHA_Block.attWK[h, n, k, p], MHA_Block.attention_weight[h, n, p], MHA_Block.V[h, p, k]) # add McCromick Envelope
+                            except:
+                                pass 
                 for k in MHA_Block.k_dims:
-                    # MHA_Block.attention_constraints.add(
-                    #     expr=MHA_Block.attention_score[h, n, k]
-                    #     == sum(
-                    #         MHA_Block.attention_weight[h, n, n2] * MHA_Block.V[h, n2, k]
-                    #         for n2 in res_dim_1_kv
-                    #     )
-                    # )
-                    MHA_Block.attention_score[h, n, k].ub = (sum(max(MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].lb,
-                                                                    MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].ub, 
-                                                                    MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].lb, 
-                                                                    MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].ub) 
-                                                            for n2 in res_dim_1_kv) )
-                    MHA_Block.attention_score[h, n, k].lb = (sum(min(MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].lb, 
-                                                                    MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].ub, 
-                                                                    MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].lb, 
-                                                                    MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].ub) 
-                                                            for n2 in res_dim_1_kv) )
+                    if self.bound_cut_activation["MHA_attn_score"]: 
+                        try:
+                            MHA_Block.attention_score[h, n, k].ub = (sum(max(MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].lb,
+                                                                            MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].ub, 
+                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].lb, 
+                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].ub) 
+                                                                    for n2 in res_dim_1_kv) )
+                            MHA_Block.attention_score[h, n, k].lb = (sum(min(MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].lb, 
+                                                                            MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].ub, 
+                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].lb, 
+                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].ub) 
+                                                                    for n2 in res_dim_1_kv) )
+                            for n2 in res_dim_1_kv:
+                                MHA_Block.attWK[h, n, k, p] .ub = (max(MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].lb,
+                                                                            MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].ub, 
+                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].lb, 
+                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].ub) 
+                                                                    )
+                                MHA_Block.attWK[h, n, k, p] .lb = (min(MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].lb, 
+                                                                                MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].ub, 
+                                                                                MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].lb, 
+                                                                                MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].ub) 
+                                                                        )
+                        except:
+                            pass 
+                        
+                 
+                if self.bound_cut_activation["MHA_compat_exp_sum"]:   
+                    try: 
+                        MHA_Block.compatibility_exp_sum[h, n].ub = sum( MHA_Block.compatibility_exp[h,n,p].ub for p in time_dim) 
+                        MHA_Block.compatibility_exp_sum[h, n].lb = sum( MHA_Block.compatibility_exp[h,n,p].lb for p in time_dim)       
+                    except:
+                        pass
                     
-                MHA_Block.compatibility_exp_sum[h, n].ub = sum( MHA_Block.compatibility_exp[h,n,p].ub for p in time_dim) 
-                MHA_Block.compatibility_exp_sum[h, n].lb = sum( MHA_Block.compatibility_exp[h,n,p].lb for p in time_dim)       
-                ##############-----------------------------------############    
-                #for p in res_dim_1_kv:    
-                    # # f(x) >= f_cv(x): attention weight >= convex envelope
-                    # MHA_Block.attention_constraints.add(
-                    #     MHA_Block.attention_weight[h, n, p]  >= MHA_Block.attention_weight_cv[h, n, p]
-                    # )
-                    # # f(x) <= f_cc(x): attention weight <= concave envelope
-                    # MHA_Block.attention_constraints.add(
-                    #     MHA_Block.attention_weight[h, n, p]  <= MHA_Block.attention_weight_cc[h, n, p]
-                    # )
-           
-                    # # Constraints for Concave/convex envelope
-                    # # set convex aux var -- s=0: f(x_UB) <= 0.5 --> convex zone, s=1: f(x_UB) >= 0.5 --> concave zone
-                    # MHA_Block.attention_constraints.add(
-                    #     expr= MHA_Block.attention_weight[h, n, p].ub <= 0.5  + (BigM_s * MHA_Block.s_cv[h,n,p])
-                    # )
-                    
-                    # # MHA_Block.attention_constraints.add(
-                    # #     expr= MHA_Block.attention_weight[h, n, p].ub >= 0.5  - (BigM_s * (1 - MHA_Block.s_cv[h,n,p]))
-                    # # )
-                    # MHA_Block.attention_constraints.add(
-                    #     expr= MHA_Block.attention_weight[h, n, p].ub - 0.5 + BigM_s >= BigM_s *  MHA_Block.s_cv[h,n,p]
-                    # )
+                if self.bound_cut_activation["MHA_softmax_env"]: 
+                #-- begin add softmax env --# 
+                    try: 
+                        for p in res_dim_1_kv:    
+                            # f(x) >= f_cv(x): attention weight >= convex envelope
+                            MHA_Block.attention_constraints.add(
+                                MHA_Block.attention_weight[h, n, p]  >= MHA_Block.attention_weight_cv[h, n, p]
+                            )
+                            # f(x) <= f_cc(x): attention weight <= concave envelope
+                            MHA_Block.attention_constraints.add(
+                                MHA_Block.attention_weight[h, n, p]  <= MHA_Block.attention_weight_cc[h, n, p]
+                            )
+                
+                            # Constraints for Concave/convex envelope
+                            # set convex aux var -- s=0: f(x_UB) <= 0.5 --> convex zone, s=1: f(x_UB) >= 0.5 --> concave zone
+                            MHA_Block.attention_constraints.add(
+                                expr= MHA_Block.attention_weight[h, n, p].ub <= 0.5  + (BigM_s * MHA_Block.s_cv[h,n,p])
+                            )
+                            
+                            # MHA_Block.attention_constraints.add(
+                            #     expr= MHA_Block.attention_weight[h, n, p].ub >= 0.5  - (BigM_s * (1 - MHA_Block.s_cv[h,n,p]))
+                            # )
+                            MHA_Block.attention_constraints.add(
+                                expr= MHA_Block.attention_weight[h, n, p].ub - 0.5 + BigM_s >= BigM_s *  MHA_Block.s_cv[h,n,p]
+                            )
 
-                    # # set convex aux var -- f(x_LB) <= 0.5 --> convex zone else f(x_LB) >= 0.5 --> concave zone
-                    # MHA_Block.attention_constraints.add(
-                    #     expr= MHA_Block.attention_weight[h, n, p].lb >= 0.5 - (BigM_s *  (MHA_Block.s_cc[h,n,p]))
-                    # )
-                    # MHA_Block.attention_constraints.add(
-                    #     expr= (BigM_s * MHA_Block.s_cc[h,n,p]) <= 0.5 + BigM_s - MHA_Block.attention_weight[h, n, p].lb
-                    # )
-                    
-                    # # # sct(x)
-                    # A = ((MHA_Block.attention_weight[h, n, p].ub - MHA_Block.attention_weight[h, n, p].lb) / (MHA_Block.compatibility[h,n,p].ub - MHA_Block.compatibility[h,n,p].lb )) 
-                    # b = ( (MHA_Block.compatibility[h,n,p].ub * MHA_Block.attention_weight[h, n, p].lb) - (MHA_Block.compatibility[h,n,p].lb * MHA_Block.attention_weight[h, n, p].ub)) /(MHA_Block.compatibility[h,n,p].ub - MHA_Block.compatibility[h,n,p].lb )
-                    # MHA_Block.attention_constraints.add(
-                    #     MHA_Block.sct[h, n, p]   == (A *  MHA_Block.compatibility[h,n,p]) + b
-                    # )
+                            # set convex aux var -- f(x_LB) <= 0.5 --> convex zone else f(x_LB) >= 0.5 --> concave zone
+                            MHA_Block.attention_constraints.add(
+                                expr= MHA_Block.attention_weight[h, n, p].lb >= 0.5 - (BigM_s *  (MHA_Block.s_cc[h,n,p]))
+                            )
+                            MHA_Block.attention_constraints.add(
+                                expr= (BigM_s * MHA_Block.s_cc[h,n,p]) <= 0.5 + BigM_s - MHA_Block.attention_weight[h, n, p].lb
+                            )
+                            
+                            # # sct(x)
+                            A = ((MHA_Block.attention_weight[h, n, p].ub - MHA_Block.attention_weight[h, n, p].lb) / (MHA_Block.compatibility[h,n,p].ub - MHA_Block.compatibility[h,n,p].lb )) 
+                            b = ( (MHA_Block.compatibility[h,n,p].ub * MHA_Block.attention_weight[h, n, p].lb) - (MHA_Block.compatibility[h,n,p].lb * MHA_Block.attention_weight[h, n, p].ub)) /(MHA_Block.compatibility[h,n,p].ub - MHA_Block.compatibility[h,n,p].lb )
+                            MHA_Block.attention_constraints.add(
+                                MHA_Block.sct[h, n, p]   == (A *  MHA_Block.compatibility[h,n,p]) + b
+                            )
 
-                    
-                    # # # # Add concave/convex evelope function constraints
-                    # # # when f(UB) <= 0.5: convex
-                    # MHA_Block.constr_convex.add( 
-                    #     MHA_Block.attention_weight_cv[h, n, p] == MHA_Block.attention_weight[h, n, p]
-                    # )
-                    # MHA_Block.constr_convex.add( 
-                    #     MHA_Block.attention_weight_cc[h, n, p] == MHA_Block.sct[h, n, p] 
-                    # )
-                    # # when f(LB) >= 0.5: concave 
-                    # MHA_Block.constr_concave.add( 
-                    #     MHA_Block.attention_weight_cv[h, n, p] == MHA_Block.sct[h, n, p] 
-                    # )
-                    # MHA_Block.constr_concave.add( 
-                    #     MHA_Block.attention_weight_cc[h, n, p] == MHA_Block.attention_weight[h, n, p] 
-                    # )
-                    # # otherwise: use concave and convex tie points
-                    # MHA_Block.constr_concave_tp.add( # when x >= x_cc
-                    #     MHA_Block.attention_weight_cc[h, n, p] == MHA_Block.attention_weight[h, n, p] 
-                    # )
-                    # MHA_Block.constr_concave_tp_sct.add( # when x <= x_cc --> cc_sct()
-                    #     MHA_Block.attention_weight_cc[h, n, p] == MHA_Block.tp_cc_sct[h, n, p]
-                    # ) 
-                    # MHA_Block.constr_convex_tp_sct.add( # when x >= x_cv --> cv_sct()
-                    #     MHA_Block.attention_weight_cv[h, n, p] == MHA_Block.tp_cv_sct[h, n, p]
-                    # ) 
-                    # MHA_Block.constr_convex_tp.add( # when x <= x_cv
-                    #     MHA_Block.attention_weight_cv[h, n, p] == MHA_Block.attention_weight[h, n, p]
-                    # )
-                    
-                    # ## Add tp_cv_sct constraints
-                    # #bounds
-                    # MHA_Block.attention_constraints.add(# att(cv_prime)
-                    #     expr=  MHA_Block.attention_weight_x_cv_prime[h, n, n2] <= 1 
-                    # )
-                    # MHA_Block.attention_constraints.add( # att(x_cv)
-                    #     expr=  MHA_Block.attention_weight_x_cv[h, n, n2] <= 1
-                    # )
-                    # MHA_Block.attention_constraints.add( # att(x_cv)
-                    #     expr=   MHA_Block.tp_cv_sct[h, n, p] <= 1
-                    # )
-                    # # tie_point_cv[h, n, p] = max(tie_point_cv_prime, compatibility.lb  )
-                    # BigM_prime = max( MHA_Block.compatibility[h,n,p_prime].ub for p_prime in time_dim)
-                    # MHA_Block.attention_constraints.add(
-                    #     MHA_Block.tie_point_cv_prime[h, n, p] - MHA_Block.compatibility[h,n,p].lb <= BigM_prime * (1 - MHA_Block.tp_cv[h,n,p])
-                    # )
-                    # MHA_Block.attention_constraints.add(
-                    #     MHA_Block.tie_point_cv_prime[h, n, p] - MHA_Block.compatibility[h,n,p].lb >= -BigM_prime * ( MHA_Block.tp_cv[h,n,p])
-                    # )
-                    # MHA_Block.attention_constraints.add( # define tie_point_cv
-                    #     MHA_Block.tie_point_cv[h, n, p]  == MHA_Block.tie_point_cv_prime[h, n, p]*(1 - MHA_Block.tp_cv[h,n,p])  + (MHA_Block.compatibility[h,n,p].lb * MHA_Block.tp_cv[h,n,p])
-                    # )
-                    # MHA_Block.attention_constraints.add( # softmax(tie_point_cv)
-                    #     MHA_Block.attention_weight_x_cv[h, n, p] == MHA_Block.attention_weight_x_cv_prime[h, n, p]*(1 - MHA_Block.tp_cv[h,n,p])  + MHA_Block.attention_weight[h,n,p].lb * MHA_Block.tp_cv[h,n,p]
-                    # )
-                    # # Is x <= x_cv? --> convex zone
-                    # MHA_Block.attention_constraints.add(
-                    #     expr=  MHA_Block.tie_point_cv[h, n, p] - MHA_Block.compatibility[h,n,p] <= BigM_prime * (1-MHA_Block.t_cv[h,n,p])
-                    # )
-                    # MHA_Block.attention_constraints.add(
-                    #     expr=  MHA_Block.tie_point_cv[h, n, p] - MHA_Block.compatibility[h,n,p] >= - BigM_prime * (MHA_Block.t_cv[h,n,p])
-                    # )
-                    # # define tie_point_cv_prime[h, n, p]
-                    # MHA_Block.attention_constraints.add( # 
-                    #     expr=  MHA_Block.tp_cv_mult_1[h, n, p]  == MHA_Block.attention_weight[h,n,p].ub  - MHA_Block.attention_weight_x_cv_prime[h, n, p]
-                    # )
-                    # MHA_Block.attention_constraints.add( # 
-                    #     expr=  MHA_Block.tp_cv_mult_2[h, n, p]  == MHA_Block.attention_weight_x_cv_prime[h, n, p] * ( 1 -  MHA_Block.attention_weight_x_cv_prime[h, n, p])
-                    # )
-                    # MHA_Block.attention_constraints.add( 
-                    #     expr=  (MHA_Block.compatibility[h,n,p].ub - MHA_Block.tie_point_cv_prime[h, n, p]) * MHA_Block.tp_cv_mult_2[h, n, p]  == MHA_Block.tp_cv_mult_1[h, n, p]
-                    # )
-                    # # define tie point cv  secant
-                    # MHA_Block.constr_convex_tp_sct.add( 
-                    #     expr=  MHA_Block.tp_cv_sct[h, n, p] - MHA_Block.attention_weight[h,n,p].ub == 
-                    #                                         + (MHA_Block.tp_cv_sct_mult_1_2[h, n, p] 
-                    #                                            * (MHA_Block.compatibility[h,n,p]
-                    #                                             - MHA_Block.compatibility[h,n,p].ub))
-                    # )
-                    # MHA_Block.constr_convex_tp_sct.add( 
-                    #     expr=  MHA_Block.tp_cv_sct_mult_1_2[h, n, p] * MHA_Block.tp_cv_sct_mult_2[h, n, p] == MHA_Block.tp_cv_sct_mult_1[h, n, p] 
-                    # )
-                    # MHA_Block.constr_convex_tp_sct.add( 
-                    #     expr=  MHA_Block.tp_cv_sct_mult_1[h, n, p] == MHA_Block.attention_weight[h,n,p].ub -  MHA_Block.attention_weight_x_cv[h, n, p]
-                    # )
-                    # MHA_Block.constr_convex_tp_sct.add( 
-                    #     expr=  MHA_Block.tp_cv_sct_mult_2[h, n, p] == MHA_Block.compatibility[h,n,p].ub - MHA_Block.tie_point_cv[h, n, p]
-                    # )
-                    
-                    # ## Add tp_cc_sct constraints
-                    # #bounds
-                    # MHA_Block.attention_constraints.add(# att(cc_prime)
-                    #     expr=  MHA_Block.attention_weight_x_cc_prime[h, n, n2] <= 1 
-                    # )
-                    # MHA_Block.attention_constraints.add( # att(x_cc)
-                    #     expr=  MHA_Block.attention_weight_x_cc[h, n, n2] <= 1
-                    # )
-                    # MHA_Block.attention_constraints.add( # att(x_cc)
-                    #     expr=   MHA_Block.tp_cc_sct[h, n, p] <= 1
-                    # )
-                    # # tie_point_cc[h, n, p] = min(tie_point_cc_prime, compatibility.ub  )
-                    # MHA_Block.attention_constraints.add(
-                    #     MHA_Block.tie_point_cc_prime[h, n, p] - MHA_Block.compatibility[h,n,p].ub <= BigM_prime * (1 - MHA_Block.tp_cc[h,n,p])
-                    # )
-                    # MHA_Block.attention_constraints.add(
-                    #     MHA_Block.tie_point_cc_prime[h, n, p] - MHA_Block.compatibility[h,n,p].ub >= -BigM_prime * ( MHA_Block.tp_cc[h,n,p])
-                    # )
-                    # MHA_Block.attention_constraints.add( # define tie_point_cc
-                    #     MHA_Block.tie_point_cc[h, n, p]  == MHA_Block.tie_point_cc_prime[h, n, p]*(MHA_Block.tp_cc[h,n,p])  + (MHA_Block.compatibility[h,n,p].ub * (1 - MHA_Block.tp_cc[h,n,p]))
-                    # )
-                    # MHA_Block.attention_constraints.add( # softmax(tie_point_cc)
-                    #     MHA_Block.attention_weight_x_cc[h, n, p] == MHA_Block.attention_weight_x_cc_prime[h, n, p]*(MHA_Block.tp_cc[h,n,p])  + (MHA_Block.attention_weight[h,n,p].ub * (1 - MHA_Block.tp_cc[h,n,p]))
-                    # )
-                    # # Is x <= x_cc? --> convex zone
-                    # MHA_Block.attention_constraints.add(
-                    #     expr=  MHA_Block.compatibility[h,n,p] - MHA_Block.tie_point_cc[h, n, p] <= BigM_prime * (1 - MHA_Block.t_cc[h,n,p])
-                    # )
-                    # MHA_Block.attention_constraints.add(
-                    #     expr=  MHA_Block.compatibility[h,n,p] - MHA_Block.tie_point_cc[h, n, p]>= - BigM_prime * (MHA_Block.t_cc[h,n,p])
-                    # )
-                    # # define tie_point_cc_prime[h, n, p]
-                    # MHA_Block.attention_constraints.add( # 
-                    #     expr=  MHA_Block.tp_cc_mult_1[h, n, p]  == MHA_Block.attention_weight_x_cc_prime[h, n, p] - MHA_Block.attention_weight[h,n,p].lb
-                    # )
-                    # MHA_Block.attention_constraints.add( # 
-                    #     expr=  MHA_Block.tp_cc_mult_2[h, n, p]  == MHA_Block.attention_weight_x_cc_prime[h, n, p] * ( 1 -  MHA_Block.attention_weight_x_cc_prime[h, n, p])
-                    # )
-                    # MHA_Block.attention_constraints.add( 
-                    #     expr=  (MHA_Block.tie_point_cc_prime[h, n, p] - MHA_Block.compatibility[h,n,p].lb ) * MHA_Block.tp_cc_mult_2[h, n, p]  == MHA_Block.tp_cc_mult_1[h, n, p]
-                    # )
-                    # # define tie point cc  secant
-                    # MHA_Block.constr_concave_tp_sct.add( 
-                    #     expr=  MHA_Block.tp_cc_sct[h, n, p] - MHA_Block.attention_weight[h,n,p].lb == 
-                    #                                         + (MHA_Block.tp_cc_sct_mult_1_2[h, n, p] 
-                    #                                            * (MHA_Block.compatibility[h,n,p]
-                    #                                             - MHA_Block.compatibility[h,n,p].lb))
-                    # )
-                    # MHA_Block.constr_concave_tp_sct.add( 
-                    #     expr=  MHA_Block.tp_cc_sct_mult_1_2[h, n, p] * MHA_Block.tp_cc_sct_mult_2[h, n, p] == MHA_Block.tp_cc_sct_mult_1[h, n, p] 
-                    # )
-                    # MHA_Block.constr_concave_tp_sct.add( 
-                    #     expr=  MHA_Block.tp_cc_sct_mult_1[h, n, p] == MHA_Block.attention_weight[h,n,p].lb -  MHA_Block.attention_weight_x_cc[h, n, p]
-                    # )
-                    # MHA_Block.constr_concave_tp_sct.add( 
-                    #     expr=  MHA_Block.tp_cc_sct_mult_2[h, n, p] == MHA_Block.compatibility[h,n,p].lb - MHA_Block.tie_point_cc[h, n, p]
-                    # )
-                    
+                            # # # # Add concave/convex evelope function constraints
+                            # # when f(UB) <= 0.5: convex
+                            MHA_Block.constr_convex.add( 
+                                MHA_Block.attention_weight_cv[h, n, p] == MHA_Block.attention_weight[h, n, p]
+                            )
+                            MHA_Block.constr_convex.add( 
+                                MHA_Block.attention_weight_cc[h, n, p] == MHA_Block.sct[h, n, p] 
+                            )
+                            # when f(LB) >= 0.5: concave 
+                            MHA_Block.constr_concave.add( 
+                                MHA_Block.attention_weight_cv[h, n, p] == MHA_Block.sct[h, n, p] 
+                            )
+                            MHA_Block.constr_concave.add( 
+                                MHA_Block.attention_weight_cc[h, n, p] == MHA_Block.attention_weight[h, n, p] 
+                            )
+                            # otherwise: use concave and convex tie points
+                            MHA_Block.constr_concave_tp.add( # when x >= x_cc
+                                MHA_Block.attention_weight_cc[h, n, p] == MHA_Block.attention_weight[h, n, p] 
+                            )
+                            MHA_Block.constr_concave_tp_sct.add( # when x <= x_cc --> cc_sct()
+                                MHA_Block.attention_weight_cc[h, n, p] == MHA_Block.tp_cc_sct[h, n, p]
+                            ) 
+                            MHA_Block.constr_convex_tp_sct.add( # when x >= x_cv --> cv_sct()
+                                MHA_Block.attention_weight_cv[h, n, p] == MHA_Block.tp_cv_sct[h, n, p]
+                            ) 
+                            MHA_Block.constr_convex_tp.add( # when x <= x_cv
+                                MHA_Block.attention_weight_cv[h, n, p] == MHA_Block.attention_weight[h, n, p]
+                            )
+                            
+                            ## Add tp_cv_sct constraints
+                            #bounds
+                            MHA_Block.attention_constraints.add(# att(cv_prime)
+                                expr=  MHA_Block.attention_weight_x_cv_prime[h, n, n2] <= 1 
+                            )
+                            MHA_Block.attention_constraints.add( # att(x_cv)
+                                expr=  MHA_Block.attention_weight_x_cv[h, n, n2] <= 1
+                            )
+                            MHA_Block.attention_constraints.add( # att(x_cv)
+                                expr=   MHA_Block.tp_cv_sct[h, n, p] <= 1
+                            )
+                            # tie_point_cv[h, n, p] = max(tie_point_cv_prime, compatibility.lb  )
+                            BigM_prime = max( MHA_Block.compatibility[h,n,p_prime].ub for p_prime in time_dim)
+                            MHA_Block.attention_constraints.add(
+                                MHA_Block.tie_point_cv_prime[h, n, p] - MHA_Block.compatibility[h,n,p].lb <= BigM_prime * (1 - MHA_Block.tp_cv[h,n,p])
+                            )
+                            MHA_Block.attention_constraints.add(
+                                MHA_Block.tie_point_cv_prime[h, n, p] - MHA_Block.compatibility[h,n,p].lb >= -BigM_prime * ( MHA_Block.tp_cv[h,n,p])
+                            )
+                            MHA_Block.attention_constraints.add( # define tie_point_cv
+                                MHA_Block.tie_point_cv[h, n, p]  == MHA_Block.tie_point_cv_prime[h, n, p]*(1 - MHA_Block.tp_cv[h,n,p])  + (MHA_Block.compatibility[h,n,p].lb * MHA_Block.tp_cv[h,n,p])
+                            )
+                            MHA_Block.attention_constraints.add( # softmax(tie_point_cv)
+                                MHA_Block.attention_weight_x_cv[h, n, p] == MHA_Block.attention_weight_x_cv_prime[h, n, p]*(1 - MHA_Block.tp_cv[h,n,p])  + MHA_Block.attention_weight[h,n,p].lb * MHA_Block.tp_cv[h,n,p]
+                            )
+                            # Is x <= x_cv? --> convex zone
+                            MHA_Block.attention_constraints.add(
+                                expr=  MHA_Block.tie_point_cv[h, n, p] - MHA_Block.compatibility[h,n,p] <= BigM_prime * (1-MHA_Block.t_cv[h,n,p])
+                            )
+                            MHA_Block.attention_constraints.add(
+                                expr=  MHA_Block.tie_point_cv[h, n, p] - MHA_Block.compatibility[h,n,p] >= - BigM_prime * (MHA_Block.t_cv[h,n,p])
+                            )
+                            # define tie_point_cv_prime[h, n, p]
+                            MHA_Block.attention_constraints.add( # 
+                                expr=  MHA_Block.tp_cv_mult_1[h, n, p]  == MHA_Block.attention_weight[h,n,p].ub  - MHA_Block.attention_weight_x_cv_prime[h, n, p]
+                            )
+                            MHA_Block.attention_constraints.add( # 
+                                expr=  MHA_Block.tp_cv_mult_2[h, n, p]  == MHA_Block.attention_weight_x_cv_prime[h, n, p] * ( 1 -  MHA_Block.attention_weight_x_cv_prime[h, n, p])
+                            )
+                            MHA_Block.attention_constraints.add( 
+                                expr=  (MHA_Block.compatibility[h,n,p].ub - MHA_Block.tie_point_cv_prime[h, n, p]) * MHA_Block.tp_cv_mult_2[h, n, p]  == MHA_Block.tp_cv_mult_1[h, n, p]
+                            )
+                            # define tie point cv  secant
+                            MHA_Block.constr_convex_tp_sct.add( 
+                                expr=  MHA_Block.tp_cv_sct[h, n, p] - MHA_Block.attention_weight[h,n,p].ub == 
+                                                                    + (MHA_Block.tp_cv_sct_mult_1_2[h, n, p] 
+                                                                    * (MHA_Block.compatibility[h,n,p]
+                                                                        - MHA_Block.compatibility[h,n,p].ub))
+                            )
+                            MHA_Block.constr_convex_tp_sct.add( 
+                                expr=  MHA_Block.tp_cv_sct_mult_1_2[h, n, p] * MHA_Block.tp_cv_sct_mult_2[h, n, p] == MHA_Block.tp_cv_sct_mult_1[h, n, p] 
+                            )
+                            MHA_Block.constr_convex_tp_sct.add( 
+                                expr=  MHA_Block.tp_cv_sct_mult_1[h, n, p] == MHA_Block.attention_weight[h,n,p].ub -  MHA_Block.attention_weight_x_cv[h, n, p]
+                            )
+                            MHA_Block.constr_convex_tp_sct.add( 
+                                expr=  MHA_Block.tp_cv_sct_mult_2[h, n, p] == MHA_Block.compatibility[h,n,p].ub - MHA_Block.tie_point_cv[h, n, p]
+                            )
+                            
+                            ## Add tp_cc_sct constraints
+                            #bounds
+                            MHA_Block.attention_constraints.add(# att(cc_prime)
+                                expr=  MHA_Block.attention_weight_x_cc_prime[h, n, n2] <= 1 
+                            )
+                            MHA_Block.attention_constraints.add( # att(x_cc)
+                                expr=  MHA_Block.attention_weight_x_cc[h, n, n2] <= 1
+                            )
+                            MHA_Block.attention_constraints.add( # att(x_cc)
+                                expr=   MHA_Block.tp_cc_sct[h, n, p] <= 1
+                            )
+                            # tie_point_cc[h, n, p] = min(tie_point_cc_prime, compatibility.ub  )
+                            MHA_Block.attention_constraints.add(
+                                MHA_Block.tie_point_cc_prime[h, n, p] - MHA_Block.compatibility[h,n,p].ub <= BigM_prime * (1 - MHA_Block.tp_cc[h,n,p])
+                            )
+                            MHA_Block.attention_constraints.add(
+                                MHA_Block.tie_point_cc_prime[h, n, p] - MHA_Block.compatibility[h,n,p].ub >= -BigM_prime * ( MHA_Block.tp_cc[h,n,p])
+                            )
+                            MHA_Block.attention_constraints.add( # define tie_point_cc
+                                MHA_Block.tie_point_cc[h, n, p]  == MHA_Block.tie_point_cc_prime[h, n, p]*(MHA_Block.tp_cc[h,n,p])  + (MHA_Block.compatibility[h,n,p].ub * (1 - MHA_Block.tp_cc[h,n,p]))
+                            )
+                            MHA_Block.attention_constraints.add( # softmax(tie_point_cc)
+                                MHA_Block.attention_weight_x_cc[h, n, p] == MHA_Block.attention_weight_x_cc_prime[h, n, p]*(MHA_Block.tp_cc[h,n,p])  + (MHA_Block.attention_weight[h,n,p].ub * (1 - MHA_Block.tp_cc[h,n,p]))
+                            )
+                            # Is x <= x_cc? --> convex zone
+                            MHA_Block.attention_constraints.add(
+                                expr=  MHA_Block.compatibility[h,n,p] - MHA_Block.tie_point_cc[h, n, p] <= BigM_prime * (1 - MHA_Block.t_cc[h,n,p])
+                            )
+                            MHA_Block.attention_constraints.add(
+                                expr=  MHA_Block.compatibility[h,n,p] - MHA_Block.tie_point_cc[h, n, p]>= - BigM_prime * (MHA_Block.t_cc[h,n,p])
+                            )
+                            # define tie_point_cc_prime[h, n, p]
+                            MHA_Block.attention_constraints.add( # 
+                                expr=  MHA_Block.tp_cc_mult_1[h, n, p]  == MHA_Block.attention_weight_x_cc_prime[h, n, p] - MHA_Block.attention_weight[h,n,p].lb
+                            )
+                            MHA_Block.attention_constraints.add( # 
+                                expr=  MHA_Block.tp_cc_mult_2[h, n, p]  == MHA_Block.attention_weight_x_cc_prime[h, n, p] * ( 1 -  MHA_Block.attention_weight_x_cc_prime[h, n, p])
+                            )
+                            MHA_Block.attention_constraints.add( 
+                                expr=  (MHA_Block.tie_point_cc_prime[h, n, p] - MHA_Block.compatibility[h,n,p].lb ) * MHA_Block.tp_cc_mult_2[h, n, p]  == MHA_Block.tp_cc_mult_1[h, n, p]
+                            )
+                            # define tie point cc  secant
+                            MHA_Block.constr_concave_tp_sct.add( 
+                                expr=  MHA_Block.tp_cc_sct[h, n, p] - MHA_Block.attention_weight[h,n,p].lb == 
+                                                                    + (MHA_Block.tp_cc_sct_mult_1_2[h, n, p] 
+                                                                    * (MHA_Block.compatibility[h,n,p]
+                                                                        - MHA_Block.compatibility[h,n,p].lb))
+                            )
+                            MHA_Block.constr_concave_tp_sct.add( 
+                                expr=  MHA_Block.tp_cc_sct_mult_1_2[h, n, p] * MHA_Block.tp_cc_sct_mult_2[h, n, p] == MHA_Block.tp_cc_sct_mult_1[h, n, p] 
+                            )
+                            MHA_Block.constr_concave_tp_sct.add( 
+                                expr=  MHA_Block.tp_cc_sct_mult_1[h, n, p] == MHA_Block.attention_weight[h,n,p].lb -  MHA_Block.attention_weight_x_cc[h, n, p]
+                            )
+                            MHA_Block.constr_concave_tp_sct.add( 
+                                expr=  MHA_Block.tp_cc_sct_mult_2[h, n, p] == MHA_Block.compatibility[h,n,p].lb - MHA_Block.tie_point_cc[h, n, p]
+                            )
+                    except:
+                        pass 
                     
    
         # multihead attention output constraint
@@ -1211,10 +1267,12 @@ class Transformer:
                         
                         ) + MHA_Block.b_o[d]
                     )
-                    attention_output[n, d].ub  = sum(sum( max(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.k_dims) for h in MHA_Block.heads) + MHA_Block.b_o[d]
-                    attention_output[n, d].lb  = sum(sum( min(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.k_dims) for h in MHA_Block.heads) + MHA_Block.b_o[d]
-                    
-                    
+                    if self.bound_cut_activation["MHA_output"]: 
+                        try:
+                            attention_output[n, d].ub  = sum(sum( max(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.k_dims) for h in MHA_Block.heads) + MHA_Block.b_o[d]
+                            attention_output[n, d].lb  = sum(sum( min(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.k_dims) for h in MHA_Block.heads) + MHA_Block.b_o[d]
+                        except:
+                            pass
                 else:
                     MHA_Block.attention_constraints.add(
                         expr= attention_output[n, d]
@@ -1226,11 +1284,15 @@ class Transformer:
                         for h in MHA_Block.heads
                         )
                     )
-                    attention_output[n, d].ub  = sum(sum( max(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.k_dims) for h in MHA_Block.heads)
-                    attention_output[n, d].lb  = sum(sum( min(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.k_dims) for h in MHA_Block.heads)
-        
-        # # activate softmax envelope constraints              
-        # MHA_Block.activate_constraints = pyo.BuildAction(rule=activate_envelope_att)               
+                    if self.bound_cut_activation["MHA_output"]: 
+                        try:
+                            attention_output[n, d].ub  = sum(sum( max(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.k_dims) for h in MHA_Block.heads)
+                            attention_output[n, d].lb  = sum(sum( min(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.k_dims) for h in MHA_Block.heads)
+                        except: 
+                            pass
+        # # activate softmax envelope constraints
+        if self.bound_cut_activation["MHA_softmax_env"]:               
+            MHA_Block.activate_constraints = pyo.BuildAction(rule=activate_envelope_att)               
 
     def add_residual_connection(self, input_1_name, input_2_name, output_var_name):
         # determine indices of input
@@ -1264,8 +1326,9 @@ class Transformer:
             for d in model_dims :
                 self.M.residual_constraints.add(expr= residual_var[n,d] == input_1[n,d] + input_2[n,d])
                 try:
-                    residual_var[n,d].ub == input_1[n,d].ub + input_2[n,d].ub
-                    residual_var[n,d].lb == input_1[n,d].lb + input_2[n,d].lb
+                    if self.bound_cut_activation["RES_var"]: 
+                        residual_var[n,d].ub == input_1[n,d].ub + input_2[n,d].ub
+                        residual_var[n,d].lb == input_1[n,d].lb + input_2[n,d].lb
                 except:
                     continue
                 
@@ -1326,8 +1389,9 @@ class Transformer:
             constraints.add(expr= output_var[d] * self.N == sum(input_var[t,d] for t in time_dim))
             
             try:
-                output_var[d].ub  == sum(input_var[t,d].ub for t in time_dim) / self.N
-                output_var[d].lb  == sum(input_var[t,d].lb for t in time_dim) / self.N
+                if self.bound_cut_activation["AVG_POOL_var"]:
+                    output_var[d].ub  == sum(input_var[t,d].ub for t in time_dim) / self.N
+                    output_var[d].lb  == sum(input_var[t,d].lb for t in time_dim) / self.N
             except:
                 continue
     def __McCormick_bb(self, w, x, y):
@@ -1341,7 +1405,11 @@ class Transformer:
         if x.lb >= 0 and y.lb >= 0: #(construction of mccormick relies on var - var.lb >=0)
             # add cuts
             constraints.add( expr= w >= (x.lb * y) + (x * y.lb) - (x.lb * y.lb))
+            
+        if x.ub >= 0 and y.lb >= 0:
             constraints.add( expr= w <= (x.ub * y) + (x * y.lb) - (x.ub * y.lb))
+        
+        if x.lb >= 0 and y.ub >= 0:
             constraints.add( expr= w <= (x * y.ub) + (x.lb * y) - (x.lb * y.ub))
             
         if x.ub >= 0 and y.ub >= 0:

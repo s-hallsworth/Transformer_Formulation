@@ -14,7 +14,7 @@ model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
 
 # define constants
 T_end = 0.5
-steps = 100
+steps = 19 #100
 time = np.linspace(0, T_end, num=steps)
 dt = time[1] - time[0]
 print(time)
@@ -58,13 +58,13 @@ model.x2_constr = pyo.Constraint(expr= model.x2[0] == 0)
 
 model.x1_constr = pyo.Constraint(expr= model.v1 >= 0) 
 model.x2_constr = pyo.Constraint(expr= model.v2 >= 0) 
-# def v1_rule(M, t):
-#     return M.x1[t] == M.v1 * t
-# model.v1_constr = pyo.Constraint(model.time, rule=v1_rule) 
+def v1_rule(M, t):
+    return M.x1[t] == M.v1 * t
+model.v1_constr = pyo.Constraint(model.time, rule=v1_rule) 
 
-# def v2_rule(M, t):
-#     return M.x2[t] == (M.v2 * t) - (0.5*g * (t**2))
-# model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)
+def v2_rule(M, t):
+    return M.x2[t] == (M.v2 * t) - (0.5*g * (t**2))
+model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)
 
 # Set objective
 model.obj = pyo.Objective(
@@ -76,10 +76,10 @@ model.obj = pyo.Objective(
 input_x1 =   v_l1 * time  
 input_x2 =  (v_l2*time) - (0.5 * g * (time*time))
 
-model.fixed_loc_constraints = pyo.ConstraintList()
-for i,t in enumerate(model.time):
-    model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
-    model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
+# model.fixed_loc_constraints = pyo.ConstraintList()
+# for i,t in enumerate(model.time):
+#     model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
+#     model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
 
 # view model
 #model.pprint()  # pyomo solve test.py --solver=gurobi --stream-solver --summary

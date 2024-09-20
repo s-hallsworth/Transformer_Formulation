@@ -18,10 +18,14 @@ scale = 10
 def generate_data(num_samples, time):
     x1_list = []  
     x2_list = []  
-
+    v1_list = []
+    v2_list = []
     for n in range(num_samples):
-        v1 =  np.random.rand(1)[0]
-        v2 = ( 2*np.random.rand(1))[0]
+        v1 =  10 * np.random.rand(1)[0]
+        v2 = ( 10*np.random.rand(1))[0]
+        
+        v1_list += [v1]
+        v2_list += [v2]
         
         x1 = np.zeros_like(time)
         x2 = np.zeros_like(time)
@@ -33,15 +37,24 @@ def generate_data(num_samples, time):
             
         x1_list.append(x1)
         x2_list.append(x2)
+    
+    v_l1 = 0.2
+    v_l2 = 1.5 
+    opt_x1 =   v_l1 * time  
+    opt_x2 =  (v_l2*time) - (0.5 * 9.81 * (time*time))
+    
+    x1_list[-1] = opt_x1
+    x2_list[-1] = opt_x2
         
-    return np.array(x1_list), np.array(x2_list)
+    return np.array(x1_list), np.array(x2_list), v1_list, v2_list
 
-x1, x2 = generate_data(num_samples=N, time=time)
+x1, x2, v1_list, v2_list = generate_data(num_samples=N, time=time)
 # print(x1.shape, x2.shape)
-
+print("v1 mean max min", np.mean(v1_list), max(v1_list), min(v1_list))
+print("v2 mean max min", np.mean(v2_list), max(v2_list), min(v2_list))
 
 plt.figure(1, figsize=(12, 8))
-for i in range(1):  
+for i in [len(x1)-1]:  
     plt.plot(x1[i,:], x2[i, :], "-x",label=f"Trajectory from Func {i+1}")
     plt.xlabel("distance")
     plt.ylabel("height")

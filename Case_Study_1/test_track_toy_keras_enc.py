@@ -17,7 +17,7 @@ from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
-import transformer_b as TNN
+import transformer_b_flag_cuts as TNN
 from trained_transformer.Tmodel import TransformerModel
 import helpers.extract_from_pretrained as extract_from_pretrained
 
@@ -570,7 +570,7 @@ class TestTransformer(unittest.TestCase):
         
         ## Optimizes
         # gurobi_model.setParam('DualReductions',0)
-        gurobi_model.setParam('MIPFocus',1)
+        #gurobi_model.setParam('MIPFocus',1)
         gurobi_model.optimize()
 
         if gurobi_model.status == GRB.OPTIMAL:
@@ -590,37 +590,37 @@ class TestTransformer(unittest.TestCase):
                 gurobi_model.computeIIS()
                 gurobi_model.write("pytorch_model.ilp")
                 
-        # x1 = np.array(optimal_parameters['x1'])
-        # x2 = np.array(optimal_parameters['x2'])
-        # loc1 = np.array([v for k,v in model.loc1.items()])
-        # loc2 = np.array([v for k,v in model.loc2.items()])
+        x1 = np.array(optimal_parameters['x1'])
+        x2 = np.array(optimal_parameters['x2'])
+        loc1 = np.array([v for k,v in model.loc1.items()])
+        loc2 = np.array([v for k,v in model.loc2.items()])
         # v1= np.array(optimal_parameters['v1'])
         # v2= np.array(optimal_parameters['v2'])
-        # # T= np.array(optimal_parameters['T'])
+        # T= np.array(optimal_parameters['T'])
 
 
-        # print(x1)
-        # print(x2)
-        # print()
+        print(x1)
+        print(x2)
+        print()
         # print(v1)
         # print(v2)
               
-        # plt.figure(1, figsize=(6, 4))
-        # plt.plot(time, input[0,:,:], label= ["1", "2"])
-        # plt.plot(time, loc2, 'o', label = f'x2 data')
-        # plt.plot(time, x2, '--x', label = f'x2 predicted')
-        # plt.plot(time, loc1, 'o', label = f'x1 data')
-        # plt.plot(time, x1, '--x', label = f'x1 predicted')
-        # plt.title(f'Example')
-        # plt.legend()
-        # plt.show()
+        plt.figure(1, figsize=(6, 4))
+        plt.plot(time, input[0,:,:], label= ["1", "2"])
+        plt.plot(time, loc2, 'o', label = f'x2 data')
+        plt.plot(time, x2, '--x', label = f'x2 predicted')
+        plt.plot(time, loc1, 'o', label = f'x1 data')
+        plt.plot(time, x1, '--x', label = f'x1 predicted')
+        plt.title(f'Example')
+        plt.legend()
+        plt.show()
 
-        # plt.figure(2, figsize=(6, 4))
-        # plt.plot(loc1, loc2, 'o', label = f'target trajectory')
-        # plt.plot(x1, x2, '--x', label = f'cannon ball trajectory')
-        # plt.title(f'Trajectory of cannon ball')
-        # plt.legend()
-        # plt.show()
+        plt.figure(2, figsize=(6, 4))
+        plt.plot(loc1, loc2, 'o', label = f'target trajectory')
+        plt.plot(x1, x2, '--x', label = f'cannon ball trajectory')
+        plt.title(f'Trajectory of cannon ball')
+        plt.legend()
+        plt.show()
                  
         #Check outputs
         ffn_2_output = np.array([optimal_parameters["ffn_2"]]).squeeze(0)

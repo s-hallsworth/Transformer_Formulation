@@ -1,0 +1,42 @@
+Metric,Value
+Name,.\Experiments\Track_k_e\track_k_e_r1_c9
+Exp,track_k_e_r1_c9
+Rep,1
+Num Enc,1
+Num Dec,0
+Num Res,2
+Num LN,2
+Num AVGP,0
+Num Dense,4
+Num ReLu,2
+Config File,.\data\toy_track_k_enc_config_2.json
+Model,.\trained_transformer\TNN_traj_enc_2.keras
+TNN Out Expected,"[[[0.016436167061328888, 0.026324184611439705], [0.017838314175605774, 0.07409560680389404]]]"
+Activated Bounds/Cuts,"{'LN_var': True, 'LN_mean': True, 'LN_num': True, 'LN_num_squ': True, 'LN_denom': True, 'LN_num_squ_sum': True, 'MHA_Q': True, 'MHA_K': True, 'MHA_V': True, 'MHA_attn_weight_sum': False, 'MHA_attn_weight': False, 'MHA_compat': True, 'MHA_compat_exp': True, 'MHA_compat_exp_sum': True, 'MHA_QK_MC': True, 'MHA_WK_MC': True, 'MHA_attn_score': True, 'MHA_output': True, 'RES_var': True, 'MHA_softmax_env': False, 'AVG_POOL_var': False, 'embed_var': False}"
+TNN Out,"[[0.01643617 0.02632418]
+ [0.01783831 0.07409561]]"
+Enc Seq Len,2
+Pred Len,1
+Overlap,1
+TNN Model Dims,2
+TNN Head Dims,4
+TNN Head Size,1
+TNN Input Dim,2
+Framework,gurobipy
+Solver,gurobi
+Time Limit (seconds),21600.0
+Num Threads,0
+Num Vars,462
+Num Constraints,264
+Num Cont Vars,458
+Num Int Vars,0
+Num Bin Vars,4
+Run Time (s),239.3199999332428
+Run Time (wu),116.39887230676526
+Num Iters,21013316.0
+Num Nodes Expl,1037355.0
+Num Solns,9
+Opt Gap,0.0
+Obj Value,0.000772771028579102
+RNR Obj Value,0.000772771028579102
+RNR Iters,0
