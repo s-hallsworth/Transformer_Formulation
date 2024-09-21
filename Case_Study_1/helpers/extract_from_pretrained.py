@@ -115,7 +115,7 @@ def get_learned_parameters(model_path):
                 count_Layers += 1
                 #new_layer_name = 'dense_'+str(count_Layers)
                 
-                dict_transformer_params[NN_name] |= { layer_name: {'W': parameters[0], 'b': parameters[1], 'activation': model_activations[i]}}
+                dict_transformer_params[NN_name] |= { "dense_"+str(count_Layers): {'W': parameters[0], 'b': parameters[1], 'activation': model_activations[i]}}
             
             # else create new ffn in dict 
             else: 
@@ -127,7 +127,7 @@ def get_learned_parameters(model_path):
                
                 dict_transformer_params[NN_name] = {'input_shape': model_outputs[i-1].shape, 
                                                     'input': model_outputs[i-1],
-                                                     layer_name: {'W': parameters[0], 'b': parameters[1], 'activation': model_activations[i]}}  
+                                                     "dense_"+str(count_Layers): {'W': parameters[0], 'b': parameters[1], 'activation': model_activations[i]}}  
             
         layer_names += [new_layer_name]
             
@@ -208,7 +208,7 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     else:
         return model_weights, model_bias
     
-def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, sequence_size, Transformer='torch'):
+def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, sequence_size, Transformer='torch'):
     """
     Read model parameters and store in dict with associated name. 
     ** NB: Assumes ReLU Activation function **
@@ -221,7 +221,10 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, seque
     input_shapes = collections.OrderedDict()
     output_shapes = collections.OrderedDict()
     dict_outputs = {}
-
+    
+    print("encoder input shape: ", enc_input.shape)
+    print("head size: ", num_heads)
+    
     ## Get layer input shapes
     # Function to capture the input shape
     def hook_fn(module, input, output, name):
@@ -330,6 +333,8 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, seque
                 W_parameters = transformer_weights.get(layer_name + ".in_proj")
                 b_parameters = transformer_bias.get(layer_name + ".in_proj", None)
                 
+                print("weight shape: ", np.array(W_parameters).shape)
+                print("bias shape: ",np.array(b_parameters).shape)
                 
                 if "self" in layer_name.lower():
                     emb_shape = [int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3)]
@@ -340,10 +345,12 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, seque
                     #cross attention calculates Q from dec inut but K, V from encoder output
                     emb_shape = [size_input_mha, size_output_encoder, size_output_encoder]
                 W_q, W_k, W_v = torch.split(torch.tensor(W_parameters), emb_shape)
+                print("weight shape: ", W_q.shape)
                 if b_parameters:
                     b_q, b_k, b_v = torch.split(torch.tensor(b_parameters), emb_shape)
                 else:
                     b_q = None
+                print("bias shape: ",  b_q.shape)
                     
                 
             except:
@@ -374,18 +381,18 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, seque
                 layer_names.append(new_layer_name)
             
             # Save in dict Q, K, V weights and biases
-            dict_transformer_params[(new_layer_name, 'W_q')] =  arrange_qkv(W_q, head_size).detach().cpu().numpy().tolist()
-            dict_transformer_params[(new_layer_name, 'W_k')] =  arrange_qkv(W_k, head_size).detach().cpu().numpy().tolist()
-            dict_transformer_params[(new_layer_name, 'W_v')] =  arrange_qkv(W_v, head_size).detach().cpu().numpy().tolist()
+            dict_transformer_params[(new_layer_name, 'W_q')] =  arrange_qkv(W_q, num_heads).detach().cpu().numpy().tolist()
+            dict_transformer_params[(new_layer_name, 'W_k')] =  arrange_qkv(W_k, num_heads).detach().cpu().numpy().tolist()
+            dict_transformer_params[(new_layer_name, 'W_v')] =  arrange_qkv(W_v, num_heads).detach().cpu().numpy().tolist()
             
             if not b_q is None:
-                dict_transformer_params[(new_layer_name, 'b_q')] = torch.reshape(b_q, (head_size, int(b_q.shape[0]/head_size))).detach().cpu().numpy().tolist()
-                dict_transformer_params[(new_layer_name, 'b_k')] = torch.reshape(b_k, (head_size, int(b_k.shape[0]/head_size))).detach().cpu().numpy().tolist()
-                dict_transformer_params[(new_layer_name, 'b_v')] = torch.reshape(b_k, (head_size, int(b_v.shape[0]/head_size))).detach().cpu().numpy().tolist()
+                dict_transformer_params[(new_layer_name, 'b_q')] = torch.reshape(b_q, (num_heads, int(b_q.shape[0]/num_heads))).detach().cpu().numpy().tolist()
+                dict_transformer_params[(new_layer_name, 'b_k')] = torch.reshape(b_k, (num_heads, int(b_k.shape[0]/num_heads))).detach().cpu().numpy().tolist()
+                dict_transformer_params[(new_layer_name, 'b_v')] = torch.reshape(b_v, (num_heads, int(b_v.shape[0]/num_heads))).detach().cpu().numpy().tolist()
             
             out_proj_name = layer_name + ".out_proj"
             W_o = transformer_weights.get(out_proj_name)
-            dict_transformer_params[(new_layer_name, 'W_o')] =  arrange_o(W_o, head_size).detach().cpu().numpy().tolist()
+            dict_transformer_params[(new_layer_name, 'W_o')] =  arrange_o(W_o, num_heads).detach().cpu().numpy().tolist()
             
             b_o = transformer_bias.get(out_proj_name , None)
             if not b_o  is None:
@@ -430,18 +437,22 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, head_size, seque
         print(layer, new_layer_name)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
-def arrange_qkv(W, head_size):
-    " reshape W to match expected shape [model_dims, headsize, qkv_dim]"
-    W = torch.reshape(W, (head_size, int(W.shape[-1]/head_size), W.shape[-1]))
-    W = torch.transpose(W, 1,2)
-    W = torch.transpose(W, 0,1)
-    return W
+def arrange_qkv(W, num_heads):
+    " reshape W to match expected shape when reading weights [model_dims, num heads * qkv_dim] --> [model_dims, num heads, qkv_dim]"
+    print("weight shape (arrange):", W.shape)
+    model_dims = W.shape[-1]
+    qkv_dim = int(model_dims/num_heads)
+    W = W.view(num_heads, qkv_dim, model_dims) #[h,k,d]
+    return W.permute(2,0,1) #[d,h,k]
 
-def arrange_o(W, head_size):
-    " reshape W to match expected shape [ headsize, qkv_dim, model_dims]"
-    W = torch.tensor(W)
-    W = torch.reshape(W, (head_size, int(W.shape[-1]/head_size), W.shape[-1]))
-    return W
+def arrange_o(W, num_heads):
+    " reshape W to match expected shape [ num heads, qkv_dim, model_dims]"
+    W = torch.tensor(W) # [d, h*k]
+    model_dims = W.shape[-1]
+    qkv_dim = int(model_dims/num_heads)
+    
+    W = W.view(model_dims, num_heads, qkv_dim) #[d,h,k]
+    return W.permute(1,2,0) #[h, k, d]
 
 def get_pytorch_intermediate_values(model, sample_input1, sample_input2, sequence_size):
     model.eval()
