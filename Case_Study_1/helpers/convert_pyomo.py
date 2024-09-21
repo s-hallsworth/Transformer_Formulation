@@ -50,7 +50,6 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
                             else:
                                 var_map, block_map = convert_block(var[index], var_map, gurobi_model, block_map)    
             else:
-                print(var, type(var))
                 var_map, block_map = convert_block(var, var_map, gurobi_model, block_map) 
                          
         else:  
@@ -238,8 +237,8 @@ def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
                         block_map = create_nested_dict(block_map, pyomo_var.name, gurobi_var[index])
                         
                 else:
-                    print(pyomo_var, type(pyomo_var))
-                    print(str(var)+str(pyomo_var))
+                    # print(pyomo_var, type(pyomo_var))
+                    # print(str(var)+str(pyomo_var))
                     
                     gurobi_var[index].lb = pyomo_var
                     gurobi_var[index].ub = pyomo_var

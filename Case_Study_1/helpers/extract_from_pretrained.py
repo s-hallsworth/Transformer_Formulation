@@ -261,7 +261,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
         #                         future_time_features = future_time_features)
         
     layers = [i for i in list(input_shapes.keys()) if i ]
-
+    
     # # Print the input shapes
     # for layer_name, shape in input_shapes.items():
     #     print(f"Layer: {layer_name}, Input shape: {shape}")
@@ -271,6 +271,21 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
     # Get weights and biases
     transformer_weights, transformer_bias = get_pytorch_model_weights(model, save_json=False)
     # layers = [val for  val in model.named_modules() if "dropout" not in val[0]]
+    
+    
+    # Get activations
+    activations_dict = {}
+    count = 0
+    for name, layer in model.named_modules():
+        print(name, layer)
+        if isinstance(layer, (nn.ReLU, nn.SiLU)):
+            print(name, layer)
+            if count > 0:
+                activations_dict[layers[count-1]] = layer #associate activation with previous layer
+            else:
+                activations_dict[layer] = layer
+        
+        count += 1
    
     # Create dictionary with parameters
     dict_transformer_params = {}
@@ -333,8 +348,8 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                 W_parameters = transformer_weights.get(layer_name + ".in_proj")
                 b_parameters = transformer_bias.get(layer_name + ".in_proj", None)
                 
-                print("weight shape: ", np.array(W_parameters).shape)
-                print("bias shape: ",np.array(b_parameters).shape)
+                # print("weight shape: ", np.array(W_parameters).shape)
+                # print("bias shape: ",np.array(b_parameters).shape)
                 
                 if "self" in layer_name.lower():
                     emb_shape = [int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3)]
@@ -345,12 +360,12 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                     #cross attention calculates Q from dec inut but K, V from encoder output
                     emb_shape = [size_input_mha, size_output_encoder, size_output_encoder]
                 W_q, W_k, W_v = torch.split(torch.tensor(W_parameters), emb_shape)
-                print("weight shape: ", W_q.shape)
+                # print("weight shape: ", W_q.shape)
                 if b_parameters:
                     b_q, b_k, b_v = torch.split(torch.tensor(b_parameters), emb_shape)
                 else:
                     b_q = None
-                print("bias shape: ",  b_q.shape)
+                # print("bias shape: ",  b_q.shape)
                     
                 
             except:
@@ -401,13 +416,13 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
             
         if 'linear' in layer_name.lower():
             # if next layer also dense, count as part of previous FFN
-
+            
             if layer_name == next:
                 name = 'ffn'
                 count = count_layer_names.count(prefix+name)
                 new_layer_name = f"{prefix+name}_{count}"
                 
-                dict_transformer_params[new_layer_name] |= {layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': "relu"}}  
+                dict_transformer_params[new_layer_name] |= {layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activations_dict.get(layer_name,None)}}  
                 
             elif i <  len(layers) - 1 and i > 0:
                 if "linear" in layers[i+1]:
@@ -419,9 +434,9 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                     count_layer_names.append(prefix+name)
                     layer_names.append(new_layer_name)
                     
-                    dict_transformer_params[new_layer_name] = {'input_shape': input_shapes[layer_name], 
+                    dict_transformer_params[new_layer_name] = {'input_shape': np.array(input_shapes[layer_name]), 
                                                         'input': layers[-1],
-                                                        layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': "relu"}} 
+                                                        layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activations_dict.get(layer_name,None)}} 
                 
             else:
                 name = 'linear'
@@ -439,7 +454,6 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
 
 def arrange_qkv(W, num_heads):
     " reshape W to match expected shape when reading weights [model_dims, num heads * qkv_dim] --> [model_dims, num heads, qkv_dim]"
-    print("weight shape (arrange):", W.shape)
     model_dims = W.shape[-1]
     qkv_dim = int(model_dims/num_heads)
     W = W.view(num_heads, qkv_dim, model_dims) #[h,k,d]
