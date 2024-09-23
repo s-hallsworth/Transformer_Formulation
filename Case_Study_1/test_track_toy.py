@@ -527,8 +527,17 @@ class TestTransformer(unittest.TestCase):
         
 
         # add res+norm2
+        gamma2 = parameters["enc__layer_normalization_2", 'gamma']
+        beta2 = parameters["enc__layer_normalization_2", 'beta']
         
-        #add enc norm
+        transformer.add_residual_connection("enc_norm_1", "enc__ffn_1", f"{layer}__{enc_layer}_residual_2")
+        transformer.add_layer_norm(f"{layer}__{enc_layer}_residual_2", "enc_norm_2", gamma2, beta2)
+        
+        
+        #add enc norm (norm over various encoder layers)
+        gamma3 = parameters["enc_layer_normalization_1", 'gamma']
+        beta3 = parameters["enc_layer_normalization_1", 'beta']
+        transformer.add_layer_norm("enc_norm_2", "enc_norm_3", gamma3, beta3)
         
         
         # Set objective
@@ -582,18 +591,32 @@ class TestTransformer(unittest.TestCase):
         ffn1_enc = np.array(optimal_parameters["enc__ffn_1"])
         ffn1_expected = np.array(list(layer_outputs_dict['transformer.encoder.layers.0.linear2']))[0].flatten()
         
+        norm2_enc = np.array(optimal_parameters["enc_norm_2"])
+        norm2_expected = np.array(list(layer_outputs_dict['transformer.encoder.layers.0.norm2']))[0].flatten()
+
+        norm3_enc = np.array(optimal_parameters["enc_norm_3"])
+        norm3_expected = np.array(list(layer_outputs_dict['transformer.encoder.norm']))[0].flatten()
+
         ## Check MHA output
         self.assertIsNone(np.testing.assert_array_equal(self_attn_expected_out.shape, self_attn_enc.shape)) # compare shape with transformer
         self.assertIsNone(np.testing.assert_array_almost_equal(self_attn_expected_out, self_attn_enc , decimal=5)) # compare value with transformer output
-        print("- MHA output formulation == MHA Trained TNN")  
+        print("- Enc MHA output formulation == Enc MHA Trained TNN")  
         
         self.assertIsNone(np.testing.assert_array_equal(norm1_expected.shape, norm1_enc.shape)) # compare shape with transformer
         self.assertIsNone(np.testing.assert_array_almost_equal(norm1_expected, norm1_enc , decimal=4)) # compare value with transformer output
-        print("- Norm1 formulation == Norm1 Trained TNN")  
+        print("- Enc Norm1 formulation == Enc Norm1 Trained TNN")  
         
         self.assertIsNone(np.testing.assert_array_equal(ffn1_expected.shape, ffn1_enc.shape)) # compare shape with transformer
         self.assertIsNone(np.testing.assert_array_almost_equal(ffn1_expected, ffn1_enc , decimal=4)) # compare value with transformer output
-        print("- FFN1 formulation == FNN1 Trained TNN") 
+        print("- Enc FFN1 formulation == Enc FNN1 Trained TNN") 
+        
+        self.assertIsNone(np.testing.assert_array_equal(norm2_expected.shape, norm2_enc.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(norm2_expected, norm2_enc , decimal=4)) # compare value with transformer output
+        print("- Enc Norm2 formulation == Enc Norm2 Trained TNN")  
+        
+        self.assertIsNone(np.testing.assert_array_equal(norm3_expected.shape, norm3_enc.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(norm3_expected, norm3_enc , decimal=4)) # compare value with transformer output
+        print("- Enc Output formulation == Enc Output Trained TNN")  
     
 # -------- Helper functions ---------------------------------------------------------------------------------- 
 
