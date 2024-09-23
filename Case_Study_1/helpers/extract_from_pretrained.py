@@ -211,23 +211,17 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
 def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, sequence_size, Transformer='torch'):
     """
     Read model parameters and store in dict with associated name. 
-    ** NB: Assumes ReLU Activation function **
     """
-    # src = torch.rand(enc_input.shape)
-    # tgt = torch.rand(dec_input.shape)
+
     src = torch.as_tensor(enc_input).float()
     tgt = torch.as_tensor(dec_input).float()
     enc_prefix = "enc"
     dec_prefix = "dec"
     
-    
     input_shapes = collections.OrderedDict()
     output_shapes = collections.OrderedDict()
     dict_outputs = {}
     activations_dict = {}
-    
-    print("encoder input shape: ", enc_input.shape)
-    print("head size: ", num_heads)
     
     # Get layer input shapes
     def hook_fn(module, input, output, name):
@@ -257,7 +251,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
         if "dropout" not in name:
             layer.register_forward_hook(lambda module, input, output, name=name: hook_fn(module, input, output, name))
         
-
+    # Forward pass through model
     if Transformer == 'torch':
         model.eval()
         with torch.no_grad():
@@ -277,9 +271,13 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
         #                         past_time_features= past_time_features, 
         #                         past_observed_mask = past_observed_mask,
         #                         future_time_features = future_time_features)
-        
+      
+    # Get model layers  
     layers = [i for i in list(input_shapes.keys()) if i ]
     
+    # Get weights and biases
+    transformer_weights, transformer_bias = get_pytorch_model_weights(model, save_json=False)
+ 
 
     # # Print the input shapes
     # for layer_name, shape in input_shapes.items():
@@ -287,10 +285,6 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
     # for layer_name, shape in output_shapes.items():
     #     print(f"Layer: {layer_name}, Input shape: {shape}")
     
-    # Get weights and biases
-    transformer_weights, transformer_bias = get_pytorch_model_weights(model, save_json=False)
-    # layers = [val for  val in model.named_modules() if "dropout" not in val[0]]
-   
     # Create dictionary with parameters
     dict_transformer_params = {}
     layer_names = []
