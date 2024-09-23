@@ -284,12 +284,38 @@ for r in range(REP):
                 else:    
                     optimal_parameters[v.varName] = v.x
                     
-        if gurobi_model.status == GRB.INFEASIBLE:
-                gurobi_model.computeIIS()
-                gurobi_model.write("pytorch_model.ilp")
-        
+            # save results
+            tnn_config["TNN Out"] = np.array(layer_outputs_dict["dense_4"])[0]   
+            
+            x1 = np.array(optimal_parameters['x1'])
+            x2 = np.array(optimal_parameters['x2'])
+            loc1 = np.array([v for k,v in model.loc1.items()])
+            loc2 = np.array([v for k,v in model.loc2.items()])
+
+            plt.figure(figsize=(6, 4))
+            #plt.plot(time, input[0,:,:], label= ["1", "2"])
+            plt.plot(time, loc2, 'o', label = f'y data')
+            plt.plot(time, x2, '--x', label = f'y predicted')
+            plt.plot(time, loc1, 'o', label = f'x data')
+            plt.plot(time, x1, '--x', label = f'x predicted')
+            plt.xlabel("time")
+            plt.ylabel("magnitude")
+            plt.title(experiment_name)
+            plt.legend()
+            plt.savefig(PATH+f'\images\{experiment_name}_time.png')
+            
+            plt.figure(figsize=(6, 4))
+            plt.plot(loc1, loc2, 'o', label = f'target trajectory')
+            plt.plot(x1, x2, '--x', label = f'cannon ball trajectory')
+            plt.title(f'Trajectory')
+            plt.xlabel("x")
+            plt.ylabel("y")
+            plt.legend()
+            plt.savefig(PATH+f'\images\{experiment_name}_traj.png')    
+                        
+        else:
+            tnn_config["TNN Out"] = None
         # save results
-        tnn_config["TNN Out"] = np.array(layer_outputs_dict["dense_4"])[0]
         tnn_config["Enc Seq Len"] = transformer.N
         tnn_config["Pred Len"] = pred_len
         tnn_config["Overlap"] = overlap
@@ -298,30 +324,4 @@ for r in range(REP):
         tnn_config["TNN Head Size"] = transformer.d_H
         tnn_config["TNN Input Dim"] = transformer.input_dim
 
-        x1 = np.array(optimal_parameters['x1'])
-        x2 = np.array(optimal_parameters['x2'])
-        loc1 = np.array([v for k,v in model.loc1.items()])
-        loc2 = np.array([v for k,v in model.loc2.items()])
-
-        plt.figure(figsize=(6, 4))
-        #plt.plot(time, input[0,:,:], label= ["1", "2"])
-        plt.plot(time, loc2, 'o', label = f'y data')
-        plt.plot(time, x2, '--x', label = f'y predicted')
-        plt.plot(time, loc1, 'o', label = f'x data')
-        plt.plot(time, x1, '--x', label = f'x predicted')
-        plt.xlabel("time")
-        plt.ylabel("magnitude")
-        plt.title(experiment_name)
-        plt.legend()
-        plt.savefig(PATH+f'\images\{experiment_name}_time.png')
-        
-        plt.figure(figsize=(6, 4))
-        plt.plot(loc1, loc2, 'o', label = f'target trajectory')
-        plt.plot(x1, x2, '--x', label = f'cannon ball trajectory')
-        plt.title(f'Trajectory')
-        plt.xlabel("x")
-        plt.ylabel("y")
-        plt.legend()
-        plt.savefig(PATH+f'\images\{experiment_name}_traj.png')
-        
         save_gurobi_results(gurobi_model, PATH+experiment_name, experiment_name, r+1, tnn_config)
