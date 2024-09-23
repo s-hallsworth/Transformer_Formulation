@@ -217,16 +217,19 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
     # tgt = torch.rand(dec_input.shape)
     src = torch.as_tensor(enc_input).float()
     tgt = torch.as_tensor(dec_input).float()
+    enc_prefix = "enc"
+    dec_prefix = "dec"
+    
     
     input_shapes = collections.OrderedDict()
     output_shapes = collections.OrderedDict()
     dict_outputs = {}
+    activations_dict = {}
     
     print("encoder input shape: ", enc_input.shape)
     print("head size: ", num_heads)
     
-    ## Get layer input shapes
-    # Function to capture the input shape
+    # Get layer input shapes
     def hook_fn(module, input, output, name):
         input_shapes[name]  = input[0].shape
         output_shapes[name] = output[0].shape
@@ -234,12 +237,27 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
             dict_outputs[name] |= {output}
         else:
             dict_outputs[name] = {output}
-    
-     # Register hooks to all layers
+            
+        #Get activation functions
+        if isinstance(module, nn.TransformerEncoderLayer):
+            if "relu" in str(module.activation):
+                activations_dict[enc_prefix] = "relu"
+            else:
+                activations_dict[enc_prefix] = "UNKNOWN"
+                raise ValueError("Error parsing transformer model. Unrecognised activation function used in encoder")
+        elif isinstance(module, nn.TransformerDecoderLayer):
+            if "relu" in str(module.activation):
+                activations_dict[dec_prefix] = "relu"
+            else:
+                activations_dict[dec_prefix] = "UNKNOWN"
+                raise ValueError("Error parsing transformer model. Unrecognised activation function used in decoder")
+             
+    # Register hooks to all layers
     for name, layer in model.named_modules():
         if "dropout" not in name:
             layer.register_forward_hook(lambda module, input, output, name=name: hook_fn(module, input, output, name))
-    
+        
+
     if Transformer == 'torch':
         model.eval()
         with torch.no_grad():
@@ -262,6 +280,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
         
     layers = [i for i in list(input_shapes.keys()) if i ]
     
+
     # # Print the input shapes
     # for layer_name, shape in input_shapes.items():
     #     print(f"Layer: {layer_name}, Input shape: {shape}")
@@ -271,21 +290,6 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
     # Get weights and biases
     transformer_weights, transformer_bias = get_pytorch_model_weights(model, save_json=False)
     # layers = [val for  val in model.named_modules() if "dropout" not in val[0]]
-    
-    
-    # Get activations
-    activations_dict = {}
-    count = 0
-    for name, layer in model.named_modules():
-        print(name, layer)
-        if isinstance(layer, (nn.ReLU, nn.SiLU)):
-            print(name, layer)
-            if count > 0:
-                activations_dict[layers[count-1]] = layer #associate activation with previous layer
-            else:
-                activations_dict[layer] = layer
-        
-        count += 1
    
     # Create dictionary with parameters
     dict_transformer_params = {}
@@ -300,12 +304,13 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
     for i, layer in enumerate(layers):
         layer_name = layer #[0]
         new_layer_name = None
+        suffix = "_"
         
         if "encoder" in layer_name:
-            prefix = "enc_"
+            prefix = enc_prefix
             
             if "layer" in layer_name:
-                prefix += "_"
+                suffix += "_"
             
             if layer_name.lower().endswith('self_attn'): #only parse 1 encoder/decoder layer since parameters are repeated
                 count_encoder_layers += 1
@@ -314,10 +319,10 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                     continue
 
         elif "decoder" in layer_name:
-            prefix = "dec_"
+            prefix = dec_prefix
             
             if "layer" in layer_name:
-                prefix += "_"
+                suffix += "_"
                 
             if layer_name.lower().endswith('self_attn'): #only parse 1 decoder layer since parameters are repeated
                 count_decoder_layers += 1
@@ -326,6 +331,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                     continue
         else:
             prefix = ""
+            suffix = ""
 
         # store learned parameters for layers  in dict
         W_parameters = transformer_weights.get(layer_name, None)
@@ -333,9 +339,9 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
 
         if 'norm' in layer_name.lower():
             name = 'layer_normalization'
-            count = count_layer_names.count(prefix+name) + 1
-            new_layer_name = f"{prefix+name}_{count}"
-            count_layer_names.append(prefix+name)
+            count = count_layer_names.count(prefix+suffix+name) + 1
+            new_layer_name = f"{prefix+suffix+name}_{count}"
+            count_layer_names.append(prefix+suffix+name)
             
             layer_names.append(new_layer_name)
             
@@ -381,17 +387,17 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
             # set name of type of attention
             if 'self_attn' in layer_name.lower():    
                 name = 'self_attention'
-                count = count_layer_names.count(prefix+name) + 1
-                new_layer_name = f"{prefix+name}_{count}"
-                count_layer_names.append(prefix+name)
+                count = count_layer_names.count(prefix+suffix+name) + 1
+                new_layer_name = f"{prefix+suffix+name}_{count}"
+                count_layer_names.append(prefix+suffix+name)
                 
                 layer_names.append(new_layer_name)
                 
             elif 'multihead_attn' in layer_name.lower():
                 name = 'mutli_head_attention'
-                count = count_layer_names.count(prefix+name) + 1
-                new_layer_name = f"{prefix+name}_{count}"
-                count_layer_names.append(prefix+name)
+                count = count_layer_names.count(prefix+suffix+name) + 1
+                new_layer_name = f"{prefix+suffix+name}_{count}"
+                count_layer_names.append(prefix+suffix+name)
                 
                 layer_names.append(new_layer_name)
             
@@ -418,30 +424,42 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
             # if next layer also dense, count as part of previous FFN
             
             if layer_name == next:
-                name = 'ffn'
-                count = count_layer_names.count(prefix+name)
-                new_layer_name = f"{prefix+name}_{count}"
+                # set activation function
+                activation = None #second linear layer of enc/dec has no activation
                 
-                dict_transformer_params[new_layer_name] |= {layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activations_dict.get(layer_name,None)}}  
+                # set name
+                name = 'ffn'
+                count = count_layer_names.count(prefix+suffix+name)
+                new_layer_name = f"{prefix+suffix+name}_{count}"
+                
+                # store layer info
+                dict_transformer_params[new_layer_name] |= {layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activation}}  
                 
             elif i <  len(layers) - 1 and i > 0:
+                # get activation function
+                try:
+                    activation = activations_dict[prefix]
+                except:
+                    raise ValueError("Activation function for feed forward neural network not found.")
+                
+                # save layer information
                 if "linear" in layers[i+1]:
                     next = layers[i+1]
                     
                     name = 'ffn'
-                    count = count_layer_names.count(prefix+name) + 1
-                    new_layer_name = f"{prefix+name}_{count}"
-                    count_layer_names.append(prefix+name)
+                    count = count_layer_names.count(prefix+suffix+name) + 1
+                    new_layer_name = f"{prefix+suffix+name}_{count}"
+                    count_layer_names.append(prefix+suffix+name)
                     layer_names.append(new_layer_name)
                     
                     dict_transformer_params[new_layer_name] = {'input_shape': np.array(input_shapes[layer_name]), 
                                                         'input': layers[-1],
-                                                        layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activations_dict.get(layer_name,None)}} 
+                                                        layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activation} }
                 
             else:
                 name = 'linear'
-                count = count_layer_names.count(prefix+name) + 1
-                new_layer_name = f"{prefix+name}_{count}"
+                count = count_layer_names.count(prefix+suffix+name) + 1
+                new_layer_name = f"{prefix+suffix+name}_{count}"
                 count_layer_names.append(prefix+name)
                 
                 layer_names.append(new_layer_name)
