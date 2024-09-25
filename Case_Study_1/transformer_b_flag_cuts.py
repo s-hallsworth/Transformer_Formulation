@@ -5,7 +5,7 @@ import math
 from pyomo import dae
 import json
 import os
-from helpers.extract_from_pretrained import get_pytorch_learned_parameters
+from helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_hugging_learned_parameters
 from omlt import OmltBlock
 from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation
 from omlt.io.keras import keras_reader
@@ -86,7 +86,11 @@ class Transformer:
         """ Builds transformer formulation for a trained pytorchtransfomrer model with and enocder an decoder """
         
         # Get learned parameters
-        layer_names, parameters, _, enc_dec_count, _ = get_pytorch_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, self.N, Transformer, hugging_face_dict)
+        if Transformer == 'pytorch':
+            layer_names, parameters, _, enc_dec_count, _ = get_pytorch_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, self.N)
+        elif Transformer == 'huggingface':
+            layer_names, parameters, _, enc_dec_count, _ = get_hugging_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, self.N, hugging_face_dict):
+    
 
         self.epsilon = 1e-5
         if default:
@@ -396,7 +400,7 @@ class Transformer:
                                 else:
                                     residual = None
                                     
-                                enc_input_name, ffn_parameter_dict  = self.__add_ED_layer(self, parameters, layer, enc_input_name, enc_layer, ffn_parameter_dict, enc_output_name=None, residual=residual)
+                                enc_input_name, ffn_parameter_dict  = self.__add_ED_layer(parameters, layer, enc_input_name, enc_layer, ffn_parameter_dict, enc_output_name=None, residual=residual)
                                 counter += 1
                         if enc_layer < enc_dec_count[0]-1: # if not the last encoder layer, repeat adding components
                             counter = l
@@ -404,7 +408,7 @@ class Transformer:
                     # transformer output of final encoder layer
                     while "enc" in layer_names[counter]:
                         layer = layer_names[counter] 
-                        enc_input_name, ffn_parameter_dict  = self.__add_ED_layer(self, parameters, layer, enc_input_name, "", ffn_parameter_dict, enc_output_name=None, residual=None)
+                        enc_input_name, ffn_parameter_dict  = self.__add_ED_layer(parameters, layer, enc_input_name, "", ffn_parameter_dict, enc_output_name=None, residual=None)
                         counter += 1      
     
             elif "dec" in layer:
@@ -422,7 +426,7 @@ class Transformer:
                                 else:
                                     residual = None
                                     
-                                dec_input_name, ffn_parameter_dict  = self.__add_ED_layer(self, parameters, layer, dec_input_name, dec_layer, ffn_parameter_dict, enc_output_name=enc_input_name, residual=residual)
+                                dec_input_name, ffn_parameter_dict  = self.__add_ED_layer(parameters, layer, dec_input_name, dec_layer, ffn_parameter_dict, enc_output_name=enc_input_name, residual=residual)
                                 counter += 1
                         if dec_layer < enc_dec_count[0]-1: # if not the last decoder layer, repeat adding components
                             counter = l
@@ -430,7 +434,7 @@ class Transformer:
                     # transformer output of final decoder layer
                     while "dec" in layer_names[counter]:
                         layer = layer_names[counter] 
-                        dec_input_name, ffn_parameter_dict  = self.__add_ED_layer(self, parameters, layer, dec_input_name, "", ffn_parameter_dict, enc_output_name=enc_input_name, residual=None)
+                        dec_input_name, ffn_parameter_dict  = self.__add_ED_layer(parameters, layer, dec_input_name, "", ffn_parameter_dict, enc_output_name=enc_input_name, residual=None)
                         counter += 1 
                      
             elif "layer_norm" in layer:

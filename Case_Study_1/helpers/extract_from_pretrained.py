@@ -5,6 +5,9 @@ import torch
 import os
 from torch import nn
 import collections
+from transformers.src.transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
+from transformers.src.transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
+
 
     
 def get_weights(model_path, save_json=True, file_name="model_weights.json"):
@@ -208,7 +211,7 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     else:
         return model_weights, model_bias
     
-def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, sequence_size, Transformer='torch', hugging_face_dict=None):
+def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, sequence_size):
     """
     Read model parameters and store in dict with associated name. 
     """
@@ -225,8 +228,10 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
     
     # Get layer input shapes
     def hook_fn(module, input, output, name):
+
         input_shapes[name]  = input[0].shape
-        output_shapes[name] = output[0].shape
+        output_shapes[name]  = output[0].shape
+
         if name in dict_outputs.keys():
             dict_outputs[name] |= {output}
         else:
@@ -252,20 +257,10 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
             layer.register_forward_hook(lambda module, input, output, name=name: hook_fn(module, input, output, name))
         
     # Forward pass through model
-    if Transformer == 'torch':
-        model.eval()
-        with torch.no_grad():
-            _ = model(src, tgt, tgt.shape[0])
-  
-    elif Transformer == 'huggingface':
-        model.eval()
-        x_val = src
-        y_val = tgt
-        _ = model(hugging_face_dict["past_values"], 
-                hugging_face_dict["past_time_features"], 
-                hugging_face_dict["past_observed_mask"],
-                hugging_face_dict["future_time_features"])
-      
+    model.eval()
+    with torch.no_grad():
+        _ = model(src, tgt, tgt.shape[0])
+
     # Get model layers  
     layers = [i for i in list(input_shapes.keys()) if i ]
     
@@ -455,7 +450,262 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                 dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
                 dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
-        # print(layer, new_layer_name)
+        print(layer, new_layer_name)
+    return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
+
+def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, sequence_size, hugging_face_dict):
+    """
+    Read model parameters and store in dict with associated name. 
+    """
+
+    src = torch.as_tensor(enc_input).float()
+    tgt = torch.as_tensor(dec_input).float()
+    enc_prefix = "enc"
+    dec_prefix = "dec"
+    
+    input_shapes = collections.OrderedDict()
+    output_shapes = collections.OrderedDict()
+    dict_outputs = {}
+    activations_dict = {}
+    
+    # Get layer input shapes
+    def hook_fn(module, input, output, name):
+
+        if len(list(input)) > 0:
+            if not isinstance(input[0], torch.Size):
+                input_shapes[name]  = input[0].shape
+            else:
+                input_shapes[name]  = list(input[0])
+            
+        if len(list(output)) > 0 and isinstance(output, torch.Tensor):
+            if not isinstance(output[0], torch.Size):
+                output_shapes[name]  = output[0].shape
+            else:
+                output_shapes[name]  = list(output[0])
+                
+            if name in dict_outputs.keys():
+                dict_outputs[name] |= {output}
+            else:
+                dict_outputs[name] = {output}
+            
+        #Get activation functions
+        if isinstance(module, nn.TransformerEncoderLayer):
+            if "relu" in str(module.activation):
+                activations_dict[enc_prefix] = "relu"
+            else:
+                activations_dict[enc_prefix] = "UNKNOWN"
+                raise ValueError("Error parsing transformer model. Unrecognised activation function used in encoder")
+        elif isinstance(module, nn.TransformerDecoderLayer):
+            if "relu" in str(module.activation):
+                activations_dict[dec_prefix] = "relu"
+            else:
+                activations_dict[dec_prefix] = "UNKNOWN"
+                raise ValueError("Error parsing transformer model. Unrecognised activation function used in decoder")
+             
+    # Register hooks to all layers
+    hook_names = ["linear", "encoder", "decoder", "layer", "attention", "scaler", "embedding"]
+    for name, layer in model.named_modules():
+        if any(value in name.lower() for value in hook_names):
+            layer.register_forward_hook(lambda module, input, output, name=name: hook_fn(module, input, output, name))
+        
+    # Forward pass through model
+    model.eval()
+    with torch.no_grad():
+        _ = model.generate(past_values = hugging_face_dict["past_values"] , 
+                past_time_features = hugging_face_dict["past_time_features"],
+                past_observed_mask = hugging_face_dict["past_observed_mask"],
+                future_time_features = hugging_face_dict["future_time_features"])
+        
+    # Get model layers  
+    layers = [i for i in list(input_shapes.keys()) if i ]
+    
+    # Get weights and biases
+    transformer_weights, transformer_bias = get_pytorch_model_weights(model, save_json=False)
+ 
+
+    # # Print the input shapes
+    # for layer_name, shape in input_shapes.items():
+    #     print(f"Layer: {layer_name}, Input shape: {shape}")
+    # for layer_name, shape in output_shapes.items():
+    #     print(f"Layer: {layer_name}, Input shape: {shape}")
+    
+    # Create dictionary with parameters
+    dict_transformer_params = {}
+    layer_names = []
+    count_layer_names = []
+    
+    count_encoder_layers = 0
+    count_decoder_layers = 0
+    next = None
+    
+    # for each layer
+    for i, layer in enumerate(layers):
+        layer_name = layer #[0]
+        new_layer_name = None
+        suffix = "_"
+        
+        if "encoder" in layer_name:
+            prefix = enc_prefix
+            
+            if "layer" in layer_name:
+                suffix += "_"
+            
+            if layer_name.lower().endswith('self_attn'): #only parse 1 encoder/decoder layer since parameters are repeated
+                count_encoder_layers += 1
+                
+                if count_encoder_layers > 1:
+                    continue
+
+        elif "decoder" in layer_name:
+            prefix = dec_prefix
+            
+            if "layer" in layer_name:
+                suffix += "_"
+                
+            if layer_name.lower().endswith('self_attn'): #only parse 1 decoder layer since parameters are repeated
+                count_decoder_layers += 1
+                
+                if count_decoder_layers > 1:
+                    continue
+        else:
+            prefix = ""
+            suffix = ""
+
+        # store learned parameters for layers  in dict
+        W_parameters = transformer_weights.get(layer_name, None)
+        b_parameters = transformer_bias.get(layer_name, None)
+
+        if 'norm' in layer_name.lower():
+            name = 'layer_normalization'
+            count = count_layer_names.count(prefix+suffix+name) + 1
+            new_layer_name = f"{prefix+suffix+name}_{count}"
+            count_layer_names.append(prefix+suffix+name)
+            
+            layer_names.append(new_layer_name)
+            
+            dict_transformer_params[(new_layer_name, 'gamma')] = W_parameters
+            dict_transformer_params[(new_layer_name, 'beta')] = b_parameters
+            
+        if layer_name.lower().endswith('attn'):
+            try: 
+                # if embed dim = k, v dim --> weights concatinated in in_proj (see pytorch doc)
+                W_parameters = transformer_weights.get(layer_name + ".in_proj")
+                b_parameters = transformer_bias.get(layer_name + ".in_proj", None)
+                
+                # print("weight shape: ", np.array(W_parameters).shape)
+                # print("bias shape: ",np.array(b_parameters).shape)
+                
+                if "self" in layer_name.lower():
+                    emb_shape = [int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3)]
+                elif "multihead" in layer_name.lower():
+                    size_input_mha = input_shapes[layer_name][1]
+                    size_output_encoder = input_shapes['transformer.encoder'][1]
+                    
+                    #cross attention calculates Q from dec inut but K, V from encoder output
+                    emb_shape = [size_input_mha, size_output_encoder, size_output_encoder]
+                W_q, W_k, W_v = torch.split(torch.tensor(W_parameters), emb_shape)
+                # print("weight shape: ", W_q.shape)
+                if b_parameters:
+                    b_q, b_k, b_v = torch.split(torch.tensor(b_parameters), emb_shape)
+                else:
+                    b_q = None
+                # print("bias shape: ",  b_q.shape)
+                    
+                
+            except:
+                W_q = transformer_weights.get(layer_name + ".q_proj")
+                W_k = transformer_weights.get(layer_name + ".k_proj")
+                W_v = transformer_weights.get(layer_name + ".v_proj")
+                
+                b_q = transformer_bias.get(layer_name + ".q_proj", None)
+                b_k = transformer_bias.get(layer_name + ".k_proj", None)
+                W_v = transformer_bias.get(layer_name + ".v_proj", None)
+                
+            
+            # set name of type of attention
+            if 'self_attn' in layer_name.lower():    
+                name = 'self_attention'
+                count = count_layer_names.count(prefix+suffix+name) + 1
+                new_layer_name = f"{prefix+suffix+name}_{count}"
+                count_layer_names.append(prefix+suffix+name)
+                
+                layer_names.append(new_layer_name)
+                
+            elif 'multihead_attn' in layer_name.lower():
+                name = 'mutli_head_attention'
+                count = count_layer_names.count(prefix+suffix+name) + 1
+                new_layer_name = f"{prefix+suffix+name}_{count}"
+                count_layer_names.append(prefix+suffix+name)
+                
+                layer_names.append(new_layer_name)
+            
+            # Save in dict Q, K, V weights and biases
+            dict_transformer_params[(new_layer_name, 'W_q')] =  arrange_qkv(W_q, num_heads).detach().cpu().numpy().tolist()
+            dict_transformer_params[(new_layer_name, 'W_k')] =  arrange_qkv(W_k, num_heads).detach().cpu().numpy().tolist()
+            dict_transformer_params[(new_layer_name, 'W_v')] =  arrange_qkv(W_v, num_heads).detach().cpu().numpy().tolist()
+            
+            if not b_q is None:
+                dict_transformer_params[(new_layer_name, 'b_q')] = torch.reshape(b_q, (num_heads, int(b_q.shape[0]/num_heads))).detach().cpu().numpy().tolist()
+                dict_transformer_params[(new_layer_name, 'b_k')] = torch.reshape(b_k, (num_heads, int(b_k.shape[0]/num_heads))).detach().cpu().numpy().tolist()
+                dict_transformer_params[(new_layer_name, 'b_v')] = torch.reshape(b_v, (num_heads, int(b_v.shape[0]/num_heads))).detach().cpu().numpy().tolist()
+            
+            out_proj_name = layer_name + ".out_proj"
+            W_o = transformer_weights.get(out_proj_name)
+            dict_transformer_params[(new_layer_name, 'W_o')] =  arrange_o(W_o, num_heads).detach().cpu().numpy().tolist()
+            
+            b_o = transformer_bias.get(out_proj_name , None)
+            if not b_o  is None:
+                dict_transformer_params[(new_layer_name, 'b_o')] = b_o
+                
+            
+        if 'linear' in layer_name.lower():
+            # if next layer also dense, count as part of previous FFN
+            
+            if layer_name == next:
+                # set activation function
+                activation = None #second linear layer of enc/dec has no activation
+                
+                # set name
+                name = 'ffn'
+                count = count_layer_names.count(prefix+suffix+name)
+                new_layer_name = f"{prefix+suffix+name}_{count}"
+                
+                # store layer info
+                dict_transformer_params[new_layer_name] |= {layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activation}}  
+                
+            elif i <  len(layers) - 1 and i > 0:
+                # get activation function
+                try:
+                    activation = activations_dict[prefix]
+                except:
+                    raise ValueError("Activation function for feed forward neural network not found.")
+                
+                # save layer information
+                if "linear" in layers[i+1]:
+                    next = layers[i+1]
+                    
+                    name = 'ffn'
+                    count = count_layer_names.count(prefix+suffix+name) + 1
+                    new_layer_name = f"{prefix+suffix+name}_{count}"
+                    count_layer_names.append(prefix+suffix+name)
+                    layer_names.append(new_layer_name)
+                    
+                    dict_transformer_params[new_layer_name] = {'input_shape': np.array(input_shapes[layer_name]), 
+                                                        'input': layers[-1],
+                                                        layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activation} }
+                
+            else:
+                name = 'linear'
+                count = count_layer_names.count(prefix+suffix+name) + 1
+                new_layer_name = f"{prefix+suffix+name}_{count}"
+                count_layer_names.append(prefix+name)
+                
+                layer_names.append(new_layer_name)
+
+                dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
+                dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
+                
+        print(layer, new_layer_name)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
 def arrange_qkv(W, num_heads):
