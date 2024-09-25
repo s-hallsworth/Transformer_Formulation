@@ -208,7 +208,7 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     else:
         return model_weights, model_bias
     
-def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, sequence_size, Transformer='torch'):
+def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, sequence_size, Transformer='torch', hugging_face_dict=None):
     """
     Read model parameters and store in dict with associated name. 
     """
@@ -257,20 +257,14 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
         with torch.no_grad():
             _ = model(src, tgt, tgt.shape[0])
   
-    # elif Transformer == 'huggingface':
-    #     model.eval()
-    #     x_val = src
-    #     y_val = tgt
-        # DEVICE = 'cpu'
-        # past_time_features =  z[:, 0:1].repeat(x_val.size(0), CONTEXT_LENGTH, 1).to(DEVICE).float()#torch.zeros_like(torch.linspace(-1, 0, CONTEXT_LENGTH).reshape(1, -1, 1).repeat(x_batch.size(0), 1, 1)).to(device)
-        # future_time_features = z.repeat(x_val.size(0), 1, 1).to(DEVICE).float() #torch.zeros_like(y_batch[..., 0]).unsqueeze(-1).to(device)
-        # past_values = x_val.repeat(1, CONTEXT_LENGTH, 1).to(DEVICE)
-        # past_observed_mask = torch.zeros_like(past_values).to(DEVICE)
-        # past_observed_mask[:, -1:, :] = 1
-        # _ = model.generate(past_values=past_values, 
-        #                         past_time_features= past_time_features, 
-        #                         past_observed_mask = past_observed_mask,
-        #                         future_time_features = future_time_features)
+    elif Transformer == 'huggingface':
+        model.eval()
+        x_val = src
+        y_val = tgt
+        _ = model(hugging_face_dict["past_values"], 
+                hugging_face_dict["past_time_features"], 
+                hugging_face_dict["past_observed_mask"],
+                hugging_face_dict["future_time_features"])
       
     # Get model layers  
     layers = [i for i in list(input_shapes.keys()) if i ]
@@ -461,7 +455,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                 dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
                 dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
-        print(layer, new_layer_name)
+        # print(layer, new_layer_name)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
 def arrange_qkv(W, num_heads):
@@ -484,8 +478,6 @@ def get_pytorch_intermediate_values(model, sample_input1, sample_input2, sequenc
     model.eval()
     sample_input1 = torch.as_tensor(sample_input1)
     sample_input2 = torch.as_tensor(sample_input2)
-    
-    print(sample_input1.dtype, sample_input2.dtype, type(sequence_size))
     
     # Dictionary to store the output of each layer
     layer_outputs_dict = {}

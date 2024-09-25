@@ -26,7 +26,9 @@ Test each module of transformer for optimal control toy tnn 1
 """
 # ------- Transformer Test Class ------------------------------------------------------------------------------------
 class TestTransformer(unittest.TestCase):    
-    # commented to debug test
+    ## commented out to debug last test
+    
+    
     # def test_instantiation_input(self): #, model, pyomo_input_name ,input):
     #     m = model.clone()
         
@@ -431,7 +433,194 @@ class TestTransformer(unittest.TestCase):
     #     self.assertIsNone(np.testing.assert_array_almost_equal(expected_out, self_attn_enc , decimal=5)) # compare value with transformer output
     #     print("- MHA output formulation == MHA Trained TNN")
       
-    def test_encoder(self):
+    # def test_encoder(self):
+    #     print("======= MULTIHEAD ATTENTION =======")
+    #     m = model.clone()
+        
+    #     # create optimization transformer
+    #     transformer = TNN.Transformer( ".\\data\\toy_config_pytorch.json", m) 
+        
+    #     # define sets for inputs
+    #     enc_dim_1 = transformer.N 
+    #     dec_dim_1 = 3
+    #     transformer.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
+    #     transformer.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
+    #     transformer.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) # - 2
+    #     transformer.M.model_dims = pyo.Set(initialize= list(range(transformer.d_model)))
+    #     transformer.M.input_dims = pyo.Set(initialize= list(range(transformer.input_dim)))
+    #     enc_flag = False
+    #     dec_flag = False
+        
+    #     # Add TNN input vars
+    #     transformer.M.enc_input= pyo.Var(transformer.M.enc_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+    #     transformer.M.dec_input = pyo.Var(transformer.M.dec_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+        
+    #     # add constraints to trained TNN input
+    #     m.tnn_input_constraints = pyo.ConstraintList()
+    #     indices = []
+    #     for set in str(transformer.M.enc_input.index_set()).split("*"):
+    #         indices.append( getattr(m, set) )
+    #     for tnn_index, index in zip(indices[0], m.time_history):
+    #         m.tnn_input_constraints.add(expr= transformer.M.enc_input[tnn_index, indices[1].first()]== m.x1[index])
+    #         m.tnn_input_constraints.add(expr= transformer.M.enc_input[tnn_index, indices[1].last()] == m.x2[index]) 
+            
+    #     indices = []
+    #     for set in str(transformer.M.dec_input.index_set()).split("*"):
+    #         indices.append( getattr(m, set) )
+            
+    #     dec_index = 0
+    #     for t_index, t in enumerate(m.time):
+    #         index = t_index + 1 # 1 indexing
+            
+    #         if t >= m.time_history.last():
+    #             dec_index += 1
+    #             print(dec_index, t )
+    #             m.tnn_input_constraints.add(expr= transformer.M.dec_input[indices[0].at(dec_index), indices[1].first()] == m.x1[t])
+    #             m.tnn_input_constraints.add(expr= transformer.M.dec_input[indices[0].at(dec_index), indices[1].last()]  == m.x2[t])
+                
+    #     # Add Embedding (linear) layer
+    #     embed_dim = transformer.M.model_dims # embed from current dim to self.M.model_dims
+    #     layer = "linear_1"
+    #     W_linear = parameters[layer,'W']
+    #     try:
+    #         b_linear = parameters[layer,'b']
+    #     except:
+    #         b_linear = None
+    #     transformer.embed_input( enc_input_name, "enc_linear_1", embed_dim, W_linear, b_linear)
+    #     transformer.embed_input( dec_input_name, "dec_linear_1", embed_dim, W_linear, b_linear)
+        
+        
+                
+    #     # Add encoder self attention layer
+    #     input_name = "enc_linear_1"
+    #     layer = "enc__self_attention_1"
+        
+    #     W_q = parameters[layer,'W_q']
+    #     W_k = parameters[layer,'W_k']
+    #     W_v = parameters[layer,'W_v']
+    #     W_o = parameters[layer,'W_o']
+
+        
+    #     b_q = parameters[layer,'b_q']
+    #     b_k = parameters[layer,'b_k']
+    #     b_v = parameters[layer,'b_v']
+    #     b_o = parameters[layer,'b_o']
+        
+    #     if not b_q is None:  
+    #         transformer.add_attention( input_name, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+    #     else:
+    #         print('no bias', b_q, b_k, b_v, b_o) 
+    #         transformer.add_attention( input_name, layer, W_q, W_k, W_k, W_o)
+        
+    #     # add res+norm1
+    #     enc_layer = 0
+    #     gamma1 = parameters["enc__layer_normalization_1", 'gamma']
+    #     beta1 = parameters["enc__layer_normalization_1", 'beta']
+        
+    #     transformer.add_residual_connection(input_name, "enc__self_attention_1", f"{layer}__{enc_layer}_residual_1")
+    #     transformer.add_layer_norm(f"{layer}__{enc_layer}_residual_1", "enc_norm_1", gamma1, beta1)
+        
+    #     # add ffn1
+    #     ffn_parameter_dict = {}
+    #     input_shape = np.array(parameters["enc__ffn_1"]['input_shape'])
+    #     print(input_shape)
+    #     ffn_params = transformer.get_fnn( "enc_norm_1", "enc__ffn_1", "enc__ffn_1", (10,4), parameters)
+    #     ffn_parameter_dict["enc__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
+        
+
+    #     # add res+norm2
+    #     gamma2 = parameters["enc__layer_normalization_2", 'gamma']
+    #     beta2 = parameters["enc__layer_normalization_2", 'beta']
+        
+    #     transformer.add_residual_connection("enc_norm_1", "enc__ffn_1", f"{layer}__{enc_layer}_residual_2")
+    #     transformer.add_layer_norm(f"{layer}__{enc_layer}_residual_2", "enc_norm_2", gamma2, beta2)
+        
+        
+    #     #add enc norm (norm over various encoder layers)
+    #     gamma3 = parameters["enc_layer_normalization_1", 'gamma']
+    #     beta3 = parameters["enc_layer_normalization_1", 'beta']
+    #     transformer.add_layer_norm("enc_norm_2", "enc_norm_3", gamma3, beta3)
+        
+        
+    #     # Set objective
+    #     m.obj = pyo.Objective(
+    #         expr= sum((m.x1[t] - m.loc1[t])**2 + (m.x2[t] - m.loc2[t])**2 for t in m.time), sense=1
+    #     )  # -1: maximize, +1: minimize (default)
+    
+    
+    #     # Check new model attributes added
+    #     self.assertIn(layer, dir(transformer.M))                        # check var created
+    #     self.assertIsInstance(transformer.M.enc__self_attention_1, pyo.Var)               # check data type
+    #     self.assertTrue(hasattr(transformer.M, 'Block_enc__self_attention_1'))            # check constraints created
+        
+     
+    #     # Convert to gurobipy
+    #     gurobi_model, map_var , _ = convert_pyomo.to_gurobi(m)
+        
+        
+    #     # Add FNN1 to gurobi model
+    #     for key, value in ffn_parameter_dict.items():
+    #         nn, input_nn, output_nn = value
+    #         input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+    #         pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
+        
+    #     gurobi_model.update() # update gurobi model with FFN constraints
+        
+    #     # Optimize
+    #     gurobi_model.optimize()
+
+    #     if gurobi_model.status == GRB.OPTIMAL:
+    #         optimal_parameters = {}
+    #         for v in gurobi_model.getVars():
+    #             #print(f'var name: {v.varName}, var type {type(v)}')
+    #             if "[" in v.varName:
+    #                 name = v.varname.split("[")[0]
+    #                 if name in optimal_parameters.keys():
+    #                     optimal_parameters[name] += [v.x]
+    #                 else:
+    #                     optimal_parameters[name] = [v.x]
+    #             else:    
+    #                 optimal_parameters[v.varName] = v.x
+            
+    #     # outputs
+    #     output_name = layer
+    #     self_attn_enc = np.array(optimal_parameters[output_name])
+    #     self_attn_expected_out = np.array(list(layer_outputs_dict['transformer.encoder.layers.0.self_attn'])[0][0]).flatten()
+
+    #     norm1_enc = np.array(optimal_parameters["enc_norm_1"])
+    #     norm1_expected = np.array(list(layer_outputs_dict['transformer.encoder.layers.0.norm1']))[0].flatten()
+
+    #     ffn1_enc = np.array(optimal_parameters["enc__ffn_1"])
+    #     ffn1_expected = np.array(list(layer_outputs_dict['transformer.encoder.layers.0.linear2']))[0].flatten()
+        
+    #     norm2_enc = np.array(optimal_parameters["enc_norm_2"])
+    #     norm2_expected = np.array(list(layer_outputs_dict['transformer.encoder.layers.0.norm2']))[0].flatten()
+
+    #     norm3_enc = np.array(optimal_parameters["enc_norm_3"])
+    #     norm3_expected = np.array(list(layer_outputs_dict['transformer.encoder.norm']))[0].flatten()
+
+    #     ## Check MHA output
+    #     self.assertIsNone(np.testing.assert_array_equal(self_attn_expected_out.shape, self_attn_enc.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(self_attn_expected_out, self_attn_enc , decimal=5)) # compare value with transformer output
+    #     print("- Enc MHA output formulation == Enc MHA Trained TNN")  
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(norm1_expected.shape, norm1_enc.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(norm1_expected, norm1_enc , decimal=4)) # compare value with transformer output
+    #     print("- Enc Norm1 formulation == Enc Norm1 Trained TNN")  
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(ffn1_expected.shape, ffn1_enc.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(ffn1_expected, ffn1_enc , decimal=4)) # compare value with transformer output
+    #     print("- Enc FFN1 formulation == Enc FNN1 Trained TNN") 
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(norm2_expected.shape, norm2_enc.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(norm2_expected, norm2_enc , decimal=4)) # compare value with transformer output
+    #     print("- Enc Norm2 formulation == Enc Norm2 Trained TNN")  
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(norm3_expected.shape, norm3_enc.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(norm3_expected, norm3_enc , decimal=4)) # compare value with transformer output
+    #     print("- Enc Output formulation == Enc Output Trained TNN")  
+    
+    def test_decoder(self):
         print("======= MULTIHEAD ATTENTION =======")
         m = model.clone()
         
@@ -472,7 +661,6 @@ class TestTransformer(unittest.TestCase):
             
             if t >= m.time_history.last():
                 dec_index += 1
-                print(dec_index, t )
                 m.tnn_input_constraints.add(expr= transformer.M.dec_input[indices[0].at(dec_index), indices[1].first()] == m.x1[t])
                 m.tnn_input_constraints.add(expr= transformer.M.dec_input[indices[0].at(dec_index), indices[1].last()]  == m.x2[t])
                 
@@ -521,8 +709,7 @@ class TestTransformer(unittest.TestCase):
         # add ffn1
         ffn_parameter_dict = {}
         input_shape = np.array(parameters["enc__ffn_1"]['input_shape'])
-        print(input_shape)
-        ffn_params = transformer.get_fnn( "enc_norm_1", "enc__ffn_1", "enc__ffn_1", (10,4), parameters)
+        ffn_params = transformer.get_fnn( "enc_norm_1", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
         ffn_parameter_dict["enc__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
         
 
@@ -539,12 +726,92 @@ class TestTransformer(unittest.TestCase):
         beta3 = parameters["enc_layer_normalization_1", 'beta']
         transformer.add_layer_norm("enc_norm_2", "enc_norm_3", gamma3, beta3)
         
+        # Add decoder
+        # Add decoder self attention layer
+        W_q = parameters["dec__self_attention_1",'W_q']
+        W_k = parameters["dec__self_attention_1",'W_k']
+        W_v = parameters["dec__self_attention_1",'W_v']
+        W_o = parameters["dec__self_attention_1",'W_o']
+
         
+        b_q = parameters["dec__self_attention_1",'b_q']
+        b_k = parameters["dec__self_attention_1",'b_k']
+        b_v = parameters["dec__self_attention_1",'b_v']
+        b_o = parameters["dec__self_attention_1",'b_o']
+        
+        if not b_q is None:  
+            transformer.add_attention( "dec_linear_1", "dec__self_attention_1", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+        else:
+            print('no bias', b_q, b_k, b_v, b_o) 
+            transformer.add_attention( "dec_linear_1", "dec__self_attention_1", W_q, W_k, W_k, W_o)
+        
+        # decoder add res+norm1
+        dec_layer = 0
+        gamma1 = parameters["dec__layer_normalization_1", 'gamma']
+        beta1 = parameters["dec__layer_normalization_1", 'beta']
+        
+        transformer.add_residual_connection("dec_linear_1", "dec__self_attention_1", f"dec__{dec_layer}_residual_1")
+        transformer.add_layer_norm(f"dec__{dec_layer}_residual_1", "dec_norm_1", gamma1, beta1)
+        
+        # Add decoder cross attention
+        W_q = parameters["dec__mutli_head_attention_1",'W_q'] # query from encoder
+        W_k = parameters["dec__mutli_head_attention_1",'W_k']
+        W_v = parameters["dec__mutli_head_attention_1",'W_v']
+        W_o = parameters["dec__mutli_head_attention_1",'W_o']
+        
+        b_q = parameters["dec__mutli_head_attention_1",'b_q'] # query from encoder
+        b_k = parameters["dec__mutli_head_attention_1",'b_k']
+        b_v = parameters["dec__mutli_head_attention_1",'b_v']
+        b_o = parameters["dec__mutli_head_attention_1",'b_o']
+            
+        transformer.add_attention( "dec_norm_1", "dec__mutli_head_attention_1", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_3")
+
+        # decoder add res+norm2
+        dec_layer = 0
+        gamma2 = parameters["dec__layer_normalization_2", 'gamma']
+        beta2 = parameters["dec__layer_normalization_2", 'beta']
+        
+        transformer.add_residual_connection("dec_norm_1", "dec__mutli_head_attention_1", f"dec__{dec_layer}_residual_2")
+        transformer.add_layer_norm(f"dec__{dec_layer}_residual_2", "dec_norm_2", gamma2, beta2)
+        
+        # Add decoder FFN
+        input_shape = np.array(parameters["dec__ffn_1"]['input_shape'])
+        ffn_params = transformer.get_fnn( "dec_norm_2", "dec__ffn_1", "dec__ffn_1", input_shape, parameters)
+        ffn_parameter_dict["dec__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
+        
+        
+        # decoder add res+norm3
+        dec_layer = 0
+        gamma3 = parameters["dec__layer_normalization_3", 'gamma']
+        beta3 = parameters["dec__layer_normalization_3", 'beta']
+        
+        transformer.add_residual_connection("dec_norm_2", "dec__ffn_1", f"dec__{dec_layer}_residual_3")
+        transformer.add_layer_norm(f"dec__{dec_layer}_residual_3", "dec_norm_3", gamma3, beta3)
+        
+        #add dec norm (norm over various decoder layers)
+        gamma4 = parameters["dec_layer_normalization_1", 'gamma']
+        beta4 = parameters["dec_layer_normalization_1", 'beta']
+        transformer.add_layer_norm("dec_norm_3", "dec_norm_4", gamma4, beta4)
+        
+        # Linear transform
+        embed_dim = transformer.M.model_dims # embed from current dim to self.M.model_dims
+        W_linear = parameters["linear_2",'W']
+        try:
+            b_linear = parameters["linear_2",'b']
+        except:
+            b_linear = None
+            
+        embed_dim = transformer.M.input_dims
+        transformer.embed_input( "dec_norm_4", "dec_linear_2", embed_dim, W_linear, b_linear)
+        
+
         # Set objective
         m.obj = pyo.Objective(
             expr= sum((m.x1[t] - m.loc1[t])**2 + (m.x2[t] - m.loc2[t])**2 for t in m.time), sense=1
         )  # -1: maximize, +1: minimize (default)
     
+    
+        
     
         # Check new model attributes added
         self.assertIn(layer, dir(transformer.M))                        # check var created
@@ -579,8 +846,13 @@ class TestTransformer(unittest.TestCase):
                         optimal_parameters[name] = [v.x]
                 else:    
                     optimal_parameters[v.varName] = v.x
+                    
+        if gurobi_model.status == GRB.INFEASIBLE:
+            gurobi_model.computeIIS()
+            gurobi_model.write("pytorch_model.ilp")
             
-        # outputs
+            
+        # Check encoder outputs
         output_name = layer
         self_attn_enc = np.array(optimal_parameters[output_name])
         self_attn_expected_out = np.array(list(layer_outputs_dict['transformer.encoder.layers.0.self_attn'])[0][0]).flatten()
@@ -597,7 +869,6 @@ class TestTransformer(unittest.TestCase):
         norm3_enc = np.array(optimal_parameters["enc_norm_3"])
         norm3_expected = np.array(list(layer_outputs_dict['transformer.encoder.norm']))[0].flatten()
 
-        ## Check MHA output
         self.assertIsNone(np.testing.assert_array_equal(self_attn_expected_out.shape, self_attn_enc.shape)) # compare shape with transformer
         self.assertIsNone(np.testing.assert_array_almost_equal(self_attn_expected_out, self_attn_enc , decimal=5)) # compare value with transformer output
         print("- Enc MHA output formulation == Enc MHA Trained TNN")  
@@ -618,9 +889,70 @@ class TestTransformer(unittest.TestCase):
         self.assertIsNone(np.testing.assert_array_almost_equal(norm3_expected, norm3_enc , decimal=4)) # compare value with transformer output
         print("- Enc Output formulation == Enc Output Trained TNN")  
     
+    
+        # Check decoder outputs
+        self_attn_dec = np.array(optimal_parameters["dec__self_attention_1"])
+        self_attn_expected_out = np.array(list(layer_outputs_dict['transformer.decoder.layers.0.self_attn'])[0][0]).flatten()
+
+        norm1_dec = np.array(optimal_parameters["dec_norm_1"])
+        norm1_expected = np.array(list(layer_outputs_dict['transformer.decoder.layers.0.norm1']))[0].flatten()
+
+        cross_dec = np.array(optimal_parameters["dec__mutli_head_attention_1"])
+        cross_dec_expected = np.array(list(layer_outputs_dict['transformer.decoder.layers.0.multihead_attn'])[0][0]).flatten()
+
+        norm2_dec = np.array(optimal_parameters["dec_norm_2"])
+        norm2_dec_expected = np.array(list(layer_outputs_dict['transformer.decoder.layers.0.norm2']))[0].flatten()
+        
+        ffn1_dec = np.array(optimal_parameters["dec__ffn_1"])
+        ffn1_dec_expected = np.array(list(layer_outputs_dict['transformer.decoder.layers.0.linear2']))[0].flatten()
+        
+        norm3_dec = np.array(optimal_parameters["dec_norm_3"])
+        norm3_dec_expected = np.array(list(layer_outputs_dict['transformer.decoder.layers.0.norm3']))[0].flatten()
+        
+        norm4_dec = np.array(optimal_parameters["dec_norm_4"])
+        norm4_dec_expected = np.array(list(layer_outputs_dict['transformer.decoder.norm']))[0].flatten()
+        
+    
+        self.assertIsNone(np.testing.assert_array_equal(self_attn_expected_out.shape, self_attn_dec.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(self_attn_expected_out, self_attn_dec , decimal=4)) # compare value with transformer output
+        print("- Dec MHA output formulation == Dec MHA Trained TNN")  
+        
+        self.assertIsNone(np.testing.assert_array_equal(norm1_expected.shape, norm1_dec.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(norm1_expected, norm1_dec , decimal=3)) # compare value with transformer output
+        print("- Dec Norm1 formulation == Dec Norm1 Trained TNN") 
+        
+        self.assertIsNone(np.testing.assert_array_equal(cross_dec_expected.shape, cross_dec.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(cross_dec_expected, cross_dec , decimal=3)) # compare value with transformer output
+        print("- Dec Cross Attn formulation == Dec Cross Attn Trained TNN") 
+        
+        self.assertIsNone(np.testing.assert_array_equal(norm2_dec_expected.shape, norm2_dec.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(norm2_dec_expected, norm2_dec , decimal=3)) # compare value with transformer output
+        print("- Dec Norm2 formulation == Dec Norm2 Trained TNN") 
+        
+        self.assertIsNone(np.testing.assert_array_equal(ffn1_dec_expected.shape, ffn1_dec.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(ffn1_dec_expected, ffn1_dec , decimal=4)) # compare value with transformer output
+        print("- Dec FFN1 formulation == Dec FFN1 Trained TNN") 
+        
+        self.assertIsNone(np.testing.assert_array_equal(norm3_dec_expected.shape, norm3_dec.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(norm3_dec_expected, norm3_dec , decimal=3)) # compare value with transformer output
+        print("- Dec Norm3 formulation == Dec Norm3 Trained TNN") 
+        
+        self.assertIsNone(np.testing.assert_array_equal(norm4_dec_expected.shape, norm4_dec.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(norm4_dec_expected, norm4_dec , decimal=3)) # compare value with transformer output
+        print("- Dec Output formulation == Dec Output Trained TNN") 
+        
+    
+        # Check Transformer output
+        out_dec = np.array(optimal_parameters["dec_linear_2"])
+        out_expected_dec = np.array(list(layer_outputs_dict['linear2'])).flatten()
+        
+        # Assertions
+        self.assertIsNone(np.testing.assert_array_equal(out_dec.shape, out_dec.shape)) # same shape
+        self.assertIsNone(np.testing.assert_array_almost_equal(out_dec, out_dec, decimal=2))  # almost same values
+     
+        
+   
 # -------- Helper functions ---------------------------------------------------------------------------------- 
-
-
 def get_optimal_dict(result, model):
     optimal_parameters = {}
     if result.solver.status == 'ok' and result.solver.termination_condition == 'optimal':
