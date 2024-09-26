@@ -81,7 +81,7 @@ hugging_face_dict["future_time_features"] = future_time_features
 
 # create optimization transformer
 opt_model = pyo.ConcreteModel(name="(Reactor_TNN)")
-transformer = TNN.Transformer( ".\\data\\toy_config_pytorch.json", opt_model) 
+transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", opt_model) 
 result =  transformer.build_from_pytorch( tnn_model,sample_enc_input=src, sample_dec_input=src,enc_bounds = bounds_target , dec_bounds=bounds_target, Transformer='huggingface', default=False, hugging_face_dict=hugging_face_dict)
 print("transformer built: ",result)
 tnn_input_enc = getattr( opt_model, result[0][0])

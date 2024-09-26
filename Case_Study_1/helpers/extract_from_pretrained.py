@@ -90,7 +90,7 @@ def get_learned_parameters(model_path):
         
         if 'MULTI_HEAD_ATTENTION' in layer_name.upper():  
             count_MHA += 1
-            new_layer_name = 'mutli_head_attention_'+str(count_MHA)
+            new_layer_name = 'multi_head_attention_'+str(count_MHA)
             if len(parameters) > 4: # has bias
                 dict_transformer_params[(new_layer_name, 'W_q')] = parameters[0]
                 dict_transformer_params[(new_layer_name, 'W_k')] = parameters[2]
@@ -136,8 +136,8 @@ def get_learned_parameters(model_path):
             
         layer_names += [new_layer_name]
             
-    #print(layer_names) # ['layer_normalization_130', 'mutlihead_attention_65', 'layer_normalization_131', 'conv2d_42', 'conv2d_43', 'dense_70', 'dense_71']
-    #print(dict_transformer_params['mutlihead_attention_1','W_q'])   
+    #print(layer_names) # ['layer_normalization_130', 'multihead_attention_65', 'layer_normalization_131', 'conv2d_42', 'conv2d_43', 'dense_70', 'dense_71']
+    #print(dict_transformer_params['multihead_attention_1','W_q'])   
     return layer_names, dict_transformer_params, model
 
 def get_intermediate_values(model_path, sample_input, file_name=None):
@@ -298,9 +298,6 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
             
             if layer_name.lower().endswith('self_attn'): #only parse 1 encoder/decoder layer since parameters are repeated
                 count_encoder_layers += 1
-                
-                if count_encoder_layers > 1:
-                    continue
 
         elif "decoder" in layer_name:
             prefix = dec_prefix
@@ -311,8 +308,6 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
             if layer_name.lower().endswith('self_attn'): #only parse 1 decoder layer since parameters are repeated
                 count_decoder_layers += 1
                 
-                if count_decoder_layers > 1:
-                    continue
         else:
             prefix = ""
             suffix = ""
@@ -378,7 +373,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                 layer_names.append(new_layer_name)
                 
             elif 'multihead_attn' in layer_name.lower():
-                name = 'mutli_head_attention'
+                name = 'multi_head_attention'
                 count = count_layer_names.count(prefix+suffix+name) + 1
                 new_layer_name = f"{prefix+suffix+name}_{count}"
                 count_layer_names.append(prefix+suffix+name)
@@ -608,7 +603,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, seque
                 layer_names.append(new_layer_name)
                 
             elif "encoder_attn" in layer_name.lower():
-                name = 'mutli_head_attention'
+                name = 'multi_head_attention'
                 count = count_layer_names.count(prefix+suffix+name) + 1
                 new_layer_name = f"{prefix+suffix+name}_{count}"
                 count_layer_names.append(prefix+suffix+name)
@@ -643,24 +638,8 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, seque
             layer_names.append(new_layer_name)
             dict_transformer_params[(new_layer_name, 'b')] = W_parameters  
             
-        elif 'fc' in layer_name.lower():
-            # if next layer also dense, count as part of previous FFN
             
-            # if layer_name == next:
-            #     # set activation function
-            #     if "activation" in layers[i+1]:
-            #         activation = activations_dict[prefix]
-            #     else:
-            #         activation = None #second linear layer of enc/dec has no activation
-                
-            #     # set name
-            #     name = 'ffn'
-            #     count = count_layer_names.count(prefix+suffix+name)
-            #     new_layer_name = f"{prefix+suffix+name}_{count}"
-                
-            #     # store layer info
-            #     dict_transformer_params[new_layer_name] |= {layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activation}}  
-                
+        elif 'fc' in layer_name.lower():
             if i > 1:
                 # get activation function
                 if "activation" in layers[i+1]:
@@ -710,7 +689,8 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, seque
             dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
             dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
-        print(layer, new_layer_name)
+        #print(layer, new_layer_name)
+    print(layer_names)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
 def arrange_qkv(W, num_heads):
@@ -761,8 +741,8 @@ def get_pytorch_intermediate_values(model, sample_input1, sample_input2, sequenc
     #     elif name.endswith('self_attn'):
     #         layer_name = 'self_attention'
             
-    #     elif name.endswith('mutlihead_attn'):
-    #         layer_name = 'mutli_head_attention'
+    #     elif name.endswith('multihead_attn'):
+    #         layer_name = 'multi_head_attention'
             
     #     elif 'linear' in name:
     #         layer_name = 'dense'
