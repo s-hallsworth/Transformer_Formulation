@@ -3,3 +3,4 @@ __pycache__
 .\OneDrive\Thesis\Gurobi
 *.cfg
 *.pth
+.\Case_Study_1\data
