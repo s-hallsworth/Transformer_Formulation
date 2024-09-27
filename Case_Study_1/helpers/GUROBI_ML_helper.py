@@ -17,10 +17,11 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
     
     # get weights, biases, num inputs, num outputs for each layer of FFN
     for layer_name, val in model_parameters[NN_name].items():
+        # print("---------------------------")
         # print(layer_name)
         
-        if "dense" in layer_name or "linear" in layer_name:
-            if "linear" in layer_name:
+        if "dense" in layer_name or "linear" in layer_name or "fc" in layer_name:
+            if "linear" in layer_name or "fc" in layer_name:
                 weights = np.array(val['W']).transpose(1,0)
                 bias = np.array(val['b'])
             else:
@@ -35,6 +36,9 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
             if val['activation'] =='relu':
                 weights_list += [[weights, bias]]
                 nn.add(Dense(n_layer_nodes, activation='relu',name=layer_name))
+            elif val['activation'] == 'silu':
+                weights_list += [[weights, bias]]
+                nn.add(Dense(n_layer_nodes, activation='silu', name=layer_name))
             elif val['activation'] == None or val['activation'] == 'linear':
                 weights_list += [[weights, bias]]
                 nn.add(Dense(n_layer_nodes, activation=None, name=layer_name))
@@ -61,8 +65,10 @@ def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
     
     for index, value in map_var.items():
     
-        if  str(index).startswith(input_nn.name):
+        if  str(index.split('[')[0]) == input_nn.name:
+            # print(index.split('[')[0], input_nn.name)
             if "," in str(index):
+                # print(i)
                 if i == "":
                     i = str(index).split(',')[0]
                     prev_input[str(index).split(',')[0]] = [value]
@@ -82,7 +88,7 @@ def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
               
                        
             
-        elif str(index).startswith(output_nn.name):
+        elif str(index.split('[')[0]) == output_nn.name:
             if "," in str(index):
                 if o == "":
                     o = str(index).split(',')[0]

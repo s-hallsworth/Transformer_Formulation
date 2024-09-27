@@ -446,10 +446,10 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                 dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
                 dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
-        print(layer, new_layer_name)
+        #print(layer, new_layer_name)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
-def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, sequence_size, hugging_face_dict):
+def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, hugging_face_dict):
     """
     Read model parameters and store in dict with associated name. 
     """
@@ -676,7 +676,6 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, seque
                 dict_transformer_params[new_layer_name] = {'input_shape': np.array(input_shapes[layer_name]), 
                                                     'input': layers[-1],
                                                     layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activation} }
-            
                     
         elif "embedding." in layer_name.lower() or "regression" in layer_name.lower() or "projection.proj." in layer_name.lower():
             name = 'linear'
@@ -690,7 +689,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, seque
             dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
         #print(layer, new_layer_name)
-    print(layer_names)
+    #print(layer_names)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
 def arrange_qkv(W, num_heads):

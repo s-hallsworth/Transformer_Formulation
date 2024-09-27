@@ -89,7 +89,7 @@ class Transformer:
         if Transformer == 'pytorch':
             layer_names, parameters, _, enc_dec_count, _ = get_pytorch_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, self.N)
         elif Transformer == 'huggingface':
-            layer_names, parameters, _, enc_dec_count, _ = get_hugging_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, self.N, hugging_face_dict)
+            layer_names, parameters, _, enc_dec_count, _ = get_hugging_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, hugging_face_dict)
     
 
         self.epsilon = 1e-5
@@ -141,7 +141,7 @@ class Transformer:
     
     def __add_ffn(self, parameters,ffn_parameter_dict, layer, input_name):
 
-        input_shape = parameters[layer]['input_shape']
+        input_shape = np.array(parameters[layer]['input_shape'])
         ffn_params = self.get_fnn( input_name, layer, layer, input_shape, parameters)
 
         ffn_parameter_dict[layer] = ffn_params #.append(ffn_params)
@@ -403,8 +403,6 @@ class Transformer:
                 self.M.dec_input = pyo.Var(self.M.enc_time_dims,  self.M.input_dims, bounds=dec_bounds)
                 dec_input_name = "dec_input"
                 
-            print("- ", enc_input_name, dec_input_name )
-                   
             if "enc" in layer:
                 residual = None
                 if "norm" in layer:
@@ -434,7 +432,6 @@ class Transformer:
                 print(layer, layer_names[-1])
                 if dec_layer > 1: 
                     embed_dim = self.M.input_dims
-                    print(embed_dim)
                     dec_input_name = self.__add_linear( parameters, layer, dec_input_name, embed_dim)
                 else:
                     embed_dim = self.M.model_dims # embed from current dim to self.M.model_dims
