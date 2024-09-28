@@ -103,13 +103,7 @@ class Transformer:
     def __add_pos_encoding(self, parameters, layer, input_name, layer_index=""):
         b_pe = parameters[layer,'b']
             
-        if "enc" in input_name and not "enc" in layer:
-            output_name = "enc_"+layer+f"{layer_index}"
-            
-        elif "dec" in input_name and not "dec" in layer:
-            output_name = "dec_"+layer+f"{layer_index}"
-        else:
-            output_name = layer
+        output_name = layer
                         
         self.add_pos_encoding(input_name, output_name, b_pe)
             
@@ -122,13 +116,7 @@ class Transformer:
             b_linear = parameters[layer,'b']
         except:
             b_linear = None
-            
-        # if "enc" in input_name and not "enc" in layer:
-        #     output_name = "enc_"+layer+f"{layer_index}"
-            
-        # elif "dec" in input_name and not "dec" in layer:
-        #     output_name = "dec_"+layer+f"{layer_index}"
-        # else:
+
         output_name = layer
                         
         if not b_linear is None:    
@@ -151,29 +139,11 @@ class Transformer:
     def __add_layer_norm(self, parameters, layer, input_name, layer_index=""):
         gamma = parameters[layer, 'gamma']
         beta  = parameters[layer, 'beta']
-        # dict_gamma = {(v): val for v,val in zip( self.M.model_dims, gamma)}
-        # dict_beta  = {(v): val for v,val in zip( self.M.model_dims, beta)}
         
-        # if #"enc" in input_name and not "enc" in layer:
-        #     output_name = "enc_"+layer+f"{layer_index}"
-            
-        # elif #"dec" in input_name and not "dec" in layer:
-        #     output_name = "dec_"+layer+f"{layer_index}"
-        
-        # if "enc" in layer or "dec" in layer:
-        #     output_name = layer+f"{layer_index}"
-        # else:
         output_name = layer
         
-        # # define new gamma and beta params
-        # if not hasattr(self.M, f"{layer}_gamma"):
-        #     setattr( self.M, f"{layer}_gamma", pyo.Param( self.M.model_dims, initialize = dict_gamma))
-        #     setattr( self.M, f"{layer}_beta", pyo.Param( self.M.model_dims, initialize = dict_beta))
-        
         # add layer normalization layer
-        #self.add_layer_norm( input_name, output_name, f"{layer}_gamma", f"{layer}_beta")
         self.add_layer_norm( input_name, output_name, gamma, beta)
-        
         
         # return name of input to next layer
         return output_name
@@ -256,7 +226,7 @@ class Transformer:
     
     def __build_layers_default(self, layer_names, parameters, enc_dec_count, enc_bounds, dec_bounds):
         """_summary_
-        Adds transformer based on default pytorch transformer configuration 
+        Adds transformer layers for pytorch model
         See https://pytorch.org/docs/stable/_modules/torch/nn/modules/transformer.html#Transformer
         
         **NB**: 
@@ -311,11 +281,11 @@ class Transformer:
         self.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
         self.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) # - 2
         self.M.input_dims = pyo.Set(initialize= list(range(self.input_dim)))
-        enc_flag = False
-        dec_flag = False
+        enc_layer = 0
+        dec_layer = 0 
         
         for l, layer in enumerate(layer_names):
-            print("layer iteration", layer, enc_flag, dec_flag)
+            print("layer iteration", layer)
             
             
             if l == 0: #input layer
@@ -324,38 +294,35 @@ class Transformer:
                 
                 self.M.dec_input = pyo.Var(self.M.enc_time_dims,  self.M.input_dims, bounds=dec_bounds)
                 dec_input_name = "dec_input"
-                   
-            if "enc" in layer:
-                if not enc_flag:
-                    enc_flag = True
-                    # add enocder layers
-                    for enc_layer in range(enc_dec_count[0]):
-                        enc_input_name, ffn_parameter_dict = self.__add_encoder_layer(parameters, layer, enc_input_name, enc_layer, ffn_parameter_dict) 
-                        
-                    # normalize output of final layer    
-                    enc_input_name = self.__add_layer_norm(parameters, "enc_layer_normalization_1", enc_input_name)
                 
-            elif "dec" in layer:
-                if not dec_flag:
-                    dec_flag = True
+            if "enc" in layer:
+                residual = None
+                if "norm" in layer and "enc" in layer_names[l - 2]:
+                    residual = layer_names[l - 2]
                     
-                    # add decoder layers
-                    for dec_layer in range(enc_dec_count[1]):
-                        dec_input_name, ffn_parameter_dict  = self.__add_decoder_layer(parameters, layer, dec_input_name, dec_layer, ffn_parameter_dict, enc_input_name)
-                        
-                    # normalize output of final layer    
-                    dec_input_name = self.__add_layer_norm(parameters, "dec_layer_normalization_1", dec_input_name)
+                enc_input_name, ffn_parameter_dict  = self.__add_ED_layer(parameters, layer, enc_input_name, enc_layer, ffn_parameter_dict, enc_output_name=None, residual=residual)              
+                if "self_attention" in layer:
+                    enc_layer +=1    
+    
+            elif "dec" in layer:
+                residual = None
+                if "norm" in layer and "dec" in layer_names[l - 2]:
+                    residual = layer_names[l - 2]
+                dec_input_name, ffn_parameter_dict  = self.__add_ED_layer(parameters, layer, dec_input_name, dec_layer, ffn_parameter_dict, enc_output_name=enc_input_name, residual=residual)
+                
+                if "self_attention" in layer:
+                    dec_layer +=1
                      
             elif "layer_norm" in layer:
-                if dec_flag: #if after decoder, only apply on decoder
+                if dec_layer > 1: #if final layer, only apply on decoder
                     dec_input_name = self.__add_layer_norm(parameters, layer, dec_input_name)
                 else: 
                     enc_input_name = self.__add_layer_norm(parameters, layer, enc_input_name)
                     dec_input_name = self.__add_layer_norm(parameters, layer, dec_input_name)
                 
             elif "linear" in layer:
-                if dec_flag: #if after decoder, only apply on decoder 
-                    embed_dim = self.M.input_dims # if last layer is linear, embed output dim = TNN input dim
+                if dec_layer > 1: 
+                    embed_dim = self.M.input_dims
                     dec_input_name = self.__add_linear( parameters, layer, dec_input_name, embed_dim)
                 else:
                     embed_dim = self.M.model_dims # embed from current dim to self.M.model_dims
@@ -363,14 +330,83 @@ class Transformer:
                     dec_input_name = self.__add_linear( parameters, layer, dec_input_name, embed_dim)
             
             elif "ffn" in layer:
-                if dec_flag: #if after decoder, only apply on decoder
+                if dec_layer > 1: 
                     dec_input_name,ffn_parameter_dict = self.__add_ffn(parameters,ffn_parameter_dict, layer, dec_input_name)
                 else:
                     enc_input_name,ffn_parameter_dict = self.__add_ffn(parameters,ffn_parameter_dict, layer, enc_input_name)
                     dec_input_name,ffn_parameter_dict = self.__add_ffn(parameters,ffn_parameter_dict, layer, dec_input_name)
         
         #return: encoder input name, decoder input name, transformer output name, ffn parameters dictionary
-        return [["enc_input","dec_input"], dec_input_name , ffn_parameter_dict] 
+        return [["enc_input","dec_input"], dec_input_name , ffn_parameter_dict]
+        # ffn_parameter_dict = {}
+        
+        # # define sets for input params
+        # enc_dim_1 = self.N 
+        # dec_dim_1 = self.N 
+        # self.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
+        # self.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
+        # self.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) # - 2
+        # self.M.input_dims = pyo.Set(initialize= list(range(self.input_dim)))
+        # enc_flag = False
+        # dec_flag = False
+        
+        # for l, layer in enumerate(layer_names):
+        #     print("layer iteration", layer, enc_flag, dec_flag)
+            
+            
+        #     if l == 0: #input layer
+        #         self.M.enc_input= pyo.Var(self.M.enc_time_dims,  self.M.input_dims, bounds=enc_bounds)
+        #         enc_input_name = "enc_input"
+                
+        #         self.M.dec_input = pyo.Var(self.M.enc_time_dims,  self.M.input_dims, bounds=dec_bounds)
+        #         dec_input_name = "dec_input"
+                   
+        #     if "enc" in layer:
+        #         if not enc_flag:
+        #             enc_flag = True
+        #             # add enocder layers
+        #             for enc_layer in range(enc_dec_count[0]):
+        #                 enc_input_name, ffn_parameter_dict = self.__add_encoder_layer(parameters, layer, enc_input_name, enc_layer, ffn_parameter_dict) 
+                        
+        #             # normalize output of final layer    
+        #             enc_input_name = self.__add_layer_norm(parameters, "enc_layer_normalization_1", enc_input_name)
+                
+        #     elif "dec" in layer:
+        #         if not dec_flag:
+        #             dec_flag = True
+                    
+        #             # add decoder layers
+        #             for dec_layer in range(enc_dec_count[1]):
+        #                 dec_input_name, ffn_parameter_dict  = self.__add_decoder_layer(parameters, layer, dec_input_name, dec_layer, ffn_parameter_dict, enc_input_name)
+                        
+        #             # normalize output of final layer    
+        #             dec_input_name = self.__add_layer_norm(parameters, "dec_layer_normalization_1", dec_input_name)
+                     
+        #     elif "layer_norm" in layer:
+        #         if dec_flag: #if after decoder, only apply on decoder
+        #             dec_input_name = self.__add_layer_norm(parameters, layer, dec_input_name)
+        #         else: 
+        #             enc_input_name = self.__add_layer_norm(parameters, layer, enc_input_name)
+        #             dec_input_name = self.__add_layer_norm(parameters, layer, dec_input_name)
+                
+        #     elif "linear" in layer:
+        #         if dec_flag: #if after decoder, only apply on decoder 
+        #             embed_dim = self.M.input_dims # if last layer is linear, embed output dim = TNN input dim
+        #             dec_input_name = self.__add_linear( parameters, layer, dec_input_name, embed_dim)
+        #         else:
+        #             embed_dim = self.M.model_dims # embed from current dim to self.M.model_dims
+        #             enc_input_name = self.__add_linear( parameters, layer, enc_input_name, embed_dim)
+        #             dec_input_name = self.__add_linear( parameters, layer, dec_input_name, embed_dim)
+            
+        #     elif "ffn" in layer:
+        #         if dec_flag: #if after decoder, only apply on decoder
+        #             dec_input_name,ffn_parameter_dict = self.__add_ffn(parameters,ffn_parameter_dict, layer, dec_input_name)
+        #         else:
+        #             enc_input_name,ffn_parameter_dict = self.__add_ffn(parameters,ffn_parameter_dict, layer, enc_input_name)
+        #             dec_input_name,ffn_parameter_dict = self.__add_ffn(parameters,ffn_parameter_dict, layer, dec_input_name)
+        
+        # #return: encoder input name, decoder input name, transformer output name, ffn parameters dictionary
+        # return [["enc_input","dec_input"], dec_input_name , ffn_parameter_dict] 
     
     def __build_layers_parse(self, layer_names, parameters, enc_dec_count, enc_bounds, dec_bounds):
         """
@@ -405,7 +441,7 @@ class Transformer:
                 
             if "enc" in layer:
                 residual = None
-                if "norm" in layer:
+                if "norm" in layer and not layer.endswith("_1"):
                     residual = layer_names[l - 2]
                     
                 enc_input_name, ffn_parameter_dict  = self.__add_ED_layer(parameters, layer, enc_input_name, enc_layer, ffn_parameter_dict, enc_output_name=None, residual=residual)              
@@ -414,7 +450,7 @@ class Transformer:
     
             elif "dec" in layer:
                 residual = None
-                if "norm" in layer:
+                if "norm" in layer and not layer.endswith("_1"):
                     residual = layer_names[l - 2]
                 dec_input_name, ffn_parameter_dict  = self.__add_ED_layer(parameters, layer, dec_input_name, dec_layer, ffn_parameter_dict, enc_output_name=enc_input_name, residual=residual)
                 
@@ -429,7 +465,6 @@ class Transformer:
                     dec_input_name = self.__add_layer_norm(parameters, layer, dec_input_name)
                 
             elif "linear" in layer:
-                print(layer, layer_names[-1])
                 if dec_layer > 1: 
                     embed_dim = self.M.input_dims
                     dec_input_name = self.__add_linear( parameters, layer, dec_input_name, embed_dim)
@@ -527,7 +562,7 @@ class Transformer:
             b_emb= getattr(self.M, embed_var_name+"_b_pe")  
         
             for index in input_var.index_set() :
-                self.M.embed_constraints.add(embed_var[index] == input_var[index] +  b_emb[index])
+                self.M.pe_constraints.add(embed_var[index] == input_var[index] +  b_emb[index])
                 if self.bound_cut_activation["embed_var"]:
                     if isinstance(input_var, pyo.Var):
                         if not input_var[index].ub is None and not input_var[index].lb is None:
@@ -612,7 +647,7 @@ class Transformer:
                 setattr(self.M, embed_var_name+"_W_emb", pyo.Param(indices[1], embed_dim_2 , initialize=W_emb_dict))
                 W_emb= getattr(self.M, embed_var_name+"_W_emb")   
                 
-                if b_emb:
+                if not b_emb is None:
                     # Create bias variable
                     b_emb_dict = {
                         (embed_dim_2.at(d+1)): b_emb[d]
@@ -1223,7 +1258,10 @@ class Transformer:
                     if self.bound_cut_activation["MHA_compat_exp"]: 
                         try: 
                             MHA_Block.compatibility_exp[h,n,p].ub = math.exp(MHA_Block.compatibility[h,n,p].ub)
-                            MHA_Block.compatibility_exp[h,n,p].lb = max(0, 1 + MHA_Block.compatibility[h,n,p].lb - M_max_compat)
+                            if tnn_from == 'keras':
+                                MHA_Block.compatibility_exp[h,n,p].lb = max(0, 1 + MHA_Block.compatibility[h,n,p].lb - M_max_compat)
+                            else:
+                                MHA_Block.compatibility_exp[h,n,p].lb = max(0, 1 + MHA_Block.compatibility[h,n,p].lb)
                         except:
                             pass    
                     for k in MHA_Block.head_dims:  

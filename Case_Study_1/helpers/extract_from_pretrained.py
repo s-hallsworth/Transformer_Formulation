@@ -549,9 +549,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
                 
             if layer_name.lower().endswith('self_attn'): #only parse 1 decoder layer since parameters are repeated
                 count_decoder_layers += 1
-                
-                if count_decoder_layers > 1:
-                    continue
+
         elif "encoder" in layer_name:
             prefix = enc_prefix
             
@@ -560,9 +558,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
             
             if layer_name.lower().endswith('self_attn'): #only parse 1 encoder/decoder layer since parameters are repeated
                 count_encoder_layers += 1
-                
-                if count_encoder_layers > 1:
-                    continue
+
         else:
             prefix = ""
             suffix = ""
@@ -688,7 +684,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
             dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
             dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
-        #print(layer, new_layer_name)
+        print(layer, new_layer_name)
     #print(layer_names)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 

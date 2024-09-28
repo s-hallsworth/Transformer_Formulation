@@ -30,7 +30,7 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
             n_layer_inputs, n_layer_nodes = np.shape(weights)
             
             # print(weights.shape, bias.shape)
-            # print(val['activation'])
+            # print(layer_name, val['activation'])
             
             # Determine activation function
             if val['activation'] =='relu':
