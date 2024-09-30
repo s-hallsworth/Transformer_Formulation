@@ -17,8 +17,8 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
     
     # get weights, biases, num inputs, num outputs for each layer of FFN
     for layer_name, val in model_parameters[NN_name].items():
-        # print("---------------------------")
-        # print(layer_name)
+        print("---------------------------")
+        print(layer_name)
         
         if "dense" in layer_name or "linear" in layer_name or "fc" in layer_name:
             if "linear" in layer_name or "fc" in layer_name:
@@ -29,8 +29,8 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
                 bias = np.array(val['b'])
             n_layer_inputs, n_layer_nodes = np.shape(weights)
             
-            # print(weights.shape, bias.shape)
-            # print(layer_name, val['activation'])
+            print(weights.shape, bias.shape)
+            print(layer_name, val['activation'])
             
             # Determine activation function
             if val['activation'] =='relu':

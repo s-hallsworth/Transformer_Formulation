@@ -32,7 +32,7 @@ REP = 3 # number of repetitions of each scenario
 NAME = "track_traj_keras_enc"
 SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
-PATH =  ".\\Experiments\Track_k_e\\"
+PATH =  ".\\Experiments\Track_k_e_2\\"
 
 # Store TNN Architecture info
 tnn_config = {}
@@ -77,11 +77,14 @@ model.time_history = pyo.Set(initialize=time_history)
 
 # define parameters
 def target_location_rule(M, t):
-    return v_l1 * t #+ (np.random.rand(1)/30)
+    return v_l1 * t #+ (np.random.rand(1)/50)
 model.loc1 = pyo.Param(model.time, rule=target_location_rule) 
 
+
 def target_location2_rule(M, t):
-    return (v_l2*t) - (0.5 * g * (t**2)) + (np.random.rand(1)/30)
+    np.random.seed(int(v_l2*t*100))
+    print(np.random.uniform(-1,1)/30)
+    return (v_l2*t) - (0.5 * g * (t**2)) + ( np.random.uniform(-1,1)/30 )
 model.loc2 = pyo.Param(model.time, rule=target_location2_rule) 
 
 bounds_target = (-3,3)
@@ -101,10 +104,11 @@ input_x2 =  (v_l2*time) - (0.5 * g * (time*time))
 
 # ##------ Fix model solution for TESTING ------##
 if TESTING:
+    REP = 1
     model.fixed_loc_constraints = pyo.ConstraintList()
-    for i,t in enumerate(model.time_history):
-        model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
-        model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
+    # for i,t in enumerate(model.time_history):
+    #     model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
+    #     model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
 
 # ## --------------------------------##
 
@@ -136,7 +140,7 @@ parameters['ffn_1'] |= {'dense_2': ffn_1_params['dense_2']}
 tnn_config["TNN Out Expected"] = layer_outputs_dict["dense_4"]
 
 # Get learned parameters
-layer = 'mutli_head_attention_1'
+layer = 'multi_head_attention_1'
 W_q = parameters[layer,'W_q']
 W_k = parameters[layer,'W_k']
 W_v = parameters[layer,'W_v']
@@ -182,37 +186,58 @@ ACTI["LN_I"] = {"list": ["LN_var"]}
 ACTI["LN_D"] = {"list": ["LN_mean", "LN_num", "LN_num_squ", "LN_denom", "LN_num_squ_sum"]}
 
 ACTI["MHA_I"] = {"list": ["MHA_attn_weight_sum", "MHA_attn_weight"]}
-ACTI["MHA_D"] = {"list": [ "MHA_Q", "MHA_K", "MHA_V", "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" ]}
-ACTI["MHA_MC"] = {"list": [ "MHA_QK_MC", "MHA_WK_MC"]}
+ACTI["MHA_D"] = {"list": ["MHA_Q", "MHA_K", "MHA_V", "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" , "RES_var"]}
+ACTI["MHA_MC"] = {"list":[ "MHA_QK_MC", "MHA_WK_MC"]}
 
-ACTI["RES_ALL"] = {"list":[ "RES_var"]}
+#ACTI["RES_ALL"] = {"list":[ "RES_var"]}
 
 ACTI_Groups = 6
 LN_ALL = ACTI["LN_I"]["list"] + ACTI["LN_D"]["list"]
 MHA_ALL = ACTI["MHA_I"]["list"]  + ACTI["MHA_D"]["list"] + ACTI["MHA_MC"]["list"]
 #check all bounds and constraints in the lists
-assert(len(ACTI["RES_ALL"]["list"])+ len(MHA_ALL)+ len(LN_ALL) == len(ACTI_LIST)) 
+#assert(len(ACTI["RES_ALL"]["list"])+ len(MHA_ALL)+ len(LN_ALL) == len(ACTI_LIST)) 
+
+
+combinations = [
+    [1 , 1, 1, 1, 1],
+    [1 , 1, 1, 1, 0],
+    [1 , 1, 1, 0, 0],
+    [1 , 1, 0, 0, 0],
+    [1 , 0, 0, 0, 0],
+    [1 , 1, 1, 0, 0],
+    [1 , 0, 1, 0, 0],
+    [1 , 0, 1, 1, 0],
+    [1 , 0, 1, 1, 1],  
+    [1 , 0, 0, 1, 1],
+    [1 , 0, 0, 1, 0], 
+    [0 , 1, 1, 0, 0],
+    [0 , 1, 0, 0, 0],
+    [0 , 0, 1, 0, 0],
+    [0 , 0, 0, 1, 0],
+    [0 , 0, 1, 0, 0],
+    [0 , 0, 0, 0, 0]
+]
+combinations = [[bool(val) for val in sublist] for sublist in combinations]
 
 # for each experiment repetition
 for r in range(REP):
     # generate all combinations of activating constraint groups
-    combinations = list(itertools.product([False, True], repeat=6))
-    if TESTING:
-        combinations = combinations[-3:]
-    else:
-        comninations = combinations.reverse()
+    # combinations = list(itertools.product([False, True], repeat=6))
+    # if TESTING:
+    #     combinations = combinations[-3:]
+    # else:
+    #     comninations = combinations.reverse()
         
     for c, combi in enumerate(combinations):# for each combination of constraints/bounds
-        experiment_name = f"track_k_e_r{r+1}_c{c+1}"
-        
+        experiment_name = f"track_k_e_2_r{r+1}_c{c+1}"
         # activate constraints
-        ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACTI["MHA_D"]["act_val"], ACTI["MHA_MC"]["act_val"] , ACTI["RES_ALL"]["act_val"] = combi
+        ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACTI["MHA_D"]["act_val"], ACTI["MHA_MC"]["act_val"] = combi
 
         for k, val in ACTI.items():
             for elem in val["list"]:
                 activation_dict[elem] = val["act_val"] # set activation dict to new combi
         tnn_config["Activated Bounds/Cuts"] = activation_dict # save act config
-
+        print(activation_dict)
         # clone optimization model
         m = model.clone()
     
@@ -268,7 +293,7 @@ for r in range(REP):
         ## Optimizes
         # gurobi_model.setParam('DualReductions',0)
         # gurobi_model.setParam('MIPFocus',1)
-        gurobi_model.setParam('TimeLimit', 21600) # 6h
+        gurobi_model.setParam('TimeLimit', 10800) # 3h
         gurobi_model.optimize()
 
         if gurobi_model.status == GRB.OPTIMAL:
@@ -302,7 +327,11 @@ for r in range(REP):
             plt.ylabel("magnitude")
             plt.title(experiment_name)
             plt.legend()
-            plt.savefig(PATH+f'\images\{experiment_name}_time.png')
+
+            if not TESTING:
+                plt.savefig(PATH+f'\images\{experiment_name}_time.png')
+            else:
+                plt.show()
             
             plt.figure(figsize=(6, 4))
             plt.plot(loc1, loc2, 'o', label = f'target trajectory')
@@ -311,8 +340,10 @@ for r in range(REP):
             plt.xlabel("x")
             plt.ylabel("y")
             plt.legend()
-            plt.savefig(PATH+f'\images\{experiment_name}_traj.png')    
-                        
+            if not TESTING:
+                plt.savefig(PATH+f'\images\{experiment_name}_traj.png')    
+            else:
+                plt.show()         
         else:
             tnn_config["TNN Out"] = None
         # save results
@@ -324,4 +355,6 @@ for r in range(REP):
         tnn_config["TNN Head Size"] = transformer.d_H
         tnn_config["TNN Input Dim"] = transformer.input_dim
 
-        save_gurobi_results(gurobi_model, PATH+experiment_name, experiment_name, r+1, tnn_config)
+
+        if not TESTING:
+            save_gurobi_results(gurobi_model, PATH+experiment_name, experiment_name, r+1, tnn_config)

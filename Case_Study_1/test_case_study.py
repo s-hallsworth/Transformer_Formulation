@@ -205,7 +205,7 @@ class TestTransformer(unittest.TestCase):
         ffn_params = transformer.get_fnn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
         ffn_parameter_dict["enc__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
 
-        # add res+norm2
+        # add res+norm3
         layer = "enc__layer_normalization_3"
         gamma1 = parameters[layer, 'gamma']
         beta1 = parameters[layer, 'beta']
@@ -214,6 +214,9 @@ class TestTransformer(unittest.TestCase):
         transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_3", gamma1, beta1)
         
         ## Encoder Layer 2:
+        
+        # Add residual
+        
         # Add encoder self attention layer
         layer = "enc__self_attention_2"
         W_q = parameters[layer,'W_q']
@@ -226,21 +229,22 @@ class TestTransformer(unittest.TestCase):
         b_o = parameters[layer,'b_o']
         transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
         
-        #add res+norm2
+        #add res+norm4
         layer = "enc__layer_normalization_4"
         gamma1 = parameters[layer, 'gamma']
         beta1 = parameters[layer, 'beta']
         
-        transformer.add_residual_connection("enc_norm_1", "enc__self_attention_2", f"{layer}__residual_1")
+        transformer.add_residual_connection("enc_norm_3", "enc__self_attention_2", f"{layer}__residual_1")
         transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_4", gamma1, beta1)
-         
-        # add ffn1
+        
+        
+        # add ffn2
         ffn_parameter_dict = {}
         input_shape = parameters["enc__ffn_2"]['input_shape']
         ffn_params = transformer.get_fnn( "enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters)
         ffn_parameter_dict["enc__ffn_2"] = ffn_params # ffn_params: nn, input_nn, output_nn
 
-        # add res+norm2
+        # add res+norm5
         layer = "enc__layer_normalization_5"
         gamma1 = parameters[layer, 'gamma']
         beta1 = parameters[layer, 'beta']
@@ -268,6 +272,7 @@ class TestTransformer(unittest.TestCase):
         
             
         # Optimize
+        gurobi_model.setParam('MIPFocus', 1) 
         gurobi_model.optimize()
 
         if gurobi_model.status == GRB.OPTIMAL:
@@ -363,6 +368,22 @@ class TestTransformer(unittest.TestCase):
         self.assertIsNone(np.testing.assert_array_equal(self_attn2_expected_out.shape, self_attn2_enc.shape)) # compare shape with transformer
         self.assertIsNone(np.testing.assert_array_almost_equal(self_attn2_expected_out, self_attn2_enc , decimal=5)) # compare value with transformer output
         print("Enc MHA Layer 2 == expected Enc MHA Layer 2 ")  
+        
+        # Norm 4
+        norm4 = np.array(optimal_parameters["enc_norm_4"])
+        norm4_expected = np.array(list(layer_outputs_dict['model.encoder.layers.1.self_attn_layer_norm']))[0].flatten()
+        
+        self.assertIsNone(np.testing.assert_array_equal(norm4.shape, norm4_expected.shape)) 
+        self.assertIsNone(np.testing.assert_array_almost_equal(norm4, norm4_expected, decimal = 4)) 
+        print("Enc Norm4 = expected Enc Norm4")
+        
+        # FFN 2 
+        ffn2_enc = np.array(optimal_parameters["enc__ffn_2"])
+        ffn2_expected = np.array(list(layer_outputs_dict['model.encoder.layers.1.fc2']))[0].flatten()
+        
+        self.assertIsNone(np.testing.assert_array_equal(ffn2_expected.shape, ffn2_enc.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(ffn2_expected, ffn2_enc , decimal=4)) # compare value with transformer output
+        print("Enc FFN2 formulation == Enc FNN2 Trained TNN")
         
         #Enc layer 2: norm final
         norm5 = np.array(optimal_parameters["enc_norm_5"])

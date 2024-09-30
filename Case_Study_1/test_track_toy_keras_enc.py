@@ -43,8 +43,8 @@ class TestTransformer(unittest.TestCase):
     #     for set in str(transformer.M.input_embed.index_set()).split("*"):
     #         indices.append( getattr(m, set) )
     #     for tnn_index, index in zip(indices[0], m.time_history):
-    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
-    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.x1[index])
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.x2[index]) 
         
     #     # # Convert to gurobipy
     #     gurobi_model, map_var, _ = convert_pyomo.to_gurobi(m)
@@ -85,7 +85,7 @@ class TestTransformer(unittest.TestCase):
     #     # Define Test Case Params
     #     m = model.clone()
     #     seq_len = tt
-    #     layer = 'mutli_head_attention_1'
+    #     layer = 'multi_head_attention_1'
 
     #     gamma1 = parameters['layer_normalization_1', 'gamma']
     #     beta1  = parameters['layer_normalization_1', 'beta']
@@ -103,8 +103,8 @@ class TestTransformer(unittest.TestCase):
     #     for set in str(transformer.M.input_embed.index_set()).split("*"):
     #         indices.append( getattr(m, set) )
     #     for tnn_index, index in zip(indices[0], m.time_history):
-    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
-    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.x1[index])
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.x2[index]) 
             
         
     #     # # Convert to gurobipy
@@ -136,7 +136,7 @@ class TestTransformer(unittest.TestCase):
     #     expected = input[0,0:seq_len,:].flatten()
         
     #     self.assertIsNone(np.testing.assert_array_equal(actual.shape, expected.shape)) # compare shape with transformer
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=5)) # compare value with transformer output
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=7)) # compare value with transformer output
     #     print("- input formulation == input model")            
         
     #     ## Check output
@@ -144,8 +144,10 @@ class TestTransformer(unittest.TestCase):
     #     expected = np.array(layer_outputs_dict['layer_normalization_1'])[0].flatten()
         
     #     self.assertIsNone(np.testing.assert_array_equal(actual.shape, expected.shape)) # compare shape with transformer
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=5)) # compare value with transformer output
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=3)) # compare value with transformer output
     #     print("- LN1 formulation == LN1 model")
+        
+    #     print(actual)
                     
     # def test_MHA(self):
     #     print("======= MHA =======")
@@ -153,12 +155,12 @@ class TestTransformer(unittest.TestCase):
     #     # Define Test Case Params
     #     m = model.clone()
     #     seq_len = tt
-    #     layer = 'mutli_head_attention_1'
+    #     layer = 'multi_head_attention_1'
 
     #     gamma1 = parameters['layer_normalization_1', 'gamma']
     #     beta1  = parameters['layer_normalization_1', 'beta']
 
-    #     layer = 'mutli_head_attention_1'
+    #     layer = 'multi_head_attention_1'
     #     W_q = parameters[layer,'W_q']
     #     W_k = parameters[layer,'W_k']
     #     W_v = parameters[layer,'W_v']
@@ -188,8 +190,8 @@ class TestTransformer(unittest.TestCase):
     #     for set in str(transformer.M.input_embed.index_set()).split("*"):
     #         indices.append( getattr(m, set) )
     #     for tnn_index, index in zip(indices[0], m.time_history):
-    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
-    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.x1[index])
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.x2[index]) 
             
         
     #     # # Convert to gurobipy
@@ -237,6 +239,7 @@ class TestTransformer(unittest.TestCase):
     #     V = np.transpose(V,(1,0,2)) + np.repeat(np.expand_dims(np.array(b_v),axis=1), transformer.N ,axis=1)
         
     #     #################### Calculate other intermediary vars
+    #     print(Q.shape)
     #     q = Q
     #     k = K
     #     v = V
@@ -265,20 +268,20 @@ class TestTransformer(unittest.TestCase):
     #     K = K.flatten()
     #     V = V.flatten()
         
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(np.array(layer_outputs_dict["layer_normalization_1"]).flatten(),LN_output, decimal =3))
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(np.array(layer_outputs_dict["layer_normalization_1"]).flatten(), LN_output, decimal =3))
     #     print("- MHA input formulation == MHA input model")
         
-    #     self.assertIsNone(np.testing.assert_array_equal(Q.shape, Q_form.shape))
-    #     self.assertIsNone(np.testing.assert_array_almost_equal( Q_form,Q, decimal =3))
-    #     print("- Query formulation == Query model")
+    #     self.assertIsNone(np.testing.assert_array_equal(V.shape, V_form.shape))
+    #     self.assertIsNone(np.testing.assert_array_almost_equal( V_form,V, decimal =3))
+    #     print("- Value formulation == Value model") 
         
     #     self.assertIsNone(np.testing.assert_array_equal(K.shape, K_form.shape))
     #     self.assertIsNone(np.testing.assert_array_almost_equal( K_form,K, decimal =3))
     #     print("- Key formulation == Key model")
-        
-    #     self.assertIsNone(np.testing.assert_array_equal(V.shape, V_form.shape))
-    #     self.assertIsNone(np.testing.assert_array_almost_equal( V_form,V, decimal =3))
-    #     print("- Value formulation == Value model")            
+          
+    #     self.assertIsNone(np.testing.assert_array_equal(Q.shape, Q_form.shape))
+    #     self.assertIsNone(np.testing.assert_array_almost_equal( Q_form,Q, decimal =3))
+    #     print("- Query formulation == Query model")
         
     #     expected = np.array(layer_outputs_dict["multi_head_attention_1"]).flatten()
     #     self.assertIsNone(np.testing.assert_array_almost_equal(computed_attn_output.flatten(), expected, decimal=3))
@@ -302,7 +305,7 @@ class TestTransformer(unittest.TestCase):
     #     # Define Test Case Params
     #     m = model.clone()
     #     seq_len = tt
-    #     layer = 'mutli_head_attention_1'
+    #     layer = 'multi_head_attention_1'
 
     #     gamma1 = parameters['layer_normalization_1', 'gamma']
     #     beta1  = parameters['layer_normalization_1', 'beta']
@@ -310,7 +313,7 @@ class TestTransformer(unittest.TestCase):
     #     gamma2 = parameters['layer_normalization_2', 'gamma']
     #     beta2  = parameters['layer_normalization_2', 'beta']
 
-    #     layer = 'mutli_head_attention_1'
+    #     layer = 'multi_head_attention_1'
     #     W_q = parameters[layer,'W_q']
     #     W_k = parameters[layer,'W_k']
     #     W_v = parameters[layer,'W_v']
@@ -342,8 +345,8 @@ class TestTransformer(unittest.TestCase):
     #     for set in str(transformer.M.input_embed.index_set()).split("*"):
     #         indices.append( getattr(m, set) )
     #     for tnn_index, index in zip(indices[0], m.time_history):
-    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
-    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.x1[index])
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.x2[index]) 
             
         
     #     # # Convert to gurobipy
@@ -387,7 +390,7 @@ class TestTransformer(unittest.TestCase):
     #     # Define Test Case Params
     #     m = model.clone()
     #     seq_len = tt
-    #     layer = 'mutli_head_attention_1'
+    #     layer = 'multi_head_attention_1'
 
     #     gamma1 = parameters['layer_normalization_1', 'gamma']
     #     beta1  = parameters['layer_normalization_1', 'beta']
@@ -395,7 +398,7 @@ class TestTransformer(unittest.TestCase):
     #     gamma2 = parameters['layer_normalization_2', 'gamma']
     #     beta2  = parameters['layer_normalization_2', 'beta']
 
-    #     layer = 'mutli_head_attention_1'
+    #     layer = 'multi_head_attention_1'
     #     W_q = parameters[layer,'W_q']
     #     W_k = parameters[layer,'W_k']
     #     W_v = parameters[layer,'W_v']
@@ -431,8 +434,8 @@ class TestTransformer(unittest.TestCase):
     #     for set in str(transformer.M.input_embed.index_set()).split("*"):
     #         indices.append( getattr(m, set) )
     #     for tnn_index, index in zip(indices[0], m.time_history):
-    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.history_loc1[index])
-    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.history_loc2[index]) 
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].first()]== m.x1[index])
+    #         m.tnn_constraints.add(expr= transformer.M.input_embed[tnn_index, indices[1].last()] == m.x2[index]) 
             
         
     #     # # Convert to gurobipy
@@ -481,7 +484,7 @@ class TestTransformer(unittest.TestCase):
         # Define Test Case Params
         m = model.clone()
         seq_len = tt
-        layer = 'mutli_head_attention_1'
+        layer = 'multi_head_attention_1'
         W_q = parameters[layer,'W_q']
         W_k = parameters[layer,'W_k']
         W_v = parameters[layer,'W_v']
@@ -635,6 +638,7 @@ class TestTransformer(unittest.TestCase):
         print("- FFN2 output formulation == FFN2 output model")   
         
         print("Output: ", ffn_2_output)
+        print("expected:", FFN_out)
 # -------- Helper functions ---------------------------------------------------------------------------------- 
 
 
