@@ -5,11 +5,7 @@ import torch
 import os
 from torch import nn
 import collections
-from torch.nn import ReLU
-from transformers.src.transformers.activations import SiLUActivation as SiLU
-from transformers.src.transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
-from transformers.src.transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
-
+from torch.nn import ReLU, SiLU
 
     
 def get_weights(model_path, save_json=True, file_name="model_weights.json"):

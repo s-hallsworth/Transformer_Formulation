@@ -1,0 +1,1906 @@
+\ Model '(TOY_TRANFORMER)'_copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+Minimize
+  0 Block_attention_output.W_k[0,1,1] + 0 Block_attention_output.W_k[0,1,2]
+   + 0 Block_attention_output.W_k[0,1,3]
+   + 0 Block_attention_output.W_k[0,1,4]
+   + 0 Block_attention_output.W_k[1,1,1]
+   + 0 Block_attention_output.W_k[1,1,2]
+   + 0 Block_attention_output.W_k[1,1,3]
+   + 0 Block_attention_output.W_k[1,1,4]
+   + 0 Block_attention_output.W_o[0,1,1]
+   + 0 Block_attention_output.W_o[0,1,2]
+   + 0 Block_attention_output.W_o[0,1,3]
+   + 0 Block_attention_output.W_o[0,1,4]
+   + 0 Block_attention_output.W_o[1,1,1]
+   + 0 Block_attention_output.W_o[1,1,2]
+   + 0 Block_attention_output.W_o[1,1,3]
+   + 0 Block_attention_output.W_o[1,1,4]
+   + 0 Block_attention_output.W_q[0,1,1]
+   + 0 Block_attention_output.W_q[0,1,2]
+   + 0 Block_attention_output.W_q[0,1,3]
+   + 0 Block_attention_output.W_q[0,1,4]
+   + 0 Block_attention_output.W_q[1,1,1]
+   + 0 Block_attention_output.W_q[1,1,2]
+   + 0 Block_attention_output.W_q[1,1,3]
+   + 0 Block_attention_output.W_q[1,1,4]
+   + 0 Block_attention_output.W_v[0,1,1]
+   + 0 Block_attention_output.W_v[0,1,2]
+   + 0 Block_attention_output.W_v[0,1,3]
+   + 0 Block_attention_output.W_v[0,1,4]
+   + 0 Block_attention_output.W_v[1,1,1]
+   + 0 Block_attention_output.W_v[1,1,2]
+   + 0 Block_attention_output.W_v[1,1,3]
+   + 0 Block_attention_output.W_v[1,1,4]
+   + 0 Block_attention_output.b_k[1,1] + 0 Block_attention_output.b_k[1,2]
+   + 0 Block_attention_output.b_k[1,3] + 0 Block_attention_output.b_k[1,4]
+   + 0 Block_attention_output.b_o[0] + 0 Block_attention_output.b_o[1]
+   + 0 Block_attention_output.b_q[1,1] + 0 Block_attention_output.b_q[1,2]
+   + 0 Block_attention_output.b_q[1,3] + 0 Block_attention_output.b_q[1,4]
+   + 0 Block_attention_output.b_v[1,1] + 0 Block_attention_output.b_v[1,2]
+   + 0 Block_attention_output.b_v[1,3] + 0 Block_attention_output.b_v[1,4]
+   + 0 beta_layer_norm[0] + 0 beta_layer_norm[1] + 0 beta_layer_norm_2[0]
+   + 0 beta_layer_norm_2[1] + 0 gamma_layer_norm[0] + 0 gamma_layer_norm[1]
+   + 0 gamma_layer_norm_2[0] + 0 gamma_layer_norm_2[1] + 0 loc1[0.0]
+   + 0 loc1[0.027777777777777776] + 0 loc1[0.05555555555555555]
+   + 0 loc2[0.0] + 0 loc2[0.027777777777777776]
+   + 0 loc2[0.05555555555555555]
+Subject To
+ R0: x1[0.0] = 0
+ R1: x2[0.0] = 0
+ R4: x1[0.027777777777777776] = 0.0164367333054543
+ R5: x2[0.027777777777777776] = 0.0263237692415714
+ R6: x1[0.05555555555555555] = 0.0169560685753822
+ R7: x2[0.05555555555555555] = 0.0865078121423721
+ R8: - input_embed[0,0] - input_embed[0,1] + sum_layer_norm[0] = 0
+ R9: - input_embed[0,0] + numerator_layer_norm[0,0] + 0.5 sum_layer_norm[0]
+   = 0
+ R10: - numerator_squared_layer_norm[0,0]
+   - numerator_squared_layer_norm[0,1]
+   + numerator_squared_sum_layer_norm[0] = 0
+ R11: - numerator_squared_sum_layer_norm[0] + 2 variance_layer_norm[0] = 0
+ R12: - denominator_abs_layer_norm[0] + denominator_layer_norm[0] <= 0
+ R13: - 0.8361979722976685 div_layer_norm[0,0]
+   + numerator_scaled_layer_norm[0,0] = 0
+ R14: layer_norm[0,0] - numerator_scaled_layer_norm[0,0]
+   = -0.0428174547851086
+ R15: - input_embed[0,1] + numerator_layer_norm[0,1]
+   + 0.5 sum_layer_norm[0] = 0
+ R16: - numerator_squared_layer_norm[0,0]
+   - numerator_squared_layer_norm[0,1]
+   + numerator_squared_sum_layer_norm[0] = 0
+ R17: - numerator_squared_sum_layer_norm[0] + 2 variance_layer_norm[0] = 0
+ R18: - denominator_abs_layer_norm[0] + denominator_layer_norm[0] <= 0
+ R19: - 0.9539794325828552 div_layer_norm[0,1]
+   + numerator_scaled_layer_norm[0,1] = 0
+ R20: layer_norm[0,1] - numerator_scaled_layer_norm[0,1]
+   = 0.049804799258709
+ R21: - input_embed[1,0] - input_embed[1,1] + sum_layer_norm[1] = 0
+ R22: - input_embed[1,0] + numerator_layer_norm[1,0]
+   + 0.5 sum_layer_norm[1] = 0
+ R23: - numerator_squared_layer_norm[1,0]
+   - numerator_squared_layer_norm[1,1]
+   + numerator_squared_sum_layer_norm[1] = 0
+ R24: - numerator_squared_sum_layer_norm[1] + 2 variance_layer_norm[1] = 0
+ R25: - denominator_abs_layer_norm[1] + denominator_layer_norm[1] <= 0
+ R26: - 0.8361979722976685 div_layer_norm[1,0]
+   + numerator_scaled_layer_norm[1,0] = 0
+ R27: layer_norm[1,0] - numerator_scaled_layer_norm[1,0]
+   = -0.0428174547851086
+ R28: - input_embed[1,1] + numerator_layer_norm[1,1]
+   + 0.5 sum_layer_norm[1] = 0
+ R29: - numerator_squared_layer_norm[1,0]
+   - numerator_squared_layer_norm[1,1]
+   + numerator_squared_sum_layer_norm[1] = 0
+ R30: - numerator_squared_sum_layer_norm[1] + 2 variance_layer_norm[1] = 0
+ R31: - denominator_abs_layer_norm[1] + denominator_layer_norm[1] <= 0
+ R32: - 0.9539794325828552 div_layer_norm[1,1]
+   + numerator_scaled_layer_norm[1,1] = 0
+ R33: layer_norm[1,1] - numerator_scaled_layer_norm[1,1]
+   = 0.049804799258709
+ R34: - residual_1[0,0] - residual_1[0,1] + sum_layer_norm_2[0] = 0
+ R35: numerator_layer_norm_2[0,0] - residual_1[0,0]
+   + 0.5 sum_layer_norm_2[0] = 0
+ R36: - numerator_squared_layer_norm_2[0,0]
+   - numerator_squared_layer_norm_2[0,1]
+   + numerator_squared_sum_layer_norm_2[0] = 0
+ R37: - numerator_squared_sum_layer_norm_2[0] + 2 variance_layer_norm_2[0]
+   = 0
+ R38: - denominator_abs_layer_norm_2[0] + denominator_layer_norm_2[0] <= 0
+ R39: - 0.7942205667495728 div_layer_norm_2[0,0]
+   + numerator_scaled_layer_norm_2[0,0] = 0
+ R40: layer_norm_2[0,0] - numerator_scaled_layer_norm_2[0,0]
+   = -0.1488168090581894
+ R41: numerator_layer_norm_2[0,1] - residual_1[0,1]
+   + 0.5 sum_layer_norm_2[0] = 0
+ R42: - numerator_squared_layer_norm_2[0,0]
+   - numerator_squared_layer_norm_2[0,1]
+   + numerator_squared_sum_layer_norm_2[0] = 0
+ R43: - numerator_squared_sum_layer_norm_2[0] + 2 variance_layer_norm_2[0]
+   = 0
+ R44: - denominator_abs_layer_norm_2[0] + denominator_layer_norm_2[0] <= 0
+ R45: - 0.7906125783920288 div_layer_norm_2[0,1]
+   + numerator_scaled_layer_norm_2[0,1] = 0
+ R46: layer_norm_2[0,1] - numerator_scaled_layer_norm_2[0,1]
+   = 0.1466380804777145
+ R47: - residual_1[1,0] - residual_1[1,1] + sum_layer_norm_2[1] = 0
+ R48: numerator_layer_norm_2[1,0] - residual_1[1,0]
+   + 0.5 sum_layer_norm_2[1] = 0
+ R49: - numerator_squared_layer_norm_2[1,0]
+   - numerator_squared_layer_norm_2[1,1]
+   + numerator_squared_sum_layer_norm_2[1] = 0
+ R50: - numerator_squared_sum_layer_norm_2[1] + 2 variance_layer_norm_2[1]
+   = 0
+ R51: - denominator_abs_layer_norm_2[1] + denominator_layer_norm_2[1] <= 0
+ R52: - 0.7942205667495728 div_layer_norm_2[1,0]
+   + numerator_scaled_layer_norm_2[1,0] = 0
+ R53: layer_norm_2[1,0] - numerator_scaled_layer_norm_2[1,0]
+   = -0.1488168090581894
+ R54: numerator_layer_norm_2[1,1] - residual_1[1,1]
+   + 0.5 sum_layer_norm_2[1] = 0
+ R55: - numerator_squared_layer_norm_2[1,0]
+   - numerator_squared_layer_norm_2[1,1]
+   + numerator_squared_sum_layer_norm_2[1] = 0
+ R56: - numerator_squared_sum_layer_norm_2[1] + 2 variance_layer_norm_2[1]
+   = 0
+ R57: - denominator_abs_layer_norm_2[1] + denominator_layer_norm_2[1] <= 0
+ R58: - 0.7906125783920288 div_layer_norm_2[1,1]
+   + numerator_scaled_layer_norm_2[1,1] = 0
+ R59: layer_norm_2[1,1] - numerator_scaled_layer_norm_2[1,1]
+   = 0.1466380804777145
+ R60: 6.409057802800589 Block_attention_output.K[1,0,1]
+   + 8.588770316453656 Block_attention_output.Q[1,0,1]
+   - Block_attention_output.QK[1,0,0,1] <= 55.0459254131294
+ R61: Block_attention_output.attWK[1,0,1,0]
+   - 2.630103850892771 Block_attention_output.attention_weight[1,0,0] <= 0
+ R62: Block_attention_output.V[1,0,1]
+   - Block_attention_output.attWK[1,0,1,0]
+   + 2.630103850892771 Block_attention_output.attention_weight[1,0,0]
+   <= 2.630103850892771
+ R63: 7.226460135621358 Block_attention_output.K[1,0,2]
+   + 9.738311338985895 Block_attention_output.Q[1,0,2]
+   - Block_attention_output.QK[1,0,0,2] <= 70.37351867945102
+ R64: Block_attention_output.attWK[1,0,2,0]
+   - 3.192342471705216 Block_attention_output.attention_weight[1,0,0] <= 0
+ R65: Block_attention_output.V[1,0,2]
+   - Block_attention_output.attWK[1,0,2,0]
+   + 3.192342471705216 Block_attention_output.attention_weight[1,0,0]
+   <= 3.192342471705216
+ R66: 2.77734312050725 Block_attention_output.K[1,0,3]
+   + 6.351899317437359 Block_attention_output.Q[1,0,3]
+   - Block_attention_output.QK[1,0,0,3] <= 17.64140387143934
+ R67: Block_attention_output.attWK[1,0,3,0]
+   - 2.68402837520962 Block_attention_output.attention_weight[1,0,0] <= 0
+ R68: Block_attention_output.V[1,0,3]
+   - Block_attention_output.attWK[1,0,3,0]
+   + 2.68402837520962 Block_attention_output.attention_weight[1,0,0]
+   <= 2.68402837520962
+ R69: 2.60123945999984 Block_attention_output.K[1,0,4]
+   + 7.830343337846166 Block_attention_output.Q[1,0,4]
+   - Block_attention_output.QK[1,0,0,4] <= 20.3685980757523
+ R70: Block_attention_output.attWK[1,0,4,0]
+   - 1.615700035410905 Block_attention_output.attention_weight[1,0,0] <= 0
+ R71: Block_attention_output.V[1,0,4]
+   - Block_attention_output.attWK[1,0,4,0]
+   + 1.615700035410905 Block_attention_output.attention_weight[1,0,0]
+   <= 1.615700035410905
+ R72: 6.409057802800589 Block_attention_output.K[1,1,1]
+   + 8.588770316453656 Block_attention_output.Q[1,0,1]
+   - Block_attention_output.QK[1,0,1,1] <= 55.0459254131294
+ R73: Block_attention_output.attWK[1,0,1,1]
+   - 2.630103850892771 Block_attention_output.attention_weight[1,0,1] <= 0
+ R74: Block_attention_output.V[1,1,1]
+   - Block_attention_output.attWK[1,0,1,1]
+   + 2.630103850892771 Block_attention_output.attention_weight[1,0,1]
+   <= 2.630103850892771
+ R75: 7.226460135621358 Block_attention_output.K[1,1,2]
+   + 9.738311338985895 Block_attention_output.Q[1,0,2]
+   - Block_attention_output.QK[1,0,1,2] <= 70.37351867945102
+ R76: Block_attention_output.attWK[1,0,2,1]
+   - 3.192342471705216 Block_attention_output.attention_weight[1,0,1] <= 0
+ R77: Block_attention_output.V[1,1,2]
+   - Block_attention_output.attWK[1,0,2,1]
+   + 3.192342471705216 Block_attention_output.attention_weight[1,0,1]
+   <= 3.192342471705216
+ R78: 2.77734312050725 Block_attention_output.K[1,1,3]
+   + 6.351899317437359 Block_attention_output.Q[1,0,3]
+   - Block_attention_output.QK[1,0,1,3] <= 17.64140387143934
+ R79: Block_attention_output.attWK[1,0,3,1]
+   - 2.68402837520962 Block_attention_output.attention_weight[1,0,1] <= 0
+ R80: Block_attention_output.V[1,1,3]
+   - Block_attention_output.attWK[1,0,3,1]
+   + 2.68402837520962 Block_attention_output.attention_weight[1,0,1]
+   <= 2.68402837520962
+ R81: 2.60123945999984 Block_attention_output.K[1,1,4]
+   + 7.830343337846166 Block_attention_output.Q[1,0,4]
+   - Block_attention_output.QK[1,0,1,4] <= 20.3685980757523
+ R82: Block_attention_output.attWK[1,0,4,1]
+   - 1.615700035410905 Block_attention_output.attention_weight[1,0,1] <= 0
+ R83: Block_attention_output.V[1,1,4]
+   - Block_attention_output.attWK[1,0,4,1]
+   + 1.615700035410905 Block_attention_output.attention_weight[1,0,1]
+   <= 1.615700035410905
+ R84: 6.409057802800589 Block_attention_output.K[1,0,1]
+   + 8.588770316453656 Block_attention_output.Q[1,1,1]
+   - Block_attention_output.QK[1,1,0,1] <= 55.0459254131294
+ R85: Block_attention_output.attWK[1,1,1,0]
+   - 2.630103850892771 Block_attention_output.attention_weight[1,1,0] <= 0
+ R86: Block_attention_output.V[1,0,1]
+   - Block_attention_output.attWK[1,1,1,0]
+   + 2.630103850892771 Block_attention_output.attention_weight[1,1,0]
+   <= 2.630103850892771
+ R87: 7.226460135621358 Block_attention_output.K[1,0,2]
+   + 9.738311338985895 Block_attention_output.Q[1,1,2]
+   - Block_attention_output.QK[1,1,0,2] <= 70.37351867945102
+ R88: Block_attention_output.attWK[1,1,2,0]
+   - 3.192342471705216 Block_attention_output.attention_weight[1,1,0] <= 0
+ R89: Block_attention_output.V[1,0,2]
+   - Block_attention_output.attWK[1,1,2,0]
+   + 3.192342471705216 Block_attention_output.attention_weight[1,1,0]
+   <= 3.192342471705216
+ R90: 2.77734312050725 Block_attention_output.K[1,0,3]
+   + 6.351899317437359 Block_attention_output.Q[1,1,3]
+   - Block_attention_output.QK[1,1,0,3] <= 17.64140387143934
+ R91: Block_attention_output.attWK[1,1,3,0]
+   - 2.68402837520962 Block_attention_output.attention_weight[1,1,0] <= 0
+ R92: Block_attention_output.V[1,0,3]
+   - Block_attention_output.attWK[1,1,3,0]
+   + 2.68402837520962 Block_attention_output.attention_weight[1,1,0]
+   <= 2.68402837520962
+ R93: 2.60123945999984 Block_attention_output.K[1,0,4]
+   + 7.830343337846166 Block_attention_output.Q[1,1,4]
+   - Block_attention_output.QK[1,1,0,4] <= 20.3685980757523
+ R94: Block_attention_output.attWK[1,1,4,0]
+   - 1.615700035410905 Block_attention_output.attention_weight[1,1,0] <= 0
+ R95: Block_attention_output.V[1,0,4]
+   - Block_attention_output.attWK[1,1,4,0]
+   + 1.615700035410905 Block_attention_output.attention_weight[1,1,0]
+   <= 1.615700035410905
+ R96: 6.409057802800589 Block_attention_output.K[1,1,1]
+   + 8.588770316453656 Block_attention_output.Q[1,1,1]
+   - Block_attention_output.QK[1,1,1,1] <= 55.0459254131294
+ R97: Block_attention_output.attWK[1,1,1,1]
+   - 2.630103850892771 Block_attention_output.attention_weight[1,1,1] <= 0
+ R98: Block_attention_output.V[1,1,1]
+   - Block_attention_output.attWK[1,1,1,1]
+   + 2.630103850892771 Block_attention_output.attention_weight[1,1,1]
+   <= 2.630103850892771
+ R99: 7.226460135621358 Block_attention_output.K[1,1,2]
+   + 9.738311338985895 Block_attention_output.Q[1,1,2]
+   - Block_attention_output.QK[1,1,1,2] <= 70.37351867945102
+ R100: Block_attention_output.attWK[1,1,2,1]
+   - 3.192342471705216 Block_attention_output.attention_weight[1,1,1] <= 0
+ R101: Block_attention_output.V[1,1,2]
+   - Block_attention_output.attWK[1,1,2,1]
+   + 3.192342471705216 Block_attention_output.attention_weight[1,1,1]
+   <= 3.192342471705216
+ R102: 2.77734312050725 Block_attention_output.K[1,1,3]
+   + 6.351899317437359 Block_attention_output.Q[1,1,3]
+   - Block_attention_output.QK[1,1,1,3] <= 17.64140387143934
+ R103: Block_attention_output.attWK[1,1,3,1]
+   - 2.68402837520962 Block_attention_output.attention_weight[1,1,1] <= 0
+ R104: Block_attention_output.V[1,1,3]
+   - Block_attention_output.attWK[1,1,3,1]
+   + 2.68402837520962 Block_attention_output.attention_weight[1,1,1]
+   <= 2.68402837520962
+ R105: 2.60123945999984 Block_attention_output.K[1,1,4]
+   + 7.830343337846166 Block_attention_output.Q[1,1,4]
+   - Block_attention_output.QK[1,1,1,4] <= 20.3685980757523
+ R106: Block_attention_output.attWK[1,1,4,1]
+   - 1.615700035410905 Block_attention_output.attention_weight[1,1,1] <= 0
+ R107: Block_attention_output.V[1,1,4]
+   - Block_attention_output.attWK[1,1,4,1]
+   + 1.615700035410905 Block_attention_output.attention_weight[1,1,1]
+   <= 1.615700035410905
+ R108: - attention_output[0,0] - input_embed[0,0] + residual_1[0,0] = 0
+ R109: - attention_output[0,1] - input_embed[0,1] + residual_1[0,1] = 0
+ R110: - attention_output[1,0] - input_embed[1,0] + residual_1[1,0] = 0
+ R111: - attention_output[1,1] - input_embed[1,1] + residual_1[1,1] = 0
+ R112: - ffn_1[0,0] - residual_1[0,0] + residual_2[0,0] = 0
+ R113: - ffn_1[0,1] - residual_1[0,1] + residual_2[0,1] = 0
+ R114: - ffn_1[1,0] - residual_1[1,0] + residual_2[1,0] = 0
+ R115: - ffn_1[1,1] - residual_1[1,1] + residual_2[1,1] = 0
+ R116: input_embed[0,0] - x1[0.0] = 0
+ R117: input_embed[0,1] - x2[0.0] = 0
+ R118: input_embed[1,0] - x1[0.027777777777777776] = 0
+ R119: input_embed[1,1] - x2[0.027777777777777776] = 0
+ R120: ffn_2[1,0] - x1[0.05555555555555555] = 0
+ R121: ffn_2[1,1] - x2[0.05555555555555555] = 0
+ R122: Block_attention_output.K[1,0,1] - 0.6431746482849121 layer_norm[0,0]
+   + 1.247142314910889 layer_norm[0,1] = 0.0405758172273636
+ R123: Block_attention_output.V[1,0,1] + 0.3770273625850677 layer_norm[0,0]
+   + 0.1923625022172928 layer_norm[0,1] = 0.1296441406011581
+ R124: Block_attention_output.K[1,0,2] - 1.300727009773254 layer_norm[0,0]
+   + 0.9141985774040222 layer_norm[0,1] = 0.0405769944190979
+ R125: Block_attention_output.V[1,0,2] - 0.2632050514221191 layer_norm[0,0]
+   + 0.4459406137466431 layer_norm[0,1] = -0.0017262949841097
+ R126: Block_attention_output.K[1,0,3] + 0.2342166006565094 layer_norm[0,0]
+   + 1.12743091583252 layer_norm[0,1] = 0.0410354696214199
+ R127: Block_attention_output.V[1,0,3] + 0.5089483857154846 layer_norm[0,0]
+   + 0.1081509068608284 layer_norm[0,1] = 0.0238461904227734
+ R128: Block_attention_output.K[1,0,4] + 1.061543583869934 layer_norm[0,0]
+   - 0.7024475932121277 layer_norm[0,1] = -0.0390002615749836
+ R129: Block_attention_output.V[1,0,4] - 0.0442070737481117 layer_norm[0,0]
+   + 0.2994581758975983 layer_norm[0,1] = 0.0192932933568954
+ R130: Block_attention_output.K[1,1,1] - 0.6431746482849121 layer_norm[1,0]
+   + 1.247142314910889 layer_norm[1,1] = 0.0405758172273636
+ R131: Block_attention_output.V[1,1,1] + 0.3770273625850677 layer_norm[1,0]
+   + 0.1923625022172928 layer_norm[1,1] = 0.1296441406011581
+ R132: Block_attention_output.K[1,1,2] - 1.300727009773254 layer_norm[1,0]
+   + 0.9141985774040222 layer_norm[1,1] = 0.0405769944190979
+ R133: Block_attention_output.V[1,1,2] - 0.2632050514221191 layer_norm[1,0]
+   + 0.4459406137466431 layer_norm[1,1] = -0.0017262949841097
+ R134: Block_attention_output.K[1,1,3] + 0.2342166006565094 layer_norm[1,0]
+   + 1.12743091583252 layer_norm[1,1] = 0.0410354696214199
+ R135: Block_attention_output.V[1,1,3] + 0.5089483857154846 layer_norm[1,0]
+   + 0.1081509068608284 layer_norm[1,1] = 0.0238461904227734
+ R136: Block_attention_output.K[1,1,4] + 1.061543583869934 layer_norm[1,0]
+   - 0.7024475932121277 layer_norm[1,1] = -0.0390002615749836
+ R137: Block_attention_output.V[1,1,4] - 0.0442070737481117 layer_norm[1,0]
+   + 0.2994581758975983 layer_norm[1,1] = 0.0192932933568954
+ R138: Block_attention_output.Q[1,0,1] - 1.03153669834137 layer_norm[0,0]
+   + 0.3418274521827698 layer_norm[0,1] = 0.5269239544868469
+ R139: - Block_attention_output.attWK[1,0,1,0]
+   - Block_attention_output.attWK[1,0,1,1]
+   + Block_attention_output.attention_score[1,0,1] = 0
+ R140: Block_attention_output.Q[1,0,2] - 0.6101914048194885 layer_norm[0,0]
+   + 0.8853839039802551 layer_norm[0,1] = 0.5222890973091125
+ R141: - Block_attention_output.attWK[1,0,2,0]
+   - Block_attention_output.attWK[1,0,2,1]
+   + Block_attention_output.attention_score[1,0,2] = 0
+ R142: Block_attention_output.Q[1,0,3] - 0.4162990152835846 layer_norm[0,0]
+   - 0.1070059388875961 layer_norm[0,1] = 0.5388892889022827
+ R143: - Block_attention_output.attWK[1,0,3,0]
+   - Block_attention_output.attWK[1,0,3,1]
+   + Block_attention_output.attention_score[1,0,3] = 0
+ R144: Block_attention_output.Q[1,0,4] - 0.2845930755138397 layer_norm[0,0]
+   - 0.402830183506012 layer_norm[0,1] = -0.5179771780967712
+ R145: - Block_attention_output.attWK[1,0,4,0]
+   - Block_attention_output.attWK[1,0,4,1]
+   + Block_attention_output.attention_score[1,0,4] = 0
+ R146: - 0.5 Block_attention_output.QK[1,0,0,1]
+   - 0.5 Block_attention_output.QK[1,0,0,2]
+   - 0.5 Block_attention_output.QK[1,0,0,3]
+   - 0.5 Block_attention_output.QK[1,0,0,4]
+   + Block_attention_output.compatibility_scaled[1,0,0] = 0
+ R147: - Block_attention_output.compatibility_max[1,0]
+   + Block_attention_output.compatibility_scaled[1,0,0] <= 0
+ R148: Block_attention_output.compatibility_max[1,0]
+   + 100 Block_attention_output.compatibility_max_s[1,0,0]
+   - Block_attention_output.compatibility_scaled[1,0,0] <= 100
+ R149: Block_attention_output.compatibility[1,0,0]
+   + Block_attention_output.compatibility_max[1,0]
+   - Block_attention_output.compatibility_scaled[1,0,0] = 0
+ R150: Block_attention_output.compatibility[1,0,0]
+   + Block_attention_output.compatibility_max[1,0]
+   - Block_attention_output.compatibility_scaled[1,0,0] = 0
+ R151: - 0.5 Block_attention_output.QK[1,0,1,1]
+   - 0.5 Block_attention_output.QK[1,0,1,2]
+   - 0.5 Block_attention_output.QK[1,0,1,3]
+   - 0.5 Block_attention_output.QK[1,0,1,4]
+   + Block_attention_output.compatibility_scaled[1,0,1] = 0
+ R152: - Block_attention_output.compatibility_max[1,0]
+   + Block_attention_output.compatibility_scaled[1,0,1] <= 0
+ R153: Block_attention_output.compatibility_max[1,0]
+   + 100 Block_attention_output.compatibility_max_s[1,0,1]
+   - Block_attention_output.compatibility_scaled[1,0,1] <= 100
+ R154: Block_attention_output.compatibility[1,0,1]
+   + Block_attention_output.compatibility_max[1,0]
+   - Block_attention_output.compatibility_scaled[1,0,1] = 0
+ R155: Block_attention_output.compatibility[1,0,1]
+   + Block_attention_output.compatibility_max[1,0]
+   - Block_attention_output.compatibility_scaled[1,0,1] = 0
+ R156: Block_attention_output.compatibility_max_s[1,0,0]
+   + Block_attention_output.compatibility_max_s[1,0,1] = 1
+ R157: - Block_attention_output.compatibility_exp[1,0,0]
+   - Block_attention_output.compatibility_exp[1,0,1]
+   + Block_attention_output.compatibility_exp_sum[1,0] = 0
+ R158: Block_attention_output.attention_weight[1,0,0]
+   + Block_attention_output.attention_weight[1,0,1] = 1
+ R159: Block_attention_output.Q[1,1,1] - 1.03153669834137 layer_norm[1,0]
+   + 0.3418274521827698 layer_norm[1,1] = 0.5269239544868469
+ R160: - Block_attention_output.attWK[1,1,1,0]
+   - Block_attention_output.attWK[1,1,1,1]
+   + Block_attention_output.attention_score[1,1,1] = 0
+ R161: Block_attention_output.Q[1,1,2] - 0.6101914048194885 layer_norm[1,0]
+   + 0.8853839039802551 layer_norm[1,1] = 0.5222890973091125
+ R162: - Block_attention_output.attWK[1,1,2,0]
+   - Block_attention_output.attWK[1,1,2,1]
+   + Block_attention_output.attention_score[1,1,2] = 0
+ R163: Block_attention_output.Q[1,1,3] - 0.4162990152835846 layer_norm[1,0]
+   - 0.1070059388875961 layer_norm[1,1] = 0.5388892889022827
+ R164: - Block_attention_output.attWK[1,1,3,0]
+   - Block_attention_output.attWK[1,1,3,1]
+   + Block_attention_output.attention_score[1,1,3] = 0
+ R165: Block_attention_output.Q[1,1,4] - 0.2845930755138397 layer_norm[1,0]
+   - 0.402830183506012 layer_norm[1,1] = -0.5179771780967712
+ R166: - Block_attention_output.attWK[1,1,4,0]
+   - Block_attention_output.attWK[1,1,4,1]
+   + Block_attention_output.attention_score[1,1,4] = 0
+ R167: - 0.5 Block_attention_output.QK[1,1,0,1]
+   - 0.5 Block_attention_output.QK[1,1,0,2]
+   - 0.5 Block_attention_output.QK[1,1,0,3]
+   - 0.5 Block_attention_output.QK[1,1,0,4]
+   + Block_attention_output.compatibility_scaled[1,1,0] = 0
+ R168: - Block_attention_output.compatibility_max[1,1]
+   + Block_attention_output.compatibility_scaled[1,1,0] <= 0
+ R169: Block_attention_output.compatibility_max[1,1]
+   + 100 Block_attention_output.compatibility_max_s[1,1,0]
+   - Block_attention_output.compatibility_scaled[1,1,0] <= 100
+ R170: Block_attention_output.compatibility[1,1,0]
+   + Block_attention_output.compatibility_max[1,1]
+   - Block_attention_output.compatibility_scaled[1,1,0] = 0
+ R171: Block_attention_output.compatibility[1,1,0]
+   + Block_attention_output.compatibility_max[1,1]
+   - Block_attention_output.compatibility_scaled[1,1,0] = 0
+ R172: - 0.5 Block_attention_output.QK[1,1,1,1]
+   - 0.5 Block_attention_output.QK[1,1,1,2]
+   - 0.5 Block_attention_output.QK[1,1,1,3]
+   - 0.5 Block_attention_output.QK[1,1,1,4]
+   + Block_attention_output.compatibility_scaled[1,1,1] = 0
+ R173: - Block_attention_output.compatibility_max[1,1]
+   + Block_attention_output.compatibility_scaled[1,1,1] <= 0
+ R174: Block_attention_output.compatibility_max[1,1]
+   + 100 Block_attention_output.compatibility_max_s[1,1,1]
+   - Block_attention_output.compatibility_scaled[1,1,1] <= 100
+ R175: Block_attention_output.compatibility[1,1,1]
+   + Block_attention_output.compatibility_max[1,1]
+   - Block_attention_output.compatibility_scaled[1,1,1] = 0
+ R176: Block_attention_output.compatibility[1,1,1]
+   + Block_attention_output.compatibility_max[1,1]
+   - Block_attention_output.compatibility_scaled[1,1,1] = 0
+ R177: Block_attention_output.compatibility_max_s[1,1,0]
+   + Block_attention_output.compatibility_max_s[1,1,1] = 1
+ R178: - Block_attention_output.compatibility_exp[1,1,0]
+   - Block_attention_output.compatibility_exp[1,1,1]
+   + Block_attention_output.compatibility_exp_sum[1,1] = 0
+ R179: Block_attention_output.attention_weight[1,1,0]
+   + Block_attention_output.attention_weight[1,1,1] = 1
+ R180: - 0.00902402587234974 Block_attention_output.attention_score[1,0,1]
+   + 0.4269008934497833 Block_attention_output.attention_score[1,0,2]
+   + 0.1222401261329651 Block_attention_output.attention_score[1,0,3]
+   - 0.7807563543319702 Block_attention_output.attention_score[1,0,4]
+   + attention_output[0,0] = 8.45402e-05
+ R181: - 0.0767102837562561 Block_attention_output.attention_score[1,0,1]
+   + 0.603465735912323 Block_attention_output.attention_score[1,0,2]
+   + 0.7826065421104431 Block_attention_output.attention_score[1,0,3]
+   - 0.4688697755336761 Block_attention_output.attention_score[1,0,4]
+   + attention_output[0,1] = 7.278555422089994e-04
+ R182: - 0.00902402587234974 Block_attention_output.attention_score[1,1,1]
+   + 0.4269008934497833 Block_attention_output.attention_score[1,1,2]
+   + 0.1222401261329651 Block_attention_output.attention_score[1,1,3]
+   - 0.7807563543319702 Block_attention_output.attention_score[1,1,4]
+   + attention_output[1,0] = 8.45402e-05
+ R183: - 0.0767102837562561 Block_attention_output.attention_score[1,1,1]
+   + 0.603465735912323 Block_attention_output.attention_score[1,1,2]
+   + 0.7826065421104431 Block_attention_output.attention_score[1,1,3]
+   - 0.4688697755336761 Block_attention_output.attention_score[1,1,4]
+   + attention_output[1,1] = 7.278555422089994e-04
+ sequential.dense0.R184: - 0.0625682845711708 layer_norm_2[0,0]
+   - 0.2400376796722412 layer_norm_2[0,1] + sequential.dense0.mix[0,0]
+   = -0.1554519087076187
+ sequential.dense0.R185: 0.082227811217308 layer_norm_2[0,0]
+   + 0.2141009718179703 layer_norm_2[0,1] + sequential.dense0.mix[0,1]
+   = -0.0916789621114731
+ sequential.dense0.R186: - 0.2548851072788239 layer_norm_2[0,0]
+   - 0.1480957418680191 layer_norm_2[0,1] + sequential.dense0.mix[0,2]
+   = -0.0765530690550804
+ sequential.dense0.R187: - 0.0299550406634808 layer_norm_2[0,0]
+   + 0.1599233597517014 layer_norm_2[0,1] + sequential.dense0.mix[0,3]
+   = -0.1060596331954002
+ sequential.dense0.R188: 0.1515970230102539 layer_norm_2[0,0]
+   - 0.1797487288713455 layer_norm_2[0,1] + sequential.dense0.mix[0,4]
+   = -0.1931835114955902
+ sequential.dense0.R189: 0.2177561670541763 layer_norm_2[0,0]
+   + 0.2118664383888245 layer_norm_2[0,1] + sequential.dense0.mix[0,5]
+   = -0.00789271108806133
+ sequential.dense0.R190: - 0.2812553346157074 layer_norm_2[0,0]
+   - 0.1038821265101433 layer_norm_2[0,1] + sequential.dense0.mix[0,6]
+   = -0.1272442787885666
+ sequential.dense0.R191: 0.1159297153353691 layer_norm_2[0,0]
+   - 0.0237298384308815 layer_norm_2[0,1] + sequential.dense0.mix[0,7]
+   = -0.1331096142530441
+ sequential.dense0.R192: 0.0022702063433826 layer_norm_2[0,0]
+   - 0.0867095589637756 layer_norm_2[0,1] + sequential.dense0.mix[0,8]
+   = -0.084559291601181
+ sequential.dense0.R193: 0.1217539459466934 layer_norm_2[0,0]
+   - 0.1768244504928589 layer_norm_2[0,1] + sequential.dense0.mix[0,9]
+   = -0.2107237130403519
+ sequential.dense0.R194: - 0.0837159380316734 layer_norm_2[0,0]
+   - 0.1373485028743744 layer_norm_2[0,1] + sequential.dense0.mix[0,10]
+   = -0.0509190149605274
+ sequential.dense0.R195: 0.100911445915699 layer_norm_2[0,0]
+   + 0.1314887255430222 layer_norm_2[0,1] + sequential.dense0.mix[0,11]
+   = -0.0277929734438658
+ sequential.dense0.R196: 0.17335045337677 layer_norm_2[0,0]
+   + 0.0253033805638552 layer_norm_2[0,1] + sequential.dense0.mix[0,12]
+   = -0.1415644288063049
+ sequential.dense0.R197: - 0.0411293506622314 layer_norm_2[0,0]
+   - 0.0268542189151049 layer_norm_2[0,1] + sequential.dense0.mix[0,13]
+   = -0.0154254725202918
+ sequential.dense0.R198: - 0.129203736782074 layer_norm_2[0,0]
+   - 0.1201145499944687 layer_norm_2[0,1] + sequential.dense0.mix[0,14]
+   = -0.0163817144930363
+ sequential.dense0.R199: - 0.1742053627967834 layer_norm_2[0,0]
+   + 0.0175715647637844 layer_norm_2[0,1] + sequential.dense0.mix[0,15]
+   = -0.1339208334684372
+ sequential.dense0.R200: 0.0801370739936829 layer_norm_2[0,0]
+   + 0.1278089135885239 layer_norm_2[0,1] + sequential.dense0.mix[0,16]
+   = -0.0410058684647083
+ sequential.dense0.R201: - 0.0503107681870461 layer_norm_2[0,0]
+   - 0.0502570830285549 layer_norm_2[0,1] + sequential.dense0.mix[0,17]
+   = -0.00161489809397608
+ sequential.dense0.R202: - 0.00687399320304394 layer_norm_2[0,0]
+   - 0.048145480453968 layer_norm_2[0,1] + sequential.dense0.mix[0,18]
+   = -0.0392706766724586
+ sequential.dense0.R203: - 0.2973361611366272 layer_norm_2[0,0]
+   - 0.1459066718816757 layer_norm_2[0,1] + sequential.dense0.mix[0,19]
+   = -0.074512355029583
+ sequential.dense0.R204: 0.2317212820053101 layer_norm_2[0,0]
+   + 0.0146545572206378 layer_norm_2[0,1] + sequential.dense0.mix[0,20]
+   = -0.1894581466913223
+ sequential.dense0.R205: 0.3328275978565216 layer_norm_2[0,0]
+   + 0.3367533087730408 layer_norm_2[0,1] + sequential.dense0.mix[0,21]
+   = -0.00409181695431471
+ sequential.dense0.R206: - 0.064279593527317 layer_norm_2[0,0]
+   + 0.1311469227075577 layer_norm_2[0,1] + sequential.dense0.mix[0,22]
+   = -0.1302741914987564
+ sequential.dense0.R207: - 0.0866414457559586 layer_norm_2[0,0]
+   - 0.1343593746423721 layer_norm_2[0,1] + sequential.dense0.mix[0,23]
+   = -0.0452526435256004
+ sequential.dense0.R208: 0.2110559195280075 layer_norm_2[0,0]
+   - 0.0151907093822956 layer_norm_2[0,1] + sequential.dense0.mix[0,24]
+   = -0.1987598389387131
+ sequential.dense0.R209: - 0.044310599565506 layer_norm_2[0,0]
+   - 0.0860361978411674 layer_norm_2[0,1] + sequential.dense0.mix[0,25]
+   = -0.0398188531398773
+ sequential.dense0.R210: - 0.2474582344293594 layer_norm_2[0,0]
+   - 0.2911871373653412 layer_norm_2[0,1] + sequential.dense0.mix[0,26]
+   = -0.0519908219575882
+ sequential.dense0.R211: 0.018602043390274 layer_norm_2[0,0]
+   - 0.0648128762841225 layer_norm_2[0,1] + sequential.dense0.mix[0,27]
+   = -0.07993383705616
+ sequential.dense0.R212: - 0.00117222487460822 layer_norm_2[0,0]
+   - 0.1580826044082642 layer_norm_2[0,1] + sequential.dense0.mix[0,28]
+   = -0.1263491660356522
+ sequential.dense0.R213: - 0.00258078705519438 layer_norm_2[0,0]
+   + 0.1662591248750687 layer_norm_2[0,1] + sequential.dense0.mix[0,29]
+   = -0.1134669035673141
+ sequential.dense0.R214: - 0.1749060451984406 layer_norm_2[0,0]
+   + 0.0905075445771217 layer_norm_2[0,1] + sequential.dense0.mix[0,30]
+   = -0.1404082179069519
+ sequential.dense0.R215: 0.2503908276557922 layer_norm_2[0,0]
+   + 0.2955099642276764 layer_norm_2[0,1] + sequential.dense0.mix[0,31]
+   = -0.0457864552736282
+ sequential.dense0.R216: - 0.0625682845711708 layer_norm_2[1,0]
+   - 0.2400376796722412 layer_norm_2[1,1] + sequential.dense0.mix[1,0]
+   = -0.1554519087076187
+ sequential.dense0.R217: 0.082227811217308 layer_norm_2[1,0]
+   + 0.2141009718179703 layer_norm_2[1,1] + sequential.dense0.mix[1,1]
+   = -0.0916789621114731
+ sequential.dense0.R218: - 0.2548851072788239 layer_norm_2[1,0]
+   - 0.1480957418680191 layer_norm_2[1,1] + sequential.dense0.mix[1,2]
+   = -0.0765530690550804
+ sequential.dense0.R219: - 0.0299550406634808 layer_norm_2[1,0]
+   + 0.1599233597517014 layer_norm_2[1,1] + sequential.dense0.mix[1,3]
+   = -0.1060596331954002
+ sequential.dense0.R220: 0.1515970230102539 layer_norm_2[1,0]
+   - 0.1797487288713455 layer_norm_2[1,1] + sequential.dense0.mix[1,4]
+   = -0.1931835114955902
+ sequential.dense0.R221: 0.2177561670541763 layer_norm_2[1,0]
+   + 0.2118664383888245 layer_norm_2[1,1] + sequential.dense0.mix[1,5]
+   = -0.00789271108806133
+ sequential.dense0.R222: - 0.2812553346157074 layer_norm_2[1,0]
+   - 0.1038821265101433 layer_norm_2[1,1] + sequential.dense0.mix[1,6]
+   = -0.1272442787885666
+ sequential.dense0.R223: 0.1159297153353691 layer_norm_2[1,0]
+   - 0.0237298384308815 layer_norm_2[1,1] + sequential.dense0.mix[1,7]
+   = -0.1331096142530441
+ sequential.dense0.R224: 0.0022702063433826 layer_norm_2[1,0]
+   - 0.0867095589637756 layer_norm_2[1,1] + sequential.dense0.mix[1,8]
+   = -0.084559291601181
+ sequential.dense0.R225: 0.1217539459466934 layer_norm_2[1,0]
+   - 0.1768244504928589 layer_norm_2[1,1] + sequential.dense0.mix[1,9]
+   = -0.2107237130403519
+ sequential.dense0.R226: - 0.0837159380316734 layer_norm_2[1,0]
+   - 0.1373485028743744 layer_norm_2[1,1] + sequential.dense0.mix[1,10]
+   = -0.0509190149605274
+ sequential.dense0.R227: 0.100911445915699 layer_norm_2[1,0]
+   + 0.1314887255430222 layer_norm_2[1,1] + sequential.dense0.mix[1,11]
+   = -0.0277929734438658
+ sequential.dense0.R228: 0.17335045337677 layer_norm_2[1,0]
+   + 0.0253033805638552 layer_norm_2[1,1] + sequential.dense0.mix[1,12]
+   = -0.1415644288063049
+ sequential.dense0.R229: - 0.0411293506622314 layer_norm_2[1,0]
+   - 0.0268542189151049 layer_norm_2[1,1] + sequential.dense0.mix[1,13]
+   = -0.0154254725202918
+ sequential.dense0.R230: - 0.129203736782074 layer_norm_2[1,0]
+   - 0.1201145499944687 layer_norm_2[1,1] + sequential.dense0.mix[1,14]
+   = -0.0163817144930363
+ sequential.dense0.R231: - 0.1742053627967834 layer_norm_2[1,0]
+   + 0.0175715647637844 layer_norm_2[1,1] + sequential.dense0.mix[1,15]
+   = -0.1339208334684372
+ sequential.dense0.R232: 0.0801370739936829 layer_norm_2[1,0]
+   + 0.1278089135885239 layer_norm_2[1,1] + sequential.dense0.mix[1,16]
+   = -0.0410058684647083
+ sequential.dense0.R233: - 0.0503107681870461 layer_norm_2[1,0]
+   - 0.0502570830285549 layer_norm_2[1,1] + sequential.dense0.mix[1,17]
+   = -0.00161489809397608
+ sequential.dense0.R234: - 0.00687399320304394 layer_norm_2[1,0]
+   - 0.048145480453968 layer_norm_2[1,1] + sequential.dense0.mix[1,18]
+   = -0.0392706766724586
+ sequential.dense0.R235: - 0.2973361611366272 layer_norm_2[1,0]
+   - 0.1459066718816757 layer_norm_2[1,1] + sequential.dense0.mix[1,19]
+   = -0.074512355029583
+ sequential.dense0.R236: 0.2317212820053101 layer_norm_2[1,0]
+   + 0.0146545572206378 layer_norm_2[1,1] + sequential.dense0.mix[1,20]
+   = -0.1894581466913223
+ sequential.dense0.R237: 0.3328275978565216 layer_norm_2[1,0]
+   + 0.3367533087730408 layer_norm_2[1,1] + sequential.dense0.mix[1,21]
+   = -0.00409181695431471
+ sequential.dense0.R238: - 0.064279593527317 layer_norm_2[1,0]
+   + 0.1311469227075577 layer_norm_2[1,1] + sequential.dense0.mix[1,22]
+   = -0.1302741914987564
+ sequential.dense0.R239: - 0.0866414457559586 layer_norm_2[1,0]
+   - 0.1343593746423721 layer_norm_2[1,1] + sequential.dense0.mix[1,23]
+   = -0.0452526435256004
+ sequential.dense0.R240: 0.2110559195280075 layer_norm_2[1,0]
+   - 0.0151907093822956 layer_norm_2[1,1] + sequential.dense0.mix[1,24]
+   = -0.1987598389387131
+ sequential.dense0.R241: - 0.044310599565506 layer_norm_2[1,0]
+   - 0.0860361978411674 layer_norm_2[1,1] + sequential.dense0.mix[1,25]
+   = -0.0398188531398773
+ sequential.dense0.R242: - 0.2474582344293594 layer_norm_2[1,0]
+   - 0.2911871373653412 layer_norm_2[1,1] + sequential.dense0.mix[1,26]
+   = -0.0519908219575882
+ sequential.dense0.R243: 0.018602043390274 layer_norm_2[1,0]
+   - 0.0648128762841225 layer_norm_2[1,1] + sequential.dense0.mix[1,27]
+   = -0.07993383705616
+ sequential.dense0.R244: - 0.00117222487460822 layer_norm_2[1,0]
+   - 0.1580826044082642 layer_norm_2[1,1] + sequential.dense0.mix[1,28]
+   = -0.1263491660356522
+ sequential.dense0.R245: - 0.00258078705519438 layer_norm_2[1,0]
+   + 0.1662591248750687 layer_norm_2[1,1] + sequential.dense0.mix[1,29]
+   = -0.1134669035673141
+ sequential.dense0.R246: - 0.1749060451984406 layer_norm_2[1,0]
+   + 0.0905075445771217 layer_norm_2[1,1] + sequential.dense0.mix[1,30]
+   = -0.1404082179069519
+ sequential.dense0.R247: 0.2503908276557922 layer_norm_2[1,0]
+   + 0.2955099642276764 layer_norm_2[1,1] + sequential.dense0.mix[1,31]
+   = -0.0457864552736282
+ sequential.dense1.R248: ffn_1[0,0]
+   - 0.0154567183926702 sequential.dense0.act[0,0]
+   + 0.1852429509162903 sequential.dense0.act[0,1]
+   - 0.1463836580514908 sequential.dense0.act[0,2]
+   + 0.0869248732924461 sequential.dense0.act[0,3]
+   - 0.00483163353055716 sequential.dense0.act[0,4]
+   + 0.0798496156930923 sequential.dense0.act[0,5]
+   - 0.2163500487804413 sequential.dense0.act[0,6]
+   + 0.1886143982410431 sequential.dense0.act[0,7]
+   + 0.1032890230417252 sequential.dense0.act[0,8]
+   - 0.00765499752014875 sequential.dense0.act[0,9]
+   + 0.1003586649894714 sequential.dense0.act[0,10]
+   + 0.1528664082288742 sequential.dense0.act[0,11]
+   + 0.0191935282200575 sequential.dense0.act[0,12]
+   + 0.3228539824485779 sequential.dense0.act[0,13]
+   + 0.253126472234726 sequential.dense0.act[0,14]
+   + 0.1934956610202789 sequential.dense0.act[0,15]
+   + 0.1851666122674942 sequential.dense0.act[0,16]
+   + 0.3026392757892609 sequential.dense0.act[0,17]
+   + 0.1412435173988342 sequential.dense0.act[0,18]
+   + 0.0736039504408836 sequential.dense0.act[0,19]
+   - 0.0154373850673437 sequential.dense0.act[0,20]
+   + 0.1942476630210876 sequential.dense0.act[0,21]
+   + 0.0041751223616302 sequential.dense0.act[0,22]
+   - 0.1153401359915733 sequential.dense0.act[0,23]
+   - 0.0144583368673921 sequential.dense0.act[0,24]
+   + 0.2938563823699951 sequential.dense0.act[0,25]
+   + 0.1988978236913681 sequential.dense0.act[0,26]
+   - 0.1256744712591171 sequential.dense0.act[0,27]
+   - 0.0150260962545872 sequential.dense0.act[0,28]
+   - 0.0275947768241167 sequential.dense0.act[0,29]
+   + 0.118358701467514 sequential.dense0.act[0,30]
+   + 0.0815623253583908 sequential.dense0.act[0,31] = -0.1890075504779816
+ sequential.dense1.R249: ffn_1[0,1]
+   - 0.3344435691833496 sequential.dense0.act[0,0]
+   - 0.1545946300029755 sequential.dense0.act[0,1]
+   + 0.275613933801651 sequential.dense0.act[0,2]
+   + 0.0237035490572453 sequential.dense0.act[0,3]
+   - 0.0702083557844162 sequential.dense0.act[0,4]
+   - 0.2146861851215363 sequential.dense0.act[0,5]
+   - 0.2421379536390305 sequential.dense0.act[0,6]
+   + 0.0673064514994621 sequential.dense0.act[0,7]
+   - 0.3544639647006989 sequential.dense0.act[0,8]
+   - 0.1101495623588562 sequential.dense0.act[0,9]
+   - 0.0854722633957863 sequential.dense0.act[0,10]
+   - 0.3423789441585541 sequential.dense0.act[0,11]
+   + 0.0117586720734835 sequential.dense0.act[0,12]
+   - 0.312886655330658 sequential.dense0.act[0,13]
+   - 0.3869963884353638 sequential.dense0.act[0,14]
+   - 0.0193957984447479 sequential.dense0.act[0,15]
+   - 0.2597208023071289 sequential.dense0.act[0,16]
+   - 0.0160455219447613 sequential.dense0.act[0,17]
+   + 0.0927321538329124 sequential.dense0.act[0,18]
+   + 0.00408790865913033 sequential.dense0.act[0,19]
+   - 0.3617236912250519 sequential.dense0.act[0,20]
+   + 0.2565106153488159 sequential.dense0.act[0,21]
+   + 8.58188e-06 sequential.dense0.act[0,22]
+   + 0.1082861348986626 sequential.dense0.act[0,23]
+   - 0.4739473760128021 sequential.dense0.act[0,24]
+   + 0.2203685343265533 sequential.dense0.act[0,25]
+   + 0.0710853114724159 sequential.dense0.act[0,26]
+   + 0.0241490174084902 sequential.dense0.act[0,27]
+   - 0.2613682448863983 sequential.dense0.act[0,28]
+   + 0.17376609146595 sequential.dense0.act[0,29]
+   + 0.0113176535815001 sequential.dense0.act[0,30]
+   - 0.2569977641105652 sequential.dense0.act[0,31] = -0.040366917848587
+ sequential.dense1.R250: ffn_1[1,0]
+   - 0.0154567183926702 sequential.dense0.act[1,0]
+   + 0.1852429509162903 sequential.dense0.act[1,1]
+   - 0.1463836580514908 sequential.dense0.act[1,2]
+   + 0.0869248732924461 sequential.dense0.act[1,3]
+   - 0.00483163353055716 sequential.dense0.act[1,4]
+   + 0.0798496156930923 sequential.dense0.act[1,5]
+   - 0.2163500487804413 sequential.dense0.act[1,6]
+   + 0.1886143982410431 sequential.dense0.act[1,7]
+   + 0.1032890230417252 sequential.dense0.act[1,8]
+   - 0.00765499752014875 sequential.dense0.act[1,9]
+   + 0.1003586649894714 sequential.dense0.act[1,10]
+   + 0.1528664082288742 sequential.dense0.act[1,11]
+   + 0.0191935282200575 sequential.dense0.act[1,12]
+   + 0.3228539824485779 sequential.dense0.act[1,13]
+   + 0.253126472234726 sequential.dense0.act[1,14]
+   + 0.1934956610202789 sequential.dense0.act[1,15]
+   + 0.1851666122674942 sequential.dense0.act[1,16]
+   + 0.3026392757892609 sequential.dense0.act[1,17]
+   + 0.1412435173988342 sequential.dense0.act[1,18]
+   + 0.0736039504408836 sequential.dense0.act[1,19]
+   - 0.0154373850673437 sequential.dense0.act[1,20]
+   + 0.1942476630210876 sequential.dense0.act[1,21]
+   + 0.0041751223616302 sequential.dense0.act[1,22]
+   - 0.1153401359915733 sequential.dense0.act[1,23]
+   - 0.0144583368673921 sequential.dense0.act[1,24]
+   + 0.2938563823699951 sequential.dense0.act[1,25]
+   + 0.1988978236913681 sequential.dense0.act[1,26]
+   - 0.1256744712591171 sequential.dense0.act[1,27]
+   - 0.0150260962545872 sequential.dense0.act[1,28]
+   - 0.0275947768241167 sequential.dense0.act[1,29]
+   + 0.118358701467514 sequential.dense0.act[1,30]
+   + 0.0815623253583908 sequential.dense0.act[1,31] = -0.1890075504779816
+ sequential.dense1.R251: ffn_1[1,1]
+   - 0.3344435691833496 sequential.dense0.act[1,0]
+   - 0.1545946300029755 sequential.dense0.act[1,1]
+   + 0.275613933801651 sequential.dense0.act[1,2]
+   + 0.0237035490572453 sequential.dense0.act[1,3]
+   - 0.0702083557844162 sequential.dense0.act[1,4]
+   - 0.2146861851215363 sequential.dense0.act[1,5]
+   - 0.2421379536390305 sequential.dense0.act[1,6]
+   + 0.0673064514994621 sequential.dense0.act[1,7]
+   - 0.3544639647006989 sequential.dense0.act[1,8]
+   - 0.1101495623588562 sequential.dense0.act[1,9]
+   - 0.0854722633957863 sequential.dense0.act[1,10]
+   - 0.3423789441585541 sequential.dense0.act[1,11]
+   + 0.0117586720734835 sequential.dense0.act[1,12]
+   - 0.312886655330658 sequential.dense0.act[1,13]
+   - 0.3869963884353638 sequential.dense0.act[1,14]
+   - 0.0193957984447479 sequential.dense0.act[1,15]
+   - 0.2597208023071289 sequential.dense0.act[1,16]
+   - 0.0160455219447613 sequential.dense0.act[1,17]
+   + 0.0927321538329124 sequential.dense0.act[1,18]
+   + 0.00408790865913033 sequential.dense0.act[1,19]
+   - 0.3617236912250519 sequential.dense0.act[1,20]
+   + 0.2565106153488159 sequential.dense0.act[1,21]
+   + 8.58188e-06 sequential.dense0.act[1,22]
+   + 0.1082861348986626 sequential.dense0.act[1,23]
+   - 0.4739473760128021 sequential.dense0.act[1,24]
+   + 0.2203685343265533 sequential.dense0.act[1,25]
+   + 0.0710853114724159 sequential.dense0.act[1,26]
+   + 0.0241490174084902 sequential.dense0.act[1,27]
+   - 0.2613682448863983 sequential.dense0.act[1,28]
+   + 0.17376609146595 sequential.dense0.act[1,29]
+   + 0.0113176535815001 sequential.dense0.act[1,30]
+   - 0.2569977641105652 sequential.dense0.act[1,31] = -0.040366917848587
+ sequential0.dense0.R252: 0.00985258352011442 residual_2[0,0]
+   - 0.4578357934951782 residual_2[0,1] + sequential0.dense0.mix[0,0]
+   = 0.0097109554335475
+ sequential0.dense0.R253: 0.0473396219313145 residual_2[0,0]
+   - 0.7840358018875122 residual_2[0,1] + sequential0.dense0.mix[0,1]
+   = 0.0323087051510811
+ sequential0.dense0.R254: 0.00814084336161613 residual_2[0,0]
+   - 0.6463925242424011 residual_2[0,1] + sequential0.dense0.mix[0,2]
+   = 0.0142219485715032
+ sequential0.dense0.R255: - 0.1231424957513809 residual_2[0,0]
+   - 0.1638537794351578 residual_2[0,1] + sequential0.dense0.mix[0,3]
+   = -0.1856236755847931
+ sequential0.dense0.R256: - 0.1969428360462189 residual_2[0,0]
+   - 8.2560471491888165e-04 residual_2[0,1] + sequential0.dense0.mix[0,4]
+   = 0.0196776799857616
+ sequential0.dense0.R257: 0.00909874681383371 residual_2[0,0]
+   - 0.3469043076038361 residual_2[0,1] + sequential0.dense0.mix[0,5]
+   = -0.200108140707016
+ sequential0.dense0.R258: - 0.0278659574687481 residual_2[0,0]
+   + 0.3113515675067902 residual_2[0,1] + sequential0.dense0.mix[0,6]
+   = -0.0254729297012091
+ sequential0.dense0.R259: 0.398360013961792 residual_2[0,0]
+   - 0.0127348527312279 residual_2[0,1] + sequential0.dense0.mix[0,7]
+   = -0.0303879547864199
+ sequential0.dense0.R260: 0.4521922171115875 residual_2[0,0]
+   + 0.092514730989933 residual_2[0,1] + sequential0.dense0.mix[0,8]
+   = 0.00481175538152456
+ sequential0.dense0.R261: 0.5180755257606506 residual_2[0,0]
+   + 0.1831983476877213 residual_2[0,1] + sequential0.dense0.mix[0,9]
+   = -0.0804485902190208
+ sequential0.dense0.R262: 0.3899092376232147 residual_2[0,0]
+   + 0.0957313552498817 residual_2[0,1] + sequential0.dense0.mix[0,10]
+   = -0.0621825307607651
+ sequential0.dense0.R263: - 0.00857707858085632 residual_2[0,0]
+   + 0.8769708871841431 residual_2[0,1] + sequential0.dense0.mix[0,11]
+   = -0.0370810404419899
+ sequential0.dense0.R264: 0.3458520770072937 residual_2[0,0]
+   + 0.0173796247690916 residual_2[0,1] + sequential0.dense0.mix[0,12]
+   = -0.0113853849470615
+ sequential0.dense0.R265: 0.4936838746070862 residual_2[0,0]
+   + 0.0580731071531773 residual_2[0,1] + sequential0.dense0.mix[0,13]
+   = -0.0124577926471829
+ sequential0.dense0.R266: - 0.170696347951889 residual_2[0,0]
+   + 0.00551380263641477 residual_2[0,1] + sequential0.dense0.mix[0,14]
+   = 0.033574890345335
+ sequential0.dense0.R267: - 0.0237153749912977 residual_2[0,0]
+   + 0.3476957976818085 residual_2[0,1] + sequential0.dense0.mix[0,15]
+   = -0.1213830709457397
+ sequential0.dense0.R268: - 0.068872794508934 residual_2[0,0]
+   + 0.0457679852843285 residual_2[0,1] + sequential0.dense0.mix[0,16]
+   = -0.0577451139688492
+ sequential0.dense0.R269: - 0.358900398015976 residual_2[0,0]
+   + 0.00622118869796395 residual_2[0,1] + sequential0.dense0.mix[0,17]
+   = 0.0665916502475739
+ sequential0.dense0.R270: 0.1935264766216278 residual_2[0,0]
+   - 0.0274225957691669 residual_2[0,1] + sequential0.dense0.mix[0,18]
+   = 0.0243709776550531
+ sequential0.dense0.R271: - 0.3184127509593964 residual_2[0,0]
+   + 0.00706158298999071 residual_2[0,1] + sequential0.dense0.mix[0,19]
+   = 0.0597658008337021
+ sequential0.dense0.R272: 0.5118918418884277 residual_2[0,0]
+   - 0.035647626966238 residual_2[0,1] + sequential0.dense0.mix[0,20]
+   = -0.0241507142782211
+ sequential0.dense0.R273: - 0.3350651264190674 residual_2[0,0]
+   + 0.0439361967146397 residual_2[0,1] + sequential0.dense0.mix[0,21]
+   = 0.0701694563031197
+ sequential0.dense0.R274: 0.2541921436786652 residual_2[0,0]
+   + 0.3267495632171631 residual_2[0,1] + sequential0.dense0.mix[0,22]
+   = 0.00717853102833033
+ sequential0.dense0.R275: 0.00330498325638473 residual_2[0,0]
+   - 0.6081399917602539 residual_2[0,1] + sequential0.dense0.mix[0,23]
+   = 0.00975749082863331
+ sequential0.dense0.R276: 0.00985258352011442 residual_2[1,0]
+   - 0.4578357934951782 residual_2[1,1] + sequential0.dense0.mix[1,0]
+   = 0.0097109554335475
+ sequential0.dense0.R277: 0.0473396219313145 residual_2[1,0]
+   - 0.7840358018875122 residual_2[1,1] + sequential0.dense0.mix[1,1]
+   = 0.0323087051510811
+ sequential0.dense0.R278: 0.00814084336161613 residual_2[1,0]
+   - 0.6463925242424011 residual_2[1,1] + sequential0.dense0.mix[1,2]
+   = 0.0142219485715032
+ sequential0.dense0.R279: - 0.1231424957513809 residual_2[1,0]
+   - 0.1638537794351578 residual_2[1,1] + sequential0.dense0.mix[1,3]
+   = -0.1856236755847931
+ sequential0.dense0.R280: - 0.1969428360462189 residual_2[1,0]
+   - 8.2560471491888165e-04 residual_2[1,1] + sequential0.dense0.mix[1,4]
+   = 0.0196776799857616
+ sequential0.dense0.R281: 0.00909874681383371 residual_2[1,0]
+   - 0.3469043076038361 residual_2[1,1] + sequential0.dense0.mix[1,5]
+   = -0.200108140707016
+ sequential0.dense0.R282: - 0.0278659574687481 residual_2[1,0]
+   + 0.3113515675067902 residual_2[1,1] + sequential0.dense0.mix[1,6]
+   = -0.0254729297012091
+ sequential0.dense0.R283: 0.398360013961792 residual_2[1,0]
+   - 0.0127348527312279 residual_2[1,1] + sequential0.dense0.mix[1,7]
+   = -0.0303879547864199
+ sequential0.dense0.R284: 0.4521922171115875 residual_2[1,0]
+   + 0.092514730989933 residual_2[1,1] + sequential0.dense0.mix[1,8]
+   = 0.00481175538152456
+ sequential0.dense0.R285: 0.5180755257606506 residual_2[1,0]
+   + 0.1831983476877213 residual_2[1,1] + sequential0.dense0.mix[1,9]
+   = -0.0804485902190208
+ sequential0.dense0.R286: 0.3899092376232147 residual_2[1,0]
+   + 0.0957313552498817 residual_2[1,1] + sequential0.dense0.mix[1,10]
+   = -0.0621825307607651
+ sequential0.dense0.R287: - 0.00857707858085632 residual_2[1,0]
+   + 0.8769708871841431 residual_2[1,1] + sequential0.dense0.mix[1,11]
+   = -0.0370810404419899
+ sequential0.dense0.R288: 0.3458520770072937 residual_2[1,0]
+   + 0.0173796247690916 residual_2[1,1] + sequential0.dense0.mix[1,12]
+   = -0.0113853849470615
+ sequential0.dense0.R289: 0.4936838746070862 residual_2[1,0]
+   + 0.0580731071531773 residual_2[1,1] + sequential0.dense0.mix[1,13]
+   = -0.0124577926471829
+ sequential0.dense0.R290: - 0.170696347951889 residual_2[1,0]
+   + 0.00551380263641477 residual_2[1,1] + sequential0.dense0.mix[1,14]
+   = 0.033574890345335
+ sequential0.dense0.R291: - 0.0237153749912977 residual_2[1,0]
+   + 0.3476957976818085 residual_2[1,1] + sequential0.dense0.mix[1,15]
+   = -0.1213830709457397
+ sequential0.dense0.R292: - 0.068872794508934 residual_2[1,0]
+   + 0.0457679852843285 residual_2[1,1] + sequential0.dense0.mix[1,16]
+   = -0.0577451139688492
+ sequential0.dense0.R293: - 0.358900398015976 residual_2[1,0]
+   + 0.00622118869796395 residual_2[1,1] + sequential0.dense0.mix[1,17]
+   = 0.0665916502475739
+ sequential0.dense0.R294: 0.1935264766216278 residual_2[1,0]
+   - 0.0274225957691669 residual_2[1,1] + sequential0.dense0.mix[1,18]
+   = 0.0243709776550531
+ sequential0.dense0.R295: - 0.3184127509593964 residual_2[1,0]
+   + 0.00706158298999071 residual_2[1,1] + sequential0.dense0.mix[1,19]
+   = 0.0597658008337021
+ sequential0.dense0.R296: 0.5118918418884277 residual_2[1,0]
+   - 0.035647626966238 residual_2[1,1] + sequential0.dense0.mix[1,20]
+   = -0.0241507142782211
+ sequential0.dense0.R297: - 0.3350651264190674 residual_2[1,0]
+   + 0.0439361967146397 residual_2[1,1] + sequential0.dense0.mix[1,21]
+   = 0.0701694563031197
+ sequential0.dense0.R298: 0.2541921436786652 residual_2[1,0]
+   + 0.3267495632171631 residual_2[1,1] + sequential0.dense0.mix[1,22]
+   = 0.00717853102833033
+ sequential0.dense0.R299: 0.00330498325638473 residual_2[1,0]
+   - 0.6081399917602539 residual_2[1,1] + sequential0.dense0.mix[1,23]
+   = 0.00975749082863331
+ sequential0.dense1.R300: ffn_2[0,0]
+   - 0.00305817625485361 sequential0.dense0.act[0,0]
+   - 9.3129329616203904e-04 sequential0.dense0.act[0,1]
+   - 0.00175569124985486 sequential0.dense0.act[0,2]
+   - 0.0904244035482407 sequential0.dense0.act[0,3]
+   - 0.4905868172645569 sequential0.dense0.act[0,4]
+   - 0.0239568650722504 sequential0.dense0.act[0,5]
+   + 0.025127001106739 sequential0.dense0.act[0,6]
+   + 0.2565917372703552 sequential0.dense0.act[0,7]
+   + 0.1043368205428123 sequential0.dense0.act[0,8]
+   - 0.3202881813049316 sequential0.dense0.act[0,9]
+   - 0.3434480130672455 sequential0.dense0.act[0,10]
+   + 0.2779458463191986 sequential0.dense0.act[0,11]
+   + 0.4253289997577667 sequential0.dense0.act[0,12]
+   + 0.1367555260658264 sequential0.dense0.act[0,13]
+   - 0.848331093788147 sequential0.dense0.act[0,14]
+   - 0.5634324550628662 sequential0.dense0.act[0,15]
+   + 0.4268761575222015 sequential0.dense0.act[0,16]
+   - 0.8653103709220886 sequential0.dense0.act[0,17]
+   + 0.2265092134475708 sequential0.dense0.act[0,18]
+   - 0.6222584247589111 sequential0.dense0.act[0,19]
+   + 0.3128767609596252 sequential0.dense0.act[0,20]
+   - 0.738706111907959 sequential0.dense0.act[0,21]
+   + 0.1975347697734833 sequential0.dense0.act[0,22]
+   - 0.00183594424743205 sequential0.dense0.act[0,23] = 0.0956746935844421
+ sequential0.dense1.R301: ffn_2[0,1]
+   - 0.6007785201072693 sequential0.dense0.act[0,0]
+   - 0.3455861806869507 sequential0.dense0.act[0,1]
+   - 0.4465510249137878 sequential0.dense0.act[0,2]
+   - 0.0192485582083464 sequential0.dense0.act[0,3]
+   + 6.7140621831640601e-04 sequential0.dense0.act[0,4]
+   + 0.4222113490104675 sequential0.dense0.act[0,5]
+   + 0.0850874185562134 sequential0.dense0.act[0,6]
+   - 0.4201387763023376 sequential0.dense0.act[0,7]
+   + 0.0971671342849731 sequential0.dense0.act[0,8]
+   - 0.8466823101043701 sequential0.dense0.act[0,9]
+   - 1.247305274009705 sequential0.dense0.act[0,10]
+   + 1.325751781463623 sequential0.dense0.act[0,11]
+   + 0.1841906309127808 sequential0.dense0.act[0,12]
+   + 0.1068597212433815 sequential0.dense0.act[0,13]
+   - 1.9189216254744679e-04 sequential0.dense0.act[0,14]
+   - 0.5204708576202393 sequential0.dense0.act[0,15]
+   + 0.0437936820089817 sequential0.dense0.act[0,16]
+   + 0.00118164694868028 sequential0.dense0.act[0,17]
+   - 0.1486629694700241 sequential0.dense0.act[0,18]
+   + 4.7677871771156788e-04 sequential0.dense0.act[0,19]
+   + 0.0294337812811136 sequential0.dense0.act[0,20]
+   + 2.2329439525492489e-04 sequential0.dense0.act[0,21]
+   + 0.1623498499393463 sequential0.dense0.act[0,22]
+   - 0.4638480842113495 sequential0.dense0.act[0,23] = 0.00100354477763176
+ sequential0.dense1.R302: ffn_2[1,0]
+   - 0.00305817625485361 sequential0.dense0.act[1,0]
+   - 9.3129329616203904e-04 sequential0.dense0.act[1,1]
+   - 0.00175569124985486 sequential0.dense0.act[1,2]
+   - 0.0904244035482407 sequential0.dense0.act[1,3]
+   - 0.4905868172645569 sequential0.dense0.act[1,4]
+   - 0.0239568650722504 sequential0.dense0.act[1,5]
+   + 0.025127001106739 sequential0.dense0.act[1,6]
+   + 0.2565917372703552 sequential0.dense0.act[1,7]
+   + 0.1043368205428123 sequential0.dense0.act[1,8]
+   - 0.3202881813049316 sequential0.dense0.act[1,9]
+   - 0.3434480130672455 sequential0.dense0.act[1,10]
+   + 0.2779458463191986 sequential0.dense0.act[1,11]
+   + 0.4253289997577667 sequential0.dense0.act[1,12]
+   + 0.1367555260658264 sequential0.dense0.act[1,13]
+   - 0.848331093788147 sequential0.dense0.act[1,14]
+   - 0.5634324550628662 sequential0.dense0.act[1,15]
+   + 0.4268761575222015 sequential0.dense0.act[1,16]
+   - 0.8653103709220886 sequential0.dense0.act[1,17]
+   + 0.2265092134475708 sequential0.dense0.act[1,18]
+   - 0.6222584247589111 sequential0.dense0.act[1,19]
+   + 0.3128767609596252 sequential0.dense0.act[1,20]
+   - 0.738706111907959 sequential0.dense0.act[1,21]
+   + 0.1975347697734833 sequential0.dense0.act[1,22]
+   - 0.00183594424743205 sequential0.dense0.act[1,23] = 0.0956746935844421
+ sequential0.dense1.R303: ffn_2[1,1]
+   - 0.6007785201072693 sequential0.dense0.act[1,0]
+   - 0.3455861806869507 sequential0.dense0.act[1,1]
+   - 0.4465510249137878 sequential0.dense0.act[1,2]
+   - 0.0192485582083464 sequential0.dense0.act[1,3]
+   + 6.7140621831640601e-04 sequential0.dense0.act[1,4]
+   + 0.4222113490104675 sequential0.dense0.act[1,5]
+   + 0.0850874185562134 sequential0.dense0.act[1,6]
+   - 0.4201387763023376 sequential0.dense0.act[1,7]
+   + 0.0971671342849731 sequential0.dense0.act[1,8]
+   - 0.8466823101043701 sequential0.dense0.act[1,9]
+   - 1.247305274009705 sequential0.dense0.act[1,10]
+   + 1.325751781463623 sequential0.dense0.act[1,11]
+   + 0.1841906309127808 sequential0.dense0.act[1,12]
+   + 0.1068597212433815 sequential0.dense0.act[1,13]
+   - 1.9189216254744679e-04 sequential0.dense0.act[1,14]
+   - 0.5204708576202393 sequential0.dense0.act[1,15]
+   + 0.0437936820089817 sequential0.dense0.act[1,16]
+   + 0.00118164694868028 sequential0.dense0.act[1,17]
+   - 0.1486629694700241 sequential0.dense0.act[1,18]
+   + 4.7677871771156788e-04 sequential0.dense0.act[1,19]
+   + 0.0294337812811136 sequential0.dense0.act[1,20]
+   + 2.2329439525492489e-04 sequential0.dense0.act[1,21]
+   + 0.1623498499393463 sequential0.dense0.act[1,22]
+   - 0.4638480842113495 sequential0.dense0.act[1,23] = 0.00100354477763176
+ qc0: numerator_squared_layer_norm[0,0] + [ - numerator_layer_norm[0,0] ^2
+   ] = 0
+ qc1: [ - denominator_abs_layer_norm[0] ^2 + denominator_layer_norm[0] ^2 ]
+   = 0
+ qc2: variance_layer_norm[0] + [
+   - denominator_abs_layer_norm[0] * denominator_layer_norm[0] ] = -1e-06
+ qc3: - numerator_layer_norm[0,0] + [
+   denominator_layer_norm[0] * div_layer_norm[0,0] ] = 0
+ qc4: numerator_squared_layer_norm[0,1] + [ - numerator_layer_norm[0,1] ^2
+   ] = 0
+ qc5: [ - denominator_abs_layer_norm[0] ^2 + denominator_layer_norm[0] ^2 ]
+   = 0
+ qc6: variance_layer_norm[0] + [
+   - denominator_abs_layer_norm[0] * denominator_layer_norm[0] ] = -1e-06
+ qc7: - numerator_layer_norm[0,1] + [
+   denominator_layer_norm[0] * div_layer_norm[0,1] ] = 0
+ qc8: numerator_squared_layer_norm[1,0] + [ - numerator_layer_norm[1,0] ^2
+   ] = 0
+ qc9: [ - denominator_abs_layer_norm[1] ^2 + denominator_layer_norm[1] ^2 ]
+   = 0
+ qc10: variance_layer_norm[1] + [
+   - denominator_abs_layer_norm[1] * denominator_layer_norm[1] ] = -1e-06
+ qc11: - numerator_layer_norm[1,0] + [
+   denominator_layer_norm[1] * div_layer_norm[1,0] ] = 0
+ qc12: numerator_squared_layer_norm[1,1] + [ - numerator_layer_norm[1,1] ^2
+   ] = 0
+ qc13: [ - denominator_abs_layer_norm[1] ^2 + denominator_layer_norm[1] ^2
+   ] = 0
+ qc14: variance_layer_norm[1] + [
+   - denominator_abs_layer_norm[1] * denominator_layer_norm[1] ] = -1e-06
+ qc15: - numerator_layer_norm[1,1] + [
+   denominator_layer_norm[1] * div_layer_norm[1,1] ] = 0
+ qc16: numerator_squared_layer_norm_2[0,0] + [
+   - numerator_layer_norm_2[0,0] ^2 ] = 0
+ qc17: [ - denominator_abs_layer_norm_2[0] ^2
+   + denominator_layer_norm_2[0] ^2 ] = 0
+ qc18: variance_layer_norm_2[0] + [
+   - denominator_abs_layer_norm_2[0] * denominator_layer_norm_2[0] ]
+   = -1e-06
+ qc19: - numerator_layer_norm_2[0,0] + [
+   denominator_layer_norm_2[0] * div_layer_norm_2[0,0] ] = 0
+ qc20: numerator_squared_layer_norm_2[0,1] + [
+   - numerator_layer_norm_2[0,1] ^2 ] = 0
+ qc21: [ - denominator_abs_layer_norm_2[0] ^2
+   + denominator_layer_norm_2[0] ^2 ] = 0
+ qc22: variance_layer_norm_2[0] + [
+   - denominator_abs_layer_norm_2[0] * denominator_layer_norm_2[0] ]
+   = -1e-06
+ qc23: - numerator_layer_norm_2[0,1] + [
+   denominator_layer_norm_2[0] * div_layer_norm_2[0,1] ] = 0
+ qc24: numerator_squared_layer_norm_2[1,0] + [
+   - numerator_layer_norm_2[1,0] ^2 ] = 0
+ qc25: [ - denominator_abs_layer_norm_2[1] ^2
+   + denominator_layer_norm_2[1] ^2 ] = 0
+ qc26: variance_layer_norm_2[1] + [
+   - denominator_abs_layer_norm_2[1] * denominator_layer_norm_2[1] ]
+   = -1e-06
+ qc27: - numerator_layer_norm_2[1,0] + [
+   denominator_layer_norm_2[1] * div_layer_norm_2[1,0] ] = 0
+ qc28: numerator_squared_layer_norm_2[1,1] + [
+   - numerator_layer_norm_2[1,1] ^2 ] = 0
+ qc29: [ - denominator_abs_layer_norm_2[1] ^2
+   + denominator_layer_norm_2[1] ^2 ] = 0
+ qc30: variance_layer_norm_2[1] + [
+   - denominator_abs_layer_norm_2[1] * denominator_layer_norm_2[1] ]
+   = -1e-06
+ qc31: - numerator_layer_norm_2[1,1] + [
+   denominator_layer_norm_2[1] * div_layer_norm_2[1,1] ] = 0
+ qc32: Block_attention_output.attWK[1,0,1,0] + [
+   - Block_attention_output.V[1,0,1] * Block_attention_output.attention_weight[1,0,0]
+   ] = 0
+ qc33: Block_attention_output.attWK[1,0,1,1] + [
+   - Block_attention_output.V[1,1,1] * Block_attention_output.attention_weight[1,0,1]
+   ] = 0
+ qc34: Block_attention_output.attWK[1,0,2,0] + [
+   - Block_attention_output.V[1,0,2] * Block_attention_output.attention_weight[1,0,0]
+   ] = 0
+ qc35: Block_attention_output.attWK[1,0,2,1] + [
+   - Block_attention_output.V[1,1,2] * Block_attention_output.attention_weight[1,0,1]
+   ] = 0
+ qc36: Block_attention_output.attWK[1,0,3,0] + [
+   - Block_attention_output.V[1,0,3] * Block_attention_output.attention_weight[1,0,0]
+   ] = 0
+ qc37: Block_attention_output.attWK[1,0,3,1] + [
+   - Block_attention_output.V[1,1,3] * Block_attention_output.attention_weight[1,0,1]
+   ] = 0
+ qc38: Block_attention_output.attWK[1,0,4,0] + [
+   - Block_attention_output.V[1,0,4] * Block_attention_output.attention_weight[1,0,0]
+   ] = 0
+ qc39: Block_attention_output.attWK[1,0,4,1] + [
+   - Block_attention_output.V[1,1,4] * Block_attention_output.attention_weight[1,0,1]
+   ] = 0
+ qc40: Block_attention_output.QK[1,0,0,1] + [
+   - Block_attention_output.K[1,0,1] * Block_attention_output.Q[1,0,1] ]
+   = 0
+ qc41: Block_attention_output.QK[1,0,0,2] + [
+   - Block_attention_output.K[1,0,2] * Block_attention_output.Q[1,0,2] ]
+   = 0
+ qc42: Block_attention_output.QK[1,0,0,3] + [
+   - Block_attention_output.K[1,0,3] * Block_attention_output.Q[1,0,3] ]
+   = 0
+ qc43: Block_attention_output.QK[1,0,0,4] + [
+   - Block_attention_output.K[1,0,4] * Block_attention_output.Q[1,0,4] ]
+   = 0
+ qc44: Block_attention_output.QK[1,0,1,1] + [
+   - Block_attention_output.K[1,1,1] * Block_attention_output.Q[1,0,1] ]
+   = 0
+ qc45: Block_attention_output.QK[1,0,1,2] + [
+   - Block_attention_output.K[1,1,2] * Block_attention_output.Q[1,0,2] ]
+   = 0
+ qc46: Block_attention_output.QK[1,0,1,3] + [
+   - Block_attention_output.K[1,1,3] * Block_attention_output.Q[1,0,3] ]
+   = 0
+ qc47: Block_attention_output.QK[1,0,1,4] + [
+   - Block_attention_output.K[1,1,4] * Block_attention_output.Q[1,0,4] ]
+   = 0
+ qc48: - Block_attention_output.compatibility_exp[1,0,0] + [
+   Block_attention_output.attention_weight[1,0,0] * Block_attention_output.compatibility_exp_sum[1,0]
+   ] = 0
+ qc49: - Block_attention_output.compatibility_exp[1,0,1] + [
+   Block_attention_output.attention_weight[1,0,1] * Block_attention_output.compatibility_exp_sum[1,0]
+   ] = 0
+ qc50: Block_attention_output.attWK[1,1,1,0] + [
+   - Block_attention_output.V[1,0,1] * Block_attention_output.attention_weight[1,1,0]
+   ] = 0
+ qc51: Block_attention_output.attWK[1,1,1,1] + [
+   - Block_attention_output.V[1,1,1] * Block_attention_output.attention_weight[1,1,1]
+   ] = 0
+ qc52: Block_attention_output.attWK[1,1,2,0] + [
+   - Block_attention_output.V[1,0,2] * Block_attention_output.attention_weight[1,1,0]
+   ] = 0
+ qc53: Block_attention_output.attWK[1,1,2,1] + [
+   - Block_attention_output.V[1,1,2] * Block_attention_output.attention_weight[1,1,1]
+   ] = 0
+ qc54: Block_attention_output.attWK[1,1,3,0] + [
+   - Block_attention_output.V[1,0,3] * Block_attention_output.attention_weight[1,1,0]
+   ] = 0
+ qc55: Block_attention_output.attWK[1,1,3,1] + [
+   - Block_attention_output.V[1,1,3] * Block_attention_output.attention_weight[1,1,1]
+   ] = 0
+ qc56: Block_attention_output.attWK[1,1,4,0] + [
+   - Block_attention_output.V[1,0,4] * Block_attention_output.attention_weight[1,1,0]
+   ] = 0
+ qc57: Block_attention_output.attWK[1,1,4,1] + [
+   - Block_attention_output.V[1,1,4] * Block_attention_output.attention_weight[1,1,1]
+   ] = 0
+ qc58: Block_attention_output.QK[1,1,0,1] + [
+   - Block_attention_output.K[1,0,1] * Block_attention_output.Q[1,1,1] ]
+   = 0
+ qc59: Block_attention_output.QK[1,1,0,2] + [
+   - Block_attention_output.K[1,0,2] * Block_attention_output.Q[1,1,2] ]
+   = 0
+ qc60: Block_attention_output.QK[1,1,0,3] + [
+   - Block_attention_output.K[1,0,3] * Block_attention_output.Q[1,1,3] ]
+   = 0
+ qc61: Block_attention_output.QK[1,1,0,4] + [
+   - Block_attention_output.K[1,0,4] * Block_attention_output.Q[1,1,4] ]
+   = 0
+ qc62: Block_attention_output.QK[1,1,1,1] + [
+   - Block_attention_output.K[1,1,1] * Block_attention_output.Q[1,1,1] ]
+   = 0
+ qc63: Block_attention_output.QK[1,1,1,2] + [
+   - Block_attention_output.K[1,1,2] * Block_attention_output.Q[1,1,2] ]
+   = 0
+ qc64: Block_attention_output.QK[1,1,1,3] + [
+   - Block_attention_output.K[1,1,3] * Block_attention_output.Q[1,1,3] ]
+   = 0
+ qc65: Block_attention_output.QK[1,1,1,4] + [
+   - Block_attention_output.K[1,1,4] * Block_attention_output.Q[1,1,4] ]
+   = 0
+ qc66: - Block_attention_output.compatibility_exp[1,1,0] + [
+   Block_attention_output.attention_weight[1,1,0] * Block_attention_output.compatibility_exp_sum[1,1]
+   ] = 0
+ qc67: - Block_attention_output.compatibility_exp[1,1,1] + [
+   Block_attention_output.attention_weight[1,1,1] * Block_attention_output.compatibility_exp_sum[1,1]
+   ] = 0
+Bounds
+ -8.686924230125021 <= Block_attention_output.K[1,0,1] <= 8.588770316453656
+ -9.85960794326558 <= Block_attention_output.K[1,0,2] <= 9.738311338985895
+ -6.362074201659658 <= Block_attention_output.K[1,0,3] <= 6.351899317437359
+ -7.747468149447201 <= Block_attention_output.K[1,0,4] <= 7.830343337846166
+ -8.686924230125021 <= Block_attention_output.K[1,1,1] <= 8.588770316453656
+ -9.85960794326558 <= Block_attention_output.K[1,1,2] <= 9.738311338985895
+ -6.362074201659658 <= Block_attention_output.K[1,1,3] <= 6.351899317437359
+ -7.747468149447201 <= Block_attention_output.K[1,1,4] <= 7.830343337846166
+ -5.477594740981878 <= Block_attention_output.Q[1,0,1] <= 6.409057802800589
+ -6.322328361984632 <= Block_attention_output.Q[1,0,2] <= 7.226460135621358
+ -1.724555452619092 <= Block_attention_output.Q[1,0,3] <= 2.77734312050725
+ -3.621439165629588 <= Block_attention_output.Q[1,0,4] <= 2.60123945999984
+ -5.477594740981878 <= Block_attention_output.Q[1,1,1] <= 6.409057802800589
+ -6.322328361984632 <= Block_attention_output.Q[1,1,2] <= 7.226460135621358
+ -1.724555452619092 <= Block_attention_output.Q[1,1,3] <= 2.77734312050725
+ -3.621439165629588 <= Block_attention_output.Q[1,1,4] <= 2.60123945999984
+ -55.67499951942027 <= Block_attention_output.QK[1,0,0,1] <= 55.0459254131294
+ -71.2500637548644 <= Block_attention_output.QK[1,0,0,2] <= 70.37351867945102
+ -17.6696630161361 <= Block_attention_output.QK[1,0,0,3] <= 17.64140387143934
+ -28.35711204400282 <= Block_attention_output.QK[1,0,0,4] <= 28.05698459087588
+ -55.67499951942027 <= Block_attention_output.QK[1,0,1,1] <= 55.0459254131294
+ -71.2500637548644 <= Block_attention_output.QK[1,0,1,2] <= 70.37351867945102
+ -17.6696630161361 <= Block_attention_output.QK[1,0,1,3] <= 17.64140387143934
+ -28.35711204400282 <= Block_attention_output.QK[1,0,1,4] <= 28.05698459087588
+ -55.67499951942027 <= Block_attention_output.QK[1,1,0,1] <= 55.0459254131294
+ -71.2500637548644 <= Block_attention_output.QK[1,1,0,2] <= 70.37351867945102
+ -17.6696630161361 <= Block_attention_output.QK[1,1,0,3] <= 17.64140387143934
+ -28.35711204400282 <= Block_attention_output.QK[1,1,0,4] <= 28.05698459087588
+ -55.67499951942027 <= Block_attention_output.QK[1,1,1,1] <= 55.0459254131294
+ -71.2500637548644 <= Block_attention_output.QK[1,1,1,2] <= 70.37351867945102
+ -17.6696630161361 <= Block_attention_output.QK[1,1,1,3] <= 17.64140387143934
+ -28.35711204400282 <= Block_attention_output.QK[1,1,1,4] <= 28.05698459087588
+ -2.357690017205656 <= Block_attention_output.V[1,0,1] <= 2.630103850892771
+ -3.262754567948307 <= Block_attention_output.V[1,0,2] <= 3.192342471705216
+ -2.603525113789122 <= Block_attention_output.V[1,0,3] <= 2.68402837520962
+ -1.610728026133816 <= Block_attention_output.V[1,0,4] <= 1.615700035410905
+ -2.357690017205656 <= Block_attention_output.V[1,1,1] <= 2.630103850892771
+ -3.262754567948307 <= Block_attention_output.V[1,1,2] <= 3.192342471705216
+ -2.603525113789122 <= Block_attention_output.V[1,1,3] <= 2.68402837520962
+ -1.610728026133816 <= Block_attention_output.V[1,1,4] <= 1.615700035410905
+ Block_attention_output.W_k[0,1,1] = 0.6431746482849121
+ Block_attention_output.W_k[0,1,2] = 1.300727009773254
+ Block_attention_output.W_k[0,1,3] = -0.2342166006565094
+ Block_attention_output.W_k[0,1,4] = -1.061543583869934
+ Block_attention_output.W_k[1,1,1] = -1.247142314910889
+ Block_attention_output.W_k[1,1,2] = -0.9141985774040222
+ Block_attention_output.W_k[1,1,3] = -1.12743091583252
+ Block_attention_output.W_k[1,1,4] = 0.7024475932121277
+ Block_attention_output.W_o[0,1,1] = 0.00902402587234974
+ Block_attention_output.W_o[0,1,2] = -0.4269008934497833
+ Block_attention_output.W_o[0,1,3] = -0.1222401261329651
+ Block_attention_output.W_o[0,1,4] = 0.7807563543319702
+ Block_attention_output.W_o[1,1,1] = 0.0767102837562561
+ Block_attention_output.W_o[1,1,2] = -0.603465735912323
+ Block_attention_output.W_o[1,1,3] = -0.7826065421104431
+ Block_attention_output.W_o[1,1,4] = 0.4688697755336761
+ Block_attention_output.W_q[0,1,1] = 1.03153669834137
+ Block_attention_output.W_q[0,1,2] = 0.6101914048194885
+ Block_attention_output.W_q[0,1,3] = 0.4162990152835846
+ Block_attention_output.W_q[0,1,4] = 0.2845930755138397
+ Block_attention_output.W_q[1,1,1] = -0.3418274521827698
+ Block_attention_output.W_q[1,1,2] = -0.8853839039802551
+ Block_attention_output.W_q[1,1,3] = 0.1070059388875961
+ Block_attention_output.W_q[1,1,4] = 0.402830183506012
+ Block_attention_output.W_v[0,1,1] = -0.3770273625850677
+ Block_attention_output.W_v[0,1,2] = 0.2632050514221191
+ Block_attention_output.W_v[0,1,3] = -0.5089483857154846
+ Block_attention_output.W_v[0,1,4] = 0.0442070737481117
+ Block_attention_output.W_v[1,1,1] = -0.1923625022172928
+ Block_attention_output.W_v[1,1,2] = -0.4459406137466431
+ Block_attention_output.W_v[1,1,3] = -0.1081509068608284
+ Block_attention_output.W_v[1,1,4] = -0.2994581758975983
+ Block_attention_output.attWK[1,0,1,0] free
+ -2.357690017205656 <= Block_attention_output.attWK[1,0,1,1] <= 2.630103850892771
+ Block_attention_output.attWK[1,0,2,0] free
+ -3.262754567948307 <= Block_attention_output.attWK[1,0,2,1] <= 3.192342471705216
+ Block_attention_output.attWK[1,0,3,0] free
+ -2.603525113789122 <= Block_attention_output.attWK[1,0,3,1] <= 2.68402837520962
+ Block_attention_output.attWK[1,0,4,0] free
+ -1.610728026133816 <= Block_attention_output.attWK[1,0,4,1] <= 1.615700035410905
+ Block_attention_output.attWK[1,1,1,0] free
+ -2.357690017205656 <= Block_attention_output.attWK[1,1,1,1] <= 2.630103850892771
+ Block_attention_output.attWK[1,1,2,0] free
+ -3.262754567948307 <= Block_attention_output.attWK[1,1,2,1] <= 3.192342471705216
+ Block_attention_output.attWK[1,1,3,0] free
+ -2.603525113789122 <= Block_attention_output.attWK[1,1,3,1] <= 2.68402837520962
+ Block_attention_output.attWK[1,1,4,0] free
+ -1.610728026133816 <= Block_attention_output.attWK[1,1,4,1] <= 1.615700035410905
+ -4.715380034411312 <= Block_attention_output.attention_score[1,0,1] <= 5.260207701785542
+ -6.525509135896614 <= Block_attention_output.attention_score[1,0,2] <= 6.384684943410432
+ -5.207050227578243 <= Block_attention_output.attention_score[1,0,3] <= 5.368056750419241
+ -3.221456052267632 <= Block_attention_output.attention_score[1,0,4] <= 3.231400070821811
+ -4.715380034411312 <= Block_attention_output.attention_score[1,1,1] <= 5.260207701785542
+ -6.525509135896614 <= Block_attention_output.attention_score[1,1,2] <= 6.384684943410432
+ -5.207050227578243 <= Block_attention_output.attention_score[1,1,3] <= 5.368056750419241
+ -3.221456052267632 <= Block_attention_output.attention_score[1,1,4] <= 3.231400070821811
+ Block_attention_output.attention_weight[1,0,0] <= 1
+ Block_attention_output.attention_weight[1,0,1] <= 1
+ Block_attention_output.attention_weight[1,1,0] <= 1
+ Block_attention_output.attention_weight[1,1,1] <= 1
+ Block_attention_output.b_k[1,1] = 0.0405758172273636
+ Block_attention_output.b_k[1,2] = 0.0405769944190979
+ Block_attention_output.b_k[1,3] = 0.0410354696214199
+ Block_attention_output.b_k[1,4] = -0.0390002615749836
+ Block_attention_output.b_o[0] = 8.45402e-05
+ Block_attention_output.b_o[1] = 7.278555422089994e-04
+ Block_attention_output.b_q[1,1] = 0.5269239544868469
+ Block_attention_output.b_q[1,2] = 0.5222890973091125
+ Block_attention_output.b_q[1,3] = 0.5388892889022827
+ Block_attention_output.b_q[1,4] = -0.5179771780967712
+ Block_attention_output.b_v[1,1] = 0.1296441406011581
+ Block_attention_output.b_v[1,2] = -0.0017262949841097
+ Block_attention_output.b_v[1,3] = 0.0238461904227734
+ Block_attention_output.b_v[1,4] = 0.0192932933568954
+ -86.4759191672118 <= Block_attention_output.compatibility[1,0,0] <= 85.55891627744782
+ -86.4759191672118 <= Block_attention_output.compatibility[1,0,1] <= 85.55891627744782
+ -86.4759191672118 <= Block_attention_output.compatibility[1,1,0] <= 85.55891627744782
+ -86.4759191672118 <= Block_attention_output.compatibility[1,1,1] <= 85.55891627744782
+ Block_attention_output.compatibility_max[1,0] free
+ Block_attention_output.compatibility_max[1,1] free
+ Block_attention_output.compatibility_scaled[1,0,0] free
+ Block_attention_output.compatibility_scaled[1,0,1] free
+ Block_attention_output.compatibility_scaled[1,1,0] free
+ Block_attention_output.compatibility_scaled[1,1,1] free
+ -5.939459095275932 <= attention_output[0,0] <= 5.992745086165741
+ -9.925448590276124 <= attention_output[0,1] <= 9.932338452925592
+ -5.939459095275932 <= attention_output[1,0] <= 5.992745086165741
+ -9.925448590276124 <= attention_output[1,1] <= 9.932338452925592
+ beta_layer_norm[0] = -0.0428174547851086
+ beta_layer_norm[1] = 0.049804799258709
+ beta_layer_norm_2[0] = -0.1488168090581894
+ beta_layer_norm_2[1] = 0.1466380804777145
+ denominator_abs_layer_norm[0] <= 3
+ denominator_abs_layer_norm[1] <= 3
+ -3 <= denominator_layer_norm[0] <= 3
+ -3 <= denominator_layer_norm[1] <= 3
+ denominator_layer_norm_2[0] free
+ denominator_layer_norm_2[1] free
+ div_layer_norm[0,0] free
+ div_layer_norm[0,1] free
+ div_layer_norm[1,0] free
+ div_layer_norm[1,1] free
+ div_layer_norm_2[0,0] free
+ div_layer_norm_2[0,1] free
+ div_layer_norm_2[1,0] free
+ div_layer_norm_2[1,1] free
+ ffn_1[0,0] free
+ ffn_1[0,1] free
+ ffn_1[1,0] free
+ ffn_1[1,1] free
+ ffn_2[0,0] free
+ ffn_2[0,1] free
+ ffn_2[1,0] free
+ ffn_2[1,1] free
+ gamma_layer_norm[0] = 0.8361979722976685
+ gamma_layer_norm[1] = 0.9539794325828552
+ gamma_layer_norm_2[0] = 0.7942205667495728
+ gamma_layer_norm_2[1] = 0.7906125783920288
+ -3 <= input_embed[0,0] <= 3
+ -3 <= input_embed[0,1] <= 3
+ -3 <= input_embed[1,0] <= 3
+ -3 <= input_embed[1,1] <= 3
+ -4.223807316273451 <= layer_norm[0,0] <= 4.138172406703234
+ -4.720092363655567 <= layer_norm[0,1] <= 4.819701962172985
+ -4.223807316273451 <= layer_norm[1,0] <= 4.138172406703234
+ -4.720092363655567 <= layer_norm[1,1] <= 4.819701962172985
+ -4.119919642806053 <= layer_norm_2[0,0] <= 3.822286024689674
+ -3.80642481148243 <= layer_norm_2[0,1] <= 4.099700972437859
+ -4.119919642806053 <= layer_norm_2[1,0] <= 3.822286024689674
+ -3.80642481148243 <= layer_norm_2[1,1] <= 4.099700972437859
+ loc1[0.0] = 0
+ loc1[0.027777777777777776] = 0.00555555555555556
+ loc1[0.05555555555555555] = 0.0111111111111111
+ loc2[0.0] = 0.0143459577581613
+ loc2[0.027777777777777776] = 0.0410307610561593
+ loc2[0.05555555555555555] = 0.0994304886325066
+ -6 <= numerator_layer_norm[0,0] <= 6
+ -6 <= numerator_layer_norm[0,1] <= 6
+ -6 <= numerator_layer_norm[1,0] <= 6
+ -6 <= numerator_layer_norm[1,1] <= 6
+ numerator_layer_norm_2[0,0] free
+ numerator_layer_norm_2[0,1] free
+ numerator_layer_norm_2[1,0] free
+ numerator_layer_norm_2[1,1] free
+ numerator_scaled_layer_norm[0,0] free
+ numerator_scaled_layer_norm[0,1] free
+ numerator_scaled_layer_norm[1,0] free
+ numerator_scaled_layer_norm[1,1] free
+ numerator_scaled_layer_norm_2[0,0] free
+ numerator_scaled_layer_norm_2[0,1] free
+ numerator_scaled_layer_norm_2[1,0] free
+ numerator_scaled_layer_norm_2[1,1] free
+ numerator_squared_layer_norm[0,0] <= 36
+ numerator_squared_layer_norm[0,1] <= 36
+ numerator_squared_layer_norm[1,0] <= 36
+ numerator_squared_layer_norm[1,1] <= 36
+ numerator_squared_sum_layer_norm[0] <= 72
+ numerator_squared_sum_layer_norm[1] <= 72
+ residual_1[0,0] free
+ residual_1[0,1] free
+ residual_1[1,0] free
+ residual_1[1,1] free
+ residual_2[0,0] free
+ residual_2[0,1] free
+ residual_2[1,0] free
+ residual_2[1,1] free
+ sum_layer_norm[0] free
+ sum_layer_norm[1] free
+ sum_layer_norm_2[0] free
+ sum_layer_norm_2[1] free
+ variance_layer_norm[0] free
+ variance_layer_norm[1] free
+ variance_layer_norm_2[0] free
+ variance_layer_norm_2[1] free
+ -3 <= x1[0.0] <= 3
+ -3 <= x1[0.027777777777777776] <= 3
+ -3 <= x1[0.05555555555555555] <= 3
+ -3 <= x2[0.0] <= 3
+ -3 <= x2[0.027777777777777776] <= 3
+ -3 <= x2[0.05555555555555555] <= 3
+ sequential.dense0.act[0,0] free
+ sequential.dense0.act[0,1] free
+ sequential.dense0.act[0,2] free
+ sequential.dense0.act[0,3] free
+ sequential.dense0.act[0,4] free
+ sequential.dense0.act[0,5] free
+ sequential.dense0.act[0,6] free
+ sequential.dense0.act[0,7] free
+ sequential.dense0.act[0,8] free
+ sequential.dense0.act[0,9] free
+ sequential.dense0.act[0,10] free
+ sequential.dense0.act[0,11] free
+ sequential.dense0.act[0,12] free
+ sequential.dense0.act[0,13] free
+ sequential.dense0.act[0,14] free
+ sequential.dense0.act[0,15] free
+ sequential.dense0.act[0,16] free
+ sequential.dense0.act[0,17] free
+ sequential.dense0.act[0,18] free
+ sequential.dense0.act[0,19] free
+ sequential.dense0.act[0,20] free
+ sequential.dense0.act[0,21] free
+ sequential.dense0.act[0,22] free
+ sequential.dense0.act[0,23] free
+ sequential.dense0.act[0,24] free
+ sequential.dense0.act[0,25] free
+ sequential.dense0.act[0,26] free
+ sequential.dense0.act[0,27] free
+ sequential.dense0.act[0,28] free
+ sequential.dense0.act[0,29] free
+ sequential.dense0.act[0,30] free
+ sequential.dense0.act[0,31] free
+ sequential.dense0.act[1,0] free
+ sequential.dense0.act[1,1] free
+ sequential.dense0.act[1,2] free
+ sequential.dense0.act[1,3] free
+ sequential.dense0.act[1,4] free
+ sequential.dense0.act[1,5] free
+ sequential.dense0.act[1,6] free
+ sequential.dense0.act[1,7] free
+ sequential.dense0.act[1,8] free
+ sequential.dense0.act[1,9] free
+ sequential.dense0.act[1,10] free
+ sequential.dense0.act[1,11] free
+ sequential.dense0.act[1,12] free
+ sequential.dense0.act[1,13] free
+ sequential.dense0.act[1,14] free
+ sequential.dense0.act[1,15] free
+ sequential.dense0.act[1,16] free
+ sequential.dense0.act[1,17] free
+ sequential.dense0.act[1,18] free
+ sequential.dense0.act[1,19] free
+ sequential.dense0.act[1,20] free
+ sequential.dense0.act[1,21] free
+ sequential.dense0.act[1,22] free
+ sequential.dense0.act[1,23] free
+ sequential.dense0.act[1,24] free
+ sequential.dense0.act[1,25] free
+ sequential.dense0.act[1,26] free
+ sequential.dense0.act[1,27] free
+ sequential.dense0.act[1,28] free
+ sequential.dense0.act[1,29] free
+ sequential.dense0.act[1,30] free
+ sequential.dense0.act[1,31] free
+ sequential.dense0.mix[0,0] free
+ sequential.dense0.mix[0,1] free
+ sequential.dense0.mix[0,2] free
+ sequential.dense0.mix[0,3] free
+ sequential.dense0.mix[0,4] free
+ sequential.dense0.mix[0,5] free
+ sequential.dense0.mix[0,6] free
+ sequential.dense0.mix[0,7] free
+ sequential.dense0.mix[0,8] free
+ sequential.dense0.mix[0,9] free
+ sequential.dense0.mix[0,10] free
+ sequential.dense0.mix[0,11] free
+ sequential.dense0.mix[0,12] free
+ sequential.dense0.mix[0,13] free
+ sequential.dense0.mix[0,14] free
+ sequential.dense0.mix[0,15] free
+ sequential.dense0.mix[0,16] free
+ sequential.dense0.mix[0,17] free
+ sequential.dense0.mix[0,18] free
+ sequential.dense0.mix[0,19] free
+ sequential.dense0.mix[0,20] free
+ sequential.dense0.mix[0,21] free
+ sequential.dense0.mix[0,22] free
+ sequential.dense0.mix[0,23] free
+ sequential.dense0.mix[0,24] free
+ sequential.dense0.mix[0,25] free
+ sequential.dense0.mix[0,26] free
+ sequential.dense0.mix[0,27] free
+ sequential.dense0.mix[0,28] free
+ sequential.dense0.mix[0,29] free
+ sequential.dense0.mix[0,30] free
+ sequential.dense0.mix[0,31] free
+ sequential.dense0.mix[1,0] free
+ sequential.dense0.mix[1,1] free
+ sequential.dense0.mix[1,2] free
+ sequential.dense0.mix[1,3] free
+ sequential.dense0.mix[1,4] free
+ sequential.dense0.mix[1,5] free
+ sequential.dense0.mix[1,6] free
+ sequential.dense0.mix[1,7] free
+ sequential.dense0.mix[1,8] free
+ sequential.dense0.mix[1,9] free
+ sequential.dense0.mix[1,10] free
+ sequential.dense0.mix[1,11] free
+ sequential.dense0.mix[1,12] free
+ sequential.dense0.mix[1,13] free
+ sequential.dense0.mix[1,14] free
+ sequential.dense0.mix[1,15] free
+ sequential.dense0.mix[1,16] free
+ sequential.dense0.mix[1,17] free
+ sequential.dense0.mix[1,18] free
+ sequential.dense0.mix[1,19] free
+ sequential.dense0.mix[1,20] free
+ sequential.dense0.mix[1,21] free
+ sequential.dense0.mix[1,22] free
+ sequential.dense0.mix[1,23] free
+ sequential.dense0.mix[1,24] free
+ sequential.dense0.mix[1,25] free
+ sequential.dense0.mix[1,26] free
+ sequential.dense0.mix[1,27] free
+ sequential.dense0.mix[1,28] free
+ sequential.dense0.mix[1,29] free
+ sequential.dense0.mix[1,30] free
+ sequential.dense0.mix[1,31] free
+ sequential0.dense0.act[0,0] free
+ sequential0.dense0.act[0,1] free
+ sequential0.dense0.act[0,2] free
+ sequential0.dense0.act[0,3] free
+ sequential0.dense0.act[0,4] free
+ sequential0.dense0.act[0,5] free
+ sequential0.dense0.act[0,6] free
+ sequential0.dense0.act[0,7] free
+ sequential0.dense0.act[0,8] free
+ sequential0.dense0.act[0,9] free
+ sequential0.dense0.act[0,10] free
+ sequential0.dense0.act[0,11] free
+ sequential0.dense0.act[0,12] free
+ sequential0.dense0.act[0,13] free
+ sequential0.dense0.act[0,14] free
+ sequential0.dense0.act[0,15] free
+ sequential0.dense0.act[0,16] free
+ sequential0.dense0.act[0,17] free
+ sequential0.dense0.act[0,18] free
+ sequential0.dense0.act[0,19] free
+ sequential0.dense0.act[0,20] free
+ sequential0.dense0.act[0,21] free
+ sequential0.dense0.act[0,22] free
+ sequential0.dense0.act[0,23] free
+ sequential0.dense0.act[1,0] free
+ sequential0.dense0.act[1,1] free
+ sequential0.dense0.act[1,2] free
+ sequential0.dense0.act[1,3] free
+ sequential0.dense0.act[1,4] free
+ sequential0.dense0.act[1,5] free
+ sequential0.dense0.act[1,6] free
+ sequential0.dense0.act[1,7] free
+ sequential0.dense0.act[1,8] free
+ sequential0.dense0.act[1,9] free
+ sequential0.dense0.act[1,10] free
+ sequential0.dense0.act[1,11] free
+ sequential0.dense0.act[1,12] free
+ sequential0.dense0.act[1,13] free
+ sequential0.dense0.act[1,14] free
+ sequential0.dense0.act[1,15] free
+ sequential0.dense0.act[1,16] free
+ sequential0.dense0.act[1,17] free
+ sequential0.dense0.act[1,18] free
+ sequential0.dense0.act[1,19] free
+ sequential0.dense0.act[1,20] free
+ sequential0.dense0.act[1,21] free
+ sequential0.dense0.act[1,22] free
+ sequential0.dense0.act[1,23] free
+ sequential0.dense0.mix[0,0] free
+ sequential0.dense0.mix[0,1] free
+ sequential0.dense0.mix[0,2] free
+ sequential0.dense0.mix[0,3] free
+ sequential0.dense0.mix[0,4] free
+ sequential0.dense0.mix[0,5] free
+ sequential0.dense0.mix[0,6] free
+ sequential0.dense0.mix[0,7] free
+ sequential0.dense0.mix[0,8] free
+ sequential0.dense0.mix[0,9] free
+ sequential0.dense0.mix[0,10] free
+ sequential0.dense0.mix[0,11] free
+ sequential0.dense0.mix[0,12] free
+ sequential0.dense0.mix[0,13] free
+ sequential0.dense0.mix[0,14] free
+ sequential0.dense0.mix[0,15] free
+ sequential0.dense0.mix[0,16] free
+ sequential0.dense0.mix[0,17] free
+ sequential0.dense0.mix[0,18] free
+ sequential0.dense0.mix[0,19] free
+ sequential0.dense0.mix[0,20] free
+ sequential0.dense0.mix[0,21] free
+ sequential0.dense0.mix[0,22] free
+ sequential0.dense0.mix[0,23] free
+ sequential0.dense0.mix[1,0] free
+ sequential0.dense0.mix[1,1] free
+ sequential0.dense0.mix[1,2] free
+ sequential0.dense0.mix[1,3] free
+ sequential0.dense0.mix[1,4] free
+ sequential0.dense0.mix[1,5] free
+ sequential0.dense0.mix[1,6] free
+ sequential0.dense0.mix[1,7] free
+ sequential0.dense0.mix[1,8] free
+ sequential0.dense0.mix[1,9] free
+ sequential0.dense0.mix[1,10] free
+ sequential0.dense0.mix[1,11] free
+ sequential0.dense0.mix[1,12] free
+ sequential0.dense0.mix[1,13] free
+ sequential0.dense0.mix[1,14] free
+ sequential0.dense0.mix[1,15] free
+ sequential0.dense0.mix[1,16] free
+ sequential0.dense0.mix[1,17] free
+ sequential0.dense0.mix[1,18] free
+ sequential0.dense0.mix[1,19] free
+ sequential0.dense0.mix[1,20] free
+ sequential0.dense0.mix[1,21] free
+ sequential0.dense0.mix[1,22] free
+ sequential0.dense0.mix[1,23] free
+Binaries
+ Block_attention_output.compatibility_max_s[1,0,0]
+ Block_attention_output.compatibility_max_s[1,0,1]
+ Block_attention_output.compatibility_max_s[1,1,0]
+ Block_attention_output.compatibility_max_s[1,1,1]
+General Constraints
+ GC0: Block_attention_output.compatibility_exp[1,0,0] =
+   EXP ( Block_attention_output.compatibility[1,0,0] )
+ GC1: Block_attention_output.compatibility_exp[1,0,1] =
+   EXP ( Block_attention_output.compatibility[1,0,1] )
+ GC2: Block_attention_output.compatibility_exp[1,1,0] =
+   EXP ( Block_attention_output.compatibility[1,1,0] )
+ GC3: Block_attention_output.compatibility_exp[1,1,1] =
+   EXP ( Block_attention_output.compatibility[1,1,1] )
+ sequential.dense0.relu[(0,0)]: sequential.dense0.act[0,0] = MAX (
+   sequential.dense0.mix[0,0] , 0 )
+ sequential.dense0.relu[(0,1)]: sequential.dense0.act[0,1] = MAX (
+   sequential.dense0.mix[0,1] , 0 )
+ sequential.dense0.relu[(0,2)]: sequential.dense0.act[0,2] = MAX (
+   sequential.dense0.mix[0,2] , 0 )
+ sequential.dense0.relu[(0,3)]: sequential.dense0.act[0,3] = MAX (
+   sequential.dense0.mix[0,3] , 0 )
+ sequential.dense0.relu[(0,4)]: sequential.dense0.act[0,4] = MAX (
+   sequential.dense0.mix[0,4] , 0 )
+ sequential.dense0.relu[(0,5)]: sequential.dense0.act[0,5] = MAX (
+   sequential.dense0.mix[0,5] , 0 )
+ sequential.dense0.relu[(0,6)]: sequential.dense0.act[0,6] = MAX (
+   sequential.dense0.mix[0,6] , 0 )
+ sequential.dense0.relu[(0,7)]: sequential.dense0.act[0,7] = MAX (
+   sequential.dense0.mix[0,7] , 0 )
+ sequential.dense0.relu[(0,8)]: sequential.dense0.act[0,8] = MAX (
+   sequential.dense0.mix[0,8] , 0 )
+ sequential.dense0.relu[(0,9)]: sequential.dense0.act[0,9] = MAX (
+   sequential.dense0.mix[0,9] , 0 )
+ sequential.dense0.relu[(0,10)]: sequential.dense0.act[0,10] = MAX (
+   sequential.dense0.mix[0,10] , 0 )
+ sequential.dense0.relu[(0,11)]: sequential.dense0.act[0,11] = MAX (
+   sequential.dense0.mix[0,11] , 0 )
+ sequential.dense0.relu[(0,12)]: sequential.dense0.act[0,12] = MAX (
+   sequential.dense0.mix[0,12] , 0 )
+ sequential.dense0.relu[(0,13)]: sequential.dense0.act[0,13] = MAX (
+   sequential.dense0.mix[0,13] , 0 )
+ sequential.dense0.relu[(0,14)]: sequential.dense0.act[0,14] = MAX (
+   sequential.dense0.mix[0,14] , 0 )
+ sequential.dense0.relu[(0,15)]: sequential.dense0.act[0,15] = MAX (
+   sequential.dense0.mix[0,15] , 0 )
+ sequential.dense0.relu[(0,16)]: sequential.dense0.act[0,16] = MAX (
+   sequential.dense0.mix[0,16] , 0 )
+ sequential.dense0.relu[(0,17)]: sequential.dense0.act[0,17] = MAX (
+   sequential.dense0.mix[0,17] , 0 )
+ sequential.dense0.relu[(0,18)]: sequential.dense0.act[0,18] = MAX (
+   sequential.dense0.mix[0,18] , 0 )
+ sequential.dense0.relu[(0,19)]: sequential.dense0.act[0,19] = MAX (
+   sequential.dense0.mix[0,19] , 0 )
+ sequential.dense0.relu[(0,20)]: sequential.dense0.act[0,20] = MAX (
+   sequential.dense0.mix[0,20] , 0 )
+ sequential.dense0.relu[(0,21)]: sequential.dense0.act[0,21] = MAX (
+   sequential.dense0.mix[0,21] , 0 )
+ sequential.dense0.relu[(0,22)]: sequential.dense0.act[0,22] = MAX (
+   sequential.dense0.mix[0,22] , 0 )
+ sequential.dense0.relu[(0,23)]: sequential.dense0.act[0,23] = MAX (
+   sequential.dense0.mix[0,23] , 0 )
+ sequential.dense0.relu[(0,24)]: sequential.dense0.act[0,24] = MAX (
+   sequential.dense0.mix[0,24] , 0 )
+ sequential.dense0.relu[(0,25)]: sequential.dense0.act[0,25] = MAX (
+   sequential.dense0.mix[0,25] , 0 )
+ sequential.dense0.relu[(0,26)]: sequential.dense0.act[0,26] = MAX (
+   sequential.dense0.mix[0,26] , 0 )
+ sequential.dense0.relu[(0,27)]: sequential.dense0.act[0,27] = MAX (
+   sequential.dense0.mix[0,27] , 0 )
+ sequential.dense0.relu[(0,28)]: sequential.dense0.act[0,28] = MAX (
+   sequential.dense0.mix[0,28] , 0 )
+ sequential.dense0.relu[(0,29)]: sequential.dense0.act[0,29] = MAX (
+   sequential.dense0.mix[0,29] , 0 )
+ sequential.dense0.relu[(0,30)]: sequential.dense0.act[0,30] = MAX (
+   sequential.dense0.mix[0,30] , 0 )
+ sequential.dense0.relu[(0,31)]: sequential.dense0.act[0,31] = MAX (
+   sequential.dense0.mix[0,31] , 0 )
+ sequential.dense0.relu[(1,0)]: sequential.dense0.act[1,0] = MAX (
+   sequential.dense0.mix[1,0] , 0 )
+ sequential.dense0.relu[(1,1)]: sequential.dense0.act[1,1] = MAX (
+   sequential.dense0.mix[1,1] , 0 )
+ sequential.dense0.relu[(1,2)]: sequential.dense0.act[1,2] = MAX (
+   sequential.dense0.mix[1,2] , 0 )
+ sequential.dense0.relu[(1,3)]: sequential.dense0.act[1,3] = MAX (
+   sequential.dense0.mix[1,3] , 0 )
+ sequential.dense0.relu[(1,4)]: sequential.dense0.act[1,4] = MAX (
+   sequential.dense0.mix[1,4] , 0 )
+ sequential.dense0.relu[(1,5)]: sequential.dense0.act[1,5] = MAX (
+   sequential.dense0.mix[1,5] , 0 )
+ sequential.dense0.relu[(1,6)]: sequential.dense0.act[1,6] = MAX (
+   sequential.dense0.mix[1,6] , 0 )
+ sequential.dense0.relu[(1,7)]: sequential.dense0.act[1,7] = MAX (
+   sequential.dense0.mix[1,7] , 0 )
+ sequential.dense0.relu[(1,8)]: sequential.dense0.act[1,8] = MAX (
+   sequential.dense0.mix[1,8] , 0 )
+ sequential.dense0.relu[(1,9)]: sequential.dense0.act[1,9] = MAX (
+   sequential.dense0.mix[1,9] , 0 )
+ sequential.dense0.relu[(1,10)]: sequential.dense0.act[1,10] = MAX (
+   sequential.dense0.mix[1,10] , 0 )
+ sequential.dense0.relu[(1,11)]: sequential.dense0.act[1,11] = MAX (
+   sequential.dense0.mix[1,11] , 0 )
+ sequential.dense0.relu[(1,12)]: sequential.dense0.act[1,12] = MAX (
+   sequential.dense0.mix[1,12] , 0 )
+ sequential.dense0.relu[(1,13)]: sequential.dense0.act[1,13] = MAX (
+   sequential.dense0.mix[1,13] , 0 )
+ sequential.dense0.relu[(1,14)]: sequential.dense0.act[1,14] = MAX (
+   sequential.dense0.mix[1,14] , 0 )
+ sequential.dense0.relu[(1,15)]: sequential.dense0.act[1,15] = MAX (
+   sequential.dense0.mix[1,15] , 0 )
+ sequential.dense0.relu[(1,16)]: sequential.dense0.act[1,16] = MAX (
+   sequential.dense0.mix[1,16] , 0 )
+ sequential.dense0.relu[(1,17)]: sequential.dense0.act[1,17] = MAX (
+   sequential.dense0.mix[1,17] , 0 )
+ sequential.dense0.relu[(1,18)]: sequential.dense0.act[1,18] = MAX (
+   sequential.dense0.mix[1,18] , 0 )
+ sequential.dense0.relu[(1,19)]: sequential.dense0.act[1,19] = MAX (
+   sequential.dense0.mix[1,19] , 0 )
+ sequential.dense0.relu[(1,20)]: sequential.dense0.act[1,20] = MAX (
+   sequential.dense0.mix[1,20] , 0 )
+ sequential.dense0.relu[(1,21)]: sequential.dense0.act[1,21] = MAX (
+   sequential.dense0.mix[1,21] , 0 )
+ sequential.dense0.relu[(1,22)]: sequential.dense0.act[1,22] = MAX (
+   sequential.dense0.mix[1,22] , 0 )
+ sequential.dense0.relu[(1,23)]: sequential.dense0.act[1,23] = MAX (
+   sequential.dense0.mix[1,23] , 0 )
+ sequential.dense0.relu[(1,24)]: sequential.dense0.act[1,24] = MAX (
+   sequential.dense0.mix[1,24] , 0 )
+ sequential.dense0.relu[(1,25)]: sequential.dense0.act[1,25] = MAX (
+   sequential.dense0.mix[1,25] , 0 )
+ sequential.dense0.relu[(1,26)]: sequential.dense0.act[1,26] = MAX (
+   sequential.dense0.mix[1,26] , 0 )
+ sequential.dense0.relu[(1,27)]: sequential.dense0.act[1,27] = MAX (
+   sequential.dense0.mix[1,27] , 0 )
+ sequential.dense0.relu[(1,28)]: sequential.dense0.act[1,28] = MAX (
+   sequential.dense0.mix[1,28] , 0 )
+ sequential.dense0.relu[(1,29)]: sequential.dense0.act[1,29] = MAX (
+   sequential.dense0.mix[1,29] , 0 )
+ sequential.dense0.relu[(1,30)]: sequential.dense0.act[1,30] = MAX (
+   sequential.dense0.mix[1,30] , 0 )
+ sequential.dense0.relu[(1,31)]: sequential.dense0.act[1,31] = MAX (
+   sequential.dense0.mix[1,31] , 0 )
+ sequential0.dense0.relu[(0,0)]: sequential0.dense0.act[0,0] = MAX (
+   sequential0.dense0.mix[0,0] , 0 )
+ sequential0.dense0.relu[(0,1)]: sequential0.dense0.act[0,1] = MAX (
+   sequential0.dense0.mix[0,1] , 0 )
+ sequential0.dense0.relu[(0,2)]: sequential0.dense0.act[0,2] = MAX (
+   sequential0.dense0.mix[0,2] , 0 )
+ sequential0.dense0.relu[(0,3)]: sequential0.dense0.act[0,3] = MAX (
+   sequential0.dense0.mix[0,3] , 0 )
+ sequential0.dense0.relu[(0,4)]: sequential0.dense0.act[0,4] = MAX (
+   sequential0.dense0.mix[0,4] , 0 )
+ sequential0.dense0.relu[(0,5)]: sequential0.dense0.act[0,5] = MAX (
+   sequential0.dense0.mix[0,5] , 0 )
+ sequential0.dense0.relu[(0,6)]: sequential0.dense0.act[0,6] = MAX (
+   sequential0.dense0.mix[0,6] , 0 )
+ sequential0.dense0.relu[(0,7)]: sequential0.dense0.act[0,7] = MAX (
+   sequential0.dense0.mix[0,7] , 0 )
+ sequential0.dense0.relu[(0,8)]: sequential0.dense0.act[0,8] = MAX (
+   sequential0.dense0.mix[0,8] , 0 )
+ sequential0.dense0.relu[(0,9)]: sequential0.dense0.act[0,9] = MAX (
+   sequential0.dense0.mix[0,9] , 0 )
+ sequential0.dense0.relu[(0,10)]: sequential0.dense0.act[0,10] = MAX (
+   sequential0.dense0.mix[0,10] , 0 )
+ sequential0.dense0.relu[(0,11)]: sequential0.dense0.act[0,11] = MAX (
+   sequential0.dense0.mix[0,11] , 0 )
+ sequential0.dense0.relu[(0,12)]: sequential0.dense0.act[0,12] = MAX (
+   sequential0.dense0.mix[0,12] , 0 )
+ sequential0.dense0.relu[(0,13)]: sequential0.dense0.act[0,13] = MAX (
+   sequential0.dense0.mix[0,13] , 0 )
+ sequential0.dense0.relu[(0,14)]: sequential0.dense0.act[0,14] = MAX (
+   sequential0.dense0.mix[0,14] , 0 )
+ sequential0.dense0.relu[(0,15)]: sequential0.dense0.act[0,15] = MAX (
+   sequential0.dense0.mix[0,15] , 0 )
+ sequential0.dense0.relu[(0,16)]: sequential0.dense0.act[0,16] = MAX (
+   sequential0.dense0.mix[0,16] , 0 )
+ sequential0.dense0.relu[(0,17)]: sequential0.dense0.act[0,17] = MAX (
+   sequential0.dense0.mix[0,17] , 0 )
+ sequential0.dense0.relu[(0,18)]: sequential0.dense0.act[0,18] = MAX (
+   sequential0.dense0.mix[0,18] , 0 )
+ sequential0.dense0.relu[(0,19)]: sequential0.dense0.act[0,19] = MAX (
+   sequential0.dense0.mix[0,19] , 0 )
+ sequential0.dense0.relu[(0,20)]: sequential0.dense0.act[0,20] = MAX (
+   sequential0.dense0.mix[0,20] , 0 )
+ sequential0.dense0.relu[(0,21)]: sequential0.dense0.act[0,21] = MAX (
+   sequential0.dense0.mix[0,21] , 0 )
+ sequential0.dense0.relu[(0,22)]: sequential0.dense0.act[0,22] = MAX (
+   sequential0.dense0.mix[0,22] , 0 )
+ sequential0.dense0.relu[(0,23)]: sequential0.dense0.act[0,23] = MAX (
+   sequential0.dense0.mix[0,23] , 0 )
+ sequential0.dense0.relu[(1,0)]: sequential0.dense0.act[1,0] = MAX (
+   sequential0.dense0.mix[1,0] , 0 )
+ sequential0.dense0.relu[(1,1)]: sequential0.dense0.act[1,1] = MAX (
+   sequential0.dense0.mix[1,1] , 0 )
+ sequential0.dense0.relu[(1,2)]: sequential0.dense0.act[1,2] = MAX (
+   sequential0.dense0.mix[1,2] , 0 )
+ sequential0.dense0.relu[(1,3)]: sequential0.dense0.act[1,3] = MAX (
+   sequential0.dense0.mix[1,3] , 0 )
+ sequential0.dense0.relu[(1,4)]: sequential0.dense0.act[1,4] = MAX (
+   sequential0.dense0.mix[1,4] , 0 )
+ sequential0.dense0.relu[(1,5)]: sequential0.dense0.act[1,5] = MAX (
+   sequential0.dense0.mix[1,5] , 0 )
+ sequential0.dense0.relu[(1,6)]: sequential0.dense0.act[1,6] = MAX (
+   sequential0.dense0.mix[1,6] , 0 )
+ sequential0.dense0.relu[(1,7)]: sequential0.dense0.act[1,7] = MAX (
+   sequential0.dense0.mix[1,7] , 0 )
+ sequential0.dense0.relu[(1,8)]: sequential0.dense0.act[1,8] = MAX (
+   sequential0.dense0.mix[1,8] , 0 )
+ sequential0.dense0.relu[(1,9)]: sequential0.dense0.act[1,9] = MAX (
+   sequential0.dense0.mix[1,9] , 0 )
+ sequential0.dense0.relu[(1,10)]: sequential0.dense0.act[1,10] = MAX (
+   sequential0.dense0.mix[1,10] , 0 )
+ sequential0.dense0.relu[(1,11)]: sequential0.dense0.act[1,11] = MAX (
+   sequential0.dense0.mix[1,11] , 0 )
+ sequential0.dense0.relu[(1,12)]: sequential0.dense0.act[1,12] = MAX (
+   sequential0.dense0.mix[1,12] , 0 )
+ sequential0.dense0.relu[(1,13)]: sequential0.dense0.act[1,13] = MAX (
+   sequential0.dense0.mix[1,13] , 0 )
+ sequential0.dense0.relu[(1,14)]: sequential0.dense0.act[1,14] = MAX (
+   sequential0.dense0.mix[1,14] , 0 )
+ sequential0.dense0.relu[(1,15)]: sequential0.dense0.act[1,15] = MAX (
+   sequential0.dense0.mix[1,15] , 0 )
+ sequential0.dense0.relu[(1,16)]: sequential0.dense0.act[1,16] = MAX (
+   sequential0.dense0.mix[1,16] , 0 )
+ sequential0.dense0.relu[(1,17)]: sequential0.dense0.act[1,17] = MAX (
+   sequential0.dense0.mix[1,17] , 0 )
+ sequential0.dense0.relu[(1,18)]: sequential0.dense0.act[1,18] = MAX (
+   sequential0.dense0.mix[1,18] , 0 )
+ sequential0.dense0.relu[(1,19)]: sequential0.dense0.act[1,19] = MAX (
+   sequential0.dense0.mix[1,19] , 0 )
+ sequential0.dense0.relu[(1,20)]: sequential0.dense0.act[1,20] = MAX (
+   sequential0.dense0.mix[1,20] , 0 )
+ sequential0.dense0.relu[(1,21)]: sequential0.dense0.act[1,21] = MAX (
+   sequential0.dense0.mix[1,21] , 0 )
+ sequential0.dense0.relu[(1,22)]: sequential0.dense0.act[1,22] = MAX (
+   sequential0.dense0.mix[1,22] , 0 )
+ sequential0.dense0.relu[(1,23)]: sequential0.dense0.act[1,23] = MAX (
+   sequential0.dense0.mix[1,23] , 0 )
+End

@@ -12,16 +12,36 @@ from sklearn.preprocessing import MinMaxScaler
 # instantiate pyomo model component
 model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
 
+# # define constants
+# T_end = 0.5
+# steps = 19 #100
+# time = np.linspace(0, T_end, num=steps)
+# dt = time[1] - time[0]
+# print(time)
+
+# g = 9.81
+# v_l1 = 0.2
+# v_l2 = 1.5
+
 # define constants
-T_end = 0.5
-steps = 19 #100
+T_end = 0.5#0.0105
+steps = 19 ##CHANGE THIS ##
 time = np.linspace(0, T_end, num=steps)
-dt = time[1] - time[0]
-print(time)
+
+tt = 2 # sequence size
+time_history = time[0:tt]
+pred_len = 1
+
+time = time[:tt+pred_len]
+steps = len(time)
+print(steps)
 
 g = 9.81
 v_l1 = 0.2
 v_l2 = 1.5
+dt = time[-1] - time[0]
+    
+
 
 
 # define sets
@@ -38,7 +58,9 @@ def target_location_rule(M, t):
 model.loc1 = pyo.Param(model.time, rule=target_location_rule) 
 
 def target_location2_rule(M, t):
-    return (v_l2*t) - (0.5 * g * (t**2)) + (np.random.rand(1)/30)
+    np.random.seed(int(v_l2*t*100))
+    print(np.random.uniform(-1,1)/30)
+    return (v_l2*t) - (0.5 * g * (t**2)) + ( np.random.uniform(-1,1)/30 )
 model.loc2 = pyo.Param(model.time, rule=target_location2_rule) 
 
 # define variables
@@ -56,14 +78,14 @@ model.x2_constr = pyo.Constraint(expr= model.x2[0] == 0)
 
 # # define constraints
 
-model.x1_constr = pyo.Constraint(expr= model.v1 >= 0) 
-model.x2_constr = pyo.Constraint(expr= model.v2 >= 0) 
+model.v1_constr = pyo.Constraint(expr= model.v1 >= 0) 
+model.v2_constr = pyo.Constraint(expr= model.v2 >= 0) 
 def v1_rule(M, t):
     return M.x1[t] == M.v1 * t
 model.v1_constr = pyo.Constraint(model.time, rule=v1_rule) 
 
 def v2_rule(M, t):
-    return M.x2[t] == (M.v2 * t) - (0.5*g * (t**2))
+    return M.x2[t] == (M.v2*t) - (0.5 * g * (t**2))
 model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)
 
 # Set objective
@@ -114,8 +136,8 @@ v1= np.array(optimal_parameters['v1'])
 v2= np.array(optimal_parameters['v2'])
 # T= np.array(optimal_parameters['T'])
 
-
-
+print("opt x1: ", x1)
+print("opt x2: ", x2)
 plt.figure(1, figsize=(6, 4))
 plt.plot(time, loc2, 'o', label = f'x2 data')
 plt.plot(time, x2, '--x', label = f'x2 predicted')

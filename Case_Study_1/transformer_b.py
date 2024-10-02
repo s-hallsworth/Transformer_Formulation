@@ -538,17 +538,17 @@ class Transformer:
                 if gamma and beta:
                     self.M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == gamma[d] * div[t,d])
                     self.M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == numerator_scaled[t,d] + beta[d])
-                    layer_norm_var[t, d].ub = max(beta[d] + 6*gamma[d], beta[d] - 6*gamma[d])
-                    layer_norm_var[t, d].lb = min(beta[d] + 6*gamma[d], beta[d] - 6*gamma[d])
+                    layer_norm_var[t, d].ub = max(beta[d] + 5*gamma[d], beta[d] - 5*gamma[d])
+                    layer_norm_var[t, d].lb = min(beta[d] + 5*gamma[d], beta[d] - 5*gamma[d])
                     
-                    # div[t,d].ub = 5 #range of normalized values assuming normal distribution
-                    # div[t,d].lb = -5
+                    div[t,d].ub = 5 #range of normalized values assuming normal distribution
+                    div[t,d].lb = -5
                     
                 else: 
                     self.M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == div[t,d])
                     self.M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == numerator_scaled[t,d])
-                    # layer_norm_var[t, d].ub = 5
-                    # layer_norm_var[t, d].lb = -5
+                    layer_norm_var[t, d].ub = 5
+                    layer_norm_var[t, d].lb = -5
                     
                 #Add bounds
                 # if std:
