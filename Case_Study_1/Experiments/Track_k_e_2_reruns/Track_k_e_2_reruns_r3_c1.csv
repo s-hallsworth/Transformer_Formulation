@@ -1,7 +1,7 @@
 Metric,Value
-Name,.\Experiments\Track_k_e_2_reruns\Track_k_e_2_reruns_r1_c1
-Exp,Track_k_e_2_reruns_r1_c1
-Rep,1
+Name,.\Experiments\Track_k_e_2_reruns\Track_k_e_2_reruns_r3_c1
+Exp,Track_k_e_2_reruns_r3_c1
+Rep,3
 Num Enc,1
 Num Dec,0
 Num Res,2
@@ -31,12 +31,12 @@ Num Constraints,298
 Num Cont Vars,458
 Num Int Vars,0
 Num Bin Vars,4
-Run Time (s),3600.072000026703
-Run Time (wu),1284.4114580687303
-Num Iters,229996361.0
-Num Nodes Expl,8323064.0
-Num Solns,10
-Opt Gap,0.2712873335285893
+Run Time (s),0.1400001049041748
+Run Time (wu),0.0547137059453209
+Num Iters,1495.0
+Num Nodes Expl,1.0
+Num Solns,0
+Opt Gap,inf
 Obj Value,
 RNR Obj Value,0.00020580650399894956
 RNR Iters,0

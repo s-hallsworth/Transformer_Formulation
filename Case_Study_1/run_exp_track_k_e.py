@@ -30,7 +30,7 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0'
 # Set Up
 TESTING = False # fix TNN input for testing (faster solve)
 combine_files = not TESTING
-REP = 3 # number of repetitions of each scenario
+REP = 2 # number of repetitions of each scenario
 NAME = "track_traj_keras_enc"
 SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
@@ -118,12 +118,11 @@ tnn_config["Model"] = model_path
 # get intermediate results dictionary for optimal input values
 input = np.array([[ [x1,x2] for x1,x2 in zip(input_x1, input_x2)]], dtype=np.float32)
 layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path, input[:, 0:seq_len, :])
-
+FFN_out = np.array(layer_outputs_dict["dense_4"])[0].transpose(1,0)
 
 # ##------ Fix model solution for TESTING ------##
 if TESTING:
     REP = 1
-    FFN_out = np.array(layer_outputs_dict["dense_4"])[0].transpose(1,0)
     model.fixed_loc_constraints = pyo.ConstraintList()
     for i,t in enumerate(model.time):
         if t <= model.time_history.last():
@@ -223,7 +222,7 @@ combinations = [[bool(val) for val in sublist] for sublist in combinations]
 for r in range(REP):
         
     for c, combi in enumerate(combinations):# for each combination of constraints/bounds
-        experiment_name = f"{exp_name}_r{r+1}_c{c+1}"
+        experiment_name = f"{exp_name}_r{r+1+3}_c{c+1}"
         # activate constraints
         ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACTI["MHA_D"]["act_val"], ACTI["MHA_MC"]["act_val"] = combi
 
@@ -362,7 +361,7 @@ for r in range(REP):
         tnn_config["Config"] = c+1
 
         if not TESTING:
-            save_gurobi_results(gurobi_model, PATH+experiment_name, experiment_name, r+1, tnn_config)
+            save_gurobi_results(gurobi_model, PATH+experiment_name, experiment_name, r+1+3, tnn_config)
 
 if combine_files:            
     output_filename = f'{exp_name}.csv'

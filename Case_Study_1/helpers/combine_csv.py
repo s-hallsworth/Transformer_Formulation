@@ -1,6 +1,8 @@
 import pandas as pd
 import os
 
+
+
 def combine(PATH, output_filename):
     # combine all csv files into one
     csv_files = [f for f in os.listdir(PATH) if f.endswith('.csv')]
@@ -22,4 +24,11 @@ def combine(PATH, output_filename):
     combined_df.to_csv(output_file, index=False)
 
     print(f"File saved to: {output_file}")
+    
+    
+# exp_name = "Track_k_e_2_reruns"
+# PATH =  r".\Experiments\Track_k_e_2_reruns"
+
+# output_filename = f'{exp_name}.csv'
+# combine(PATH, output_filename)
 
