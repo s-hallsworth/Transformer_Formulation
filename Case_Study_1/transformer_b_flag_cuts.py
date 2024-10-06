@@ -427,6 +427,7 @@ class Transformer:
         self.M.input_dims = pyo.Set(initialize= list(range(self.input_dim)))
         enc_layer = 0
         dec_layer = 0 
+        enc_post_attn_flag = False
         
         for l, layer in enumerate(layer_names):
             print("layer iteration", layer)
@@ -442,7 +443,13 @@ class Transformer:
             if "enc" in layer:
                 residual = None
                 if "norm" in layer and not layer.endswith("_1"):
+                    if enc_post_attn_flag:
+                        residual = enc_norm_1 #in each layer the norm after self attention has residual to first norm.
+                        enc_post_attn_flag = False
                     residual = layer_names[l - 2]
+                else:
+                    enc_norm_1 = layer
+                    enc_post_attn_flag = True
                     
                 enc_input_name, ffn_parameter_dict  = self.__add_ED_layer(parameters, layer, enc_input_name, enc_layer, ffn_parameter_dict, enc_output_name=None, residual=residual)              
                 if "self_attention" in layer:
@@ -456,6 +463,7 @@ class Transformer:
                 
                 if "self_attention" in layer:
                     dec_layer +=1
+                    
                      
             elif "layer_norm" in layer:
                 if dec_layer > 1: #if final layer, only apply on decoder

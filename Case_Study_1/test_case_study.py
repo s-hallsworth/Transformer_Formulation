@@ -9,11 +9,15 @@ import os
 from omlt import OmltBlock
 import torch
 from gurobipy import Model, GRB
+import sys
 #from gurobi_ml import add_predictor_constr
 from gurobi_machinelearning.src.gurobi_ml.add_predictor import add_predictor_constr
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
+import transformers
+sys.modules['transformers.src'] = transformers
+sys.modules['transformers.src.transformers'] = transformers
 # Import from repo file
 import transformer_b_flag_cuts as TNN
 from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
@@ -21,9 +25,13 @@ from helpers.print_stats import solve_pyomo, solve_gurobipy
 import helpers.convert_pyomo as convert_pyomo
 from trained_transformer.Tmodel import TransformerModel
 import helpers.extract_from_pretrained as extract_from_pretrained
-from transformers.src.transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
-from transformers.src.transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
+from transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
+from transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
 # cloned transformers from: https://github.com/s-hallsworth/transformers.git
+# cd transformers 
+# pip install -e .
+
+
 from gurobi_machinelearning.src.gurobi_ml.add_predictor import add_predictor_constr
 
 """
@@ -43,7 +51,7 @@ class TestTransformer(unittest.TestCase):
     #     transformer.M.model_dims = pyo.Set(initialize= list(range(transformer.d_model)))
     #     transformer.M.input_dims = pyo.Set(initialize= list(range(transformer.input_dim)))
     
-    #     bounds_target = (-1,1)
+    #     bounds_target = (None, None)
     #     # Add TNN input vars
     #     transformer.M.enc_input = pyo.Var(transformer.M.enc_time_dims,  transformer.M.input_dims, bounds=bounds_target)
     #     transformer.M.dec_input = pyo.Var(transformer.M.dec_time_dims,  transformer.M.input_dims, bounds=bounds_target)
@@ -65,6 +73,9 @@ class TestTransformer(unittest.TestCase):
     #         for tnn_dim, dim in zip(indices[1], m.dims):
     #             m.tnn_input_constraints.add(expr= transformer.M.dec_input[tnn_index, tnn_dim]== m.x[index, dim])
                 
+    #     # fix final decoder
+    #     for d, dim in enumerate(m.dims):
+    #         m.x_fixed_constraints.add(expr= m.x[m.dec_space.last(),dim] == input[-1,d])
                 
     #     # Set objective: maximise amount of methanol at reactor outlet
     #     m.obj = pyo.Objective(
@@ -100,26 +111,448 @@ class TestTransformer(unittest.TestCase):
     #     model_enc_input = np.array(optimal_parameters[enc_input_name])
     #     model_dec_input = np.array(optimal_parameters[dec_input_name])
         
-    #     expected_enc_input = (src.numpy() - np.array(states_min)) / ( np.array(states_max) - np.array(states_min))
-    #     expected_dec_input = (tgt.numpy() - np.array(states_min)) / ( np.array(states_max) - np.array(states_min))
-        
-    #     model_tgt = np.array(optimal_parameters["x"])
-    #     expected_tgt = tgt.numpy().flatten()
+    #     expected_enc_input = src.numpy()
+    #     expected_dec_input = tgt.numpy()
         
     #     # Assertions
-    #     self.assertIsNone(np.testing.assert_array_equal(model_tgt.shape, expected_tgt.shape)) 
-    #     self.assertIsNone(np.testing.assert_array_equal(model_tgt, expected_tgt)) 
-    #     print("input tgt = expected input tgt")
+    #     self.assertIsNone(np.testing.assert_array_equal(model_enc_input.shape, expected_enc_input.flatten().shape)) # pyomo input data and transformer input data must be the same shape
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(model_enc_input, expected_enc_input.flatten(), decimal = 7))             # both inputs must be equal
+    #     print("input enc tnn = expected enc input tnn")
         
     #     self.assertIsNone(np.testing.assert_array_equal(model_dec_input.shape, expected_dec_input.flatten().shape)) # pyomo input data and transformer input data must be the same shape
     #     self.assertIsNone(np.testing.assert_array_almost_equal(model_dec_input, expected_dec_input.flatten(), decimal = 7))             # both inputs must be equal
     #     print("input dec tnn = expected dec input tnn")
         
+        
+    # def test_encoder_L1_TNN(self):
+    #     m = opt_model.clone()
+        
+    #     transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", m, activation_dict) 
+        
+    #     enc_dim_1 = src.size(0)
+    #     dec_dim_1 = tgt.size(0)
+    #     transformer.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
+    #     transformer.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
+    #     transformer.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) 
+    #     transformer.M.model_dims = pyo.Set(initialize= list(range(transformer.d_model)))
+    #     transformer.M.input_dims = pyo.Set(initialize= list(range(transformer.input_dim)))
+    
+    #     bounds_target = (None, None)
+    #     # Add TNN input vars
+    #     transformer.M.enc_input = pyo.Var(transformer.M.enc_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+    #     transformer.M.dec_input = pyo.Var(transformer.M.dec_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+        
+    #     # Add constraints to TNN encoder input
+    #     m.tnn_input_constraints = pyo.ConstraintList()
+    #     indices = []
+    #     for set in str(transformer.M.enc_input.index_set()).split("*"): # get TNN enc input index sets
+    #         indices.append( getattr(m, set) )
+    #     for tnn_index, index in zip(indices[0], m.enc_space):
+    #         for tnn_dim, dim in zip(indices[1], m.dims):
+    #             m.tnn_input_constraints.add(expr= transformer.M.enc_input[tnn_index, tnn_dim] == m.x_enc[index, dim])
+                
+    #     # Add constraints to TNN decoder input
+    #     indices = []
+    #     for set in str(transformer.M.dec_input.index_set()).split("*"):# get TNN dec input index sets
+    #         indices.append( getattr(m, set) )
+    #     for tnn_index, index in zip(indices[0], m.dec_space):
+    #         for tnn_dim, dim in zip(indices[1], m.dims):
+    #             m.tnn_input_constraints.add(expr= transformer.M.dec_input[tnn_index, tnn_dim]== m.x[index, dim])
+                
+                
+    #     # ADD ENCODER COMPONENTS
+    #     # Add Linear transform
+    #     # Linear transform
+    #     embed_dim = transformer.M.model_dims # embed from current dim to self.M.model_dims
+    #     layer = "enc_linear_1"
+    #     W_linear = parameters[layer,'W']
+    #     b_linear = parameters[layer,'b'] 
+    #     transformer.embed_input( "enc_input", layer, embed_dim, W_linear, b_linear)
+        
+    #     # # # Add positiona encoding
+    #     layer = "enc_pos_encoding_1"
+    #     b_pe = parameters[layer,'b']
+    #     transformer.add_pos_encoding("enc_linear_1", layer, b_pe)
+        
+        
+    #     # add norm1
+    #     layer = "enc__layer_normalization_1"
+    #     gamma1 = parameters["enc__layer_normalization_1", 'gamma']
+    #     beta1 = parameters["enc__layer_normalization_1", 'beta']
+        
+    #     transformer.add_layer_norm("enc_pos_encoding_1", "enc_norm_1", gamma1, beta1)
+        
+    #     # Add encoder self attention layer
+    #     layer = "enc__self_attention_1"
+        
+    #     W_q = parameters[layer,'W_q']
+    #     W_k = parameters[layer,'W_k']
+    #     W_v = parameters[layer,'W_v']
+    #     W_o = parameters[layer,'W_o']
+    #     b_q = parameters[layer,'b_q']
+    #     b_k = parameters[layer,'b_k']
+    #     b_v = parameters[layer,'b_v']
+    #     b_o = parameters[layer,'b_o']
+         
+    #     transformer.add_attention( "enc_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+        
+    #     # add res+norm2
+    #     layer = "enc__layer_normalization_2"
+    #     gamma1 = parameters[layer, 'gamma']
+    #     beta1 = parameters[layer, 'beta']
+        
+    #     transformer.add_residual_connection("enc_norm_1", "enc__self_attention_1", f"{layer}__residual_1")
+    #     transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_2", gamma1, beta1)
+         
+    #     # add ffn1
+    #     ffn_parameter_dict = {}
+    #     input_shape = parameters["enc__ffn_1"]['input_shape']
+    #     ffn_params = transformer.get_fnn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
+    #     ffn_parameter_dict["enc__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
+
+    #     # add res+norm3
+    #     layer = "enc__layer_normalization_3"
+    #     gamma1 = parameters[layer, 'gamma']
+    #     beta1 = parameters[layer, 'beta']
+        
+    #     transformer.add_residual_connection("enc_norm_2", "enc__ffn_1", f"{layer}__residual_1")
+    #     transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_3", gamma1, beta1)
+         
+        
+    #     # Set objective: maximise amount of methanol at reactor outlet
+    #     m.obj = pyo.Objective(
+    #             expr = m.x[m.dec_space.last(), "CH3OH"], sense=-1
+    #         )  # -1: maximize, +1: minimize (default)
+        
+    #     # Convert to gurobi
+    #     gurobi_model, map_var , _ = convert_pyomo.to_gurobi(m)
+        
+    #     # Add FNN1 to gurobi model
+    #     for key, value in ffn_parameter_dict.items():
+    #         nn, input_nn, output_nn = value
+    #         input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+    #         pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
+        
+    #     gurobi_model.update() # update gurobi model with FFN constraints
+        
+            
+    #     # Optimize
+    #     gurobi_model.setParam('MIPFocus', 1) 
+    #     gurobi_model.setParam('SolutionLimit', 1)
+    #     gurobi_model.optimize()
+
+    #     if gurobi_model.status == GRB.OPTIMAL:
+    #         optimal_parameters = {}
+    #         for v in gurobi_model.getVars():
+    #             #print(f'var name: {v.varName}, var type {type(v)}')
+    #             if "[" in v.varName:
+    #                 name = v.varname.split("[")[0]
+    #                 if name in optimal_parameters.keys():
+    #                     optimal_parameters[name] += [v.x]
+    #                 else:
+    #                     optimal_parameters[name] = [v.x]
+    #             else:    
+    #                 optimal_parameters[v.varName] = v.x
+                    
+    #     if gurobi_model.status == GRB.INFEASIBLE:
+    #         gurobi_model.computeIIS()
+    #         gurobi_model.write("pytorch_model.ilp")
+            
+    #     # input TNN
+    #     model_enc_input = np.array(optimal_parameters["enc_input"])
+    #     model_dec_input = np.array(optimal_parameters["dec_input"])
+    #     expected_enc_input = src.numpy()
+    #     expected_dec_input = tgt.numpy()
+        
     #     self.assertIsNone(np.testing.assert_array_equal(model_enc_input.shape, expected_enc_input.flatten().shape)) # pyomo input data and transformer input data must be the same shape
     #     self.assertIsNone(np.testing.assert_array_almost_equal(model_enc_input, expected_enc_input.flatten(), decimal = 7))             # both inputs must be equal
     #     print("input enc tnn = expected enc input tnn")
         
-    def test_encoder_TNN(self):
+    #     self.assertIsNone(np.testing.assert_array_equal(model_dec_input.shape, expected_dec_input.flatten().shape)) # pyomo input data and transformer input data must be the same shape
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(model_dec_input, expected_dec_input.flatten(), decimal = 7))             # both inputs must be equal
+    #     print("input dec tnn = expected dec input tnn")
+            
+    #     # Linear
+    #     enc_linear_1 = np.array(optimal_parameters["enc_linear_1"])
+    #     enc_linear_1_expected = np.array(list(layer_outputs_dict['model.encoder.value_embedding.value_projection']))[0].flatten()
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(enc_linear_1.shape, enc_linear_1_expected.shape)) 
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(enc_linear_1, enc_linear_1_expected, decimal = 7)) 
+    #     print("Enc linear 1 = expected enc linear 1")
+            
+    #     # Positional Embedding
+    #     enc_pe = np.array(optimal_parameters["enc_pos_encoding_1"])
+    #     enc_pe_expected = np.array(list(layer_outputs_dict['model.encoder.embed_positions']))[0].flatten() + enc_linear_1_expected
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(enc_pe.shape, enc_pe_expected.shape)) 
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(enc_pe, enc_pe_expected, decimal = 7)) 
+    #     print("Enc PE = expected Enc PE")
+        
+    #     # Norm 1
+    #     norm1 = np.array(optimal_parameters["enc_norm_1"])
+    #     norm1_expected = np.array(list(layer_outputs_dict['model.encoder.layernorm_embedding']))[0].flatten()
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(norm1.shape, norm1_expected.shape)) 
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(norm1, norm1_expected, decimal = 6)) 
+    #     print("Enc Norm1= expected Enc Norm1")
+        
+    #     #Self attn
+    #     self_attn_enc = np.array(optimal_parameters["enc__self_attention_1"])
+    #     self_attn_expected_out = np.array(list(layer_outputs_dict['model.encoder.layers.0.self_attn.out_proj'])[0][0]).flatten()
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(self_attn_expected_out.shape, self_attn_enc.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(self_attn_expected_out, self_attn_enc , decimal=6)) # compare value with transformer output
+    #     print("Enc MHA output formulation == Enc MHA Trained TNN")  
+        
+    #     # Norm 2
+    #     norm2 = np.array(optimal_parameters["enc_norm_2"])
+    #     norm2_expected = np.array(list(layer_outputs_dict['model.encoder.layers.0.self_attn_layer_norm']))[0].flatten()
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(norm2.shape, norm2_expected.shape)) 
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(norm2, norm2_expected, decimal = 5)) 
+    #     print("Enc Norm2= expected Enc Norm2")
+        
+    #     # FFN 1 
+    #     ffn1_enc = np.array(optimal_parameters["enc__ffn_1"])
+    #     ffn1_expected = np.array(list(layer_outputs_dict['model.encoder.layers.0.fc2']))[0].flatten()
+        
+    #     print(ffn1_enc)
+    #     print(ffn1_expected)
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(ffn1_expected.shape, ffn1_enc.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(ffn1_expected, ffn1_enc , decimal=5)) # compare value with transformer output
+    #     print("Enc FFN1 formulation == Enc FNN1 Trained TNN") 
+        
+    #     # Norm 3
+    #     norm3 = np.array(optimal_parameters["enc_norm_3"])
+    #     norm3_expected = np.array(list(layer_outputs_dict['model.encoder.layers.0.final_layer_norm']))[0].flatten()
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(norm3.shape, norm3_expected.shape)) 
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(norm3, norm3_expected, decimal = 5)) 
+    #     print("Enc Norm3 = expected Enc Norm3 (End of encoder layer 1)")
+        
+     
+    # def test_encoder_L2_TNN(self):
+    #     m = opt_model.clone()
+        
+    #     transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", m, activation_dict) 
+        
+    #     enc_dim_1 = src.size(0)
+    #     dec_dim_1 = tgt.size(0)
+    #     transformer.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
+    #     transformer.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
+    #     transformer.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) 
+    #     transformer.M.model_dims = pyo.Set(initialize= list(range(transformer.d_model)))
+    #     transformer.M.input_dims = pyo.Set(initialize= list(range(transformer.input_dim)))
+    
+    #     bounds_target = (None, None)
+    #     # Add TNN input vars
+    #     transformer.M.enc_input = pyo.Var(transformer.M.enc_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+    #     transformer.M.dec_input = pyo.Var(transformer.M.dec_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+        
+    #     # Add constraints to TNN encoder input
+    #     m.tnn_input_constraints = pyo.ConstraintList()
+    #     indices = []
+    #     for set in str(transformer.M.enc_input.index_set()).split("*"): # get TNN enc input index sets
+    #         indices.append( getattr(m, set) )
+    #     for tnn_index, index in zip(indices[0], m.enc_space):
+    #         for tnn_dim, dim in zip(indices[1], m.dims):
+    #             m.tnn_input_constraints.add(expr= transformer.M.enc_input[tnn_index, tnn_dim] == m.x_enc[index, dim])
+                
+    #     # Add constraints to TNN decoder input
+    #     indices = []
+    #     for set in str(transformer.M.dec_input.index_set()).split("*"):# get TNN dec input index sets
+    #         indices.append( getattr(m, set) )
+    #     for tnn_index, index in zip(indices[0], m.dec_space):
+    #         for tnn_dim, dim in zip(indices[1], m.dims):
+    #             m.tnn_input_constraints.add(expr= transformer.M.dec_input[tnn_index, tnn_dim]== m.x[index, dim])
+                
+                
+    #     # ADD ENCODER COMPONENTS
+    #     # Add Linear transform
+    #     # Linear transform
+    #     embed_dim = transformer.M.model_dims # embed from current dim to self.M.model_dims
+    #     layer = "enc_linear_1"
+    #     W_linear = parameters[layer,'W']
+    #     b_linear = parameters[layer,'b'] 
+    #     transformer.embed_input( "enc_input", layer, embed_dim, W_linear, b_linear)
+        
+    #     # # # Add positiona encoding
+    #     layer = "enc_pos_encoding_1"
+    #     b_pe = parameters[layer,'b']
+    #     transformer.add_pos_encoding("enc_linear_1", layer, b_pe)
+        
+        
+    #     # add norm1
+    #     layer = "enc__layer_normalization_1"
+    #     gamma1 = parameters["enc__layer_normalization_1", 'gamma']
+    #     beta1 = parameters["enc__layer_normalization_1", 'beta']
+        
+    #     transformer.add_layer_norm("enc_pos_encoding_1", "enc_norm_1", gamma1, beta1)
+        
+    #     # Add encoder self attention layer
+    #     layer = "enc__self_attention_1"
+        
+    #     W_q = parameters[layer,'W_q']
+    #     W_k = parameters[layer,'W_k']
+    #     W_v = parameters[layer,'W_v']
+    #     W_o = parameters[layer,'W_o']
+    #     b_q = parameters[layer,'b_q']
+    #     b_k = parameters[layer,'b_k']
+    #     b_v = parameters[layer,'b_v']
+    #     b_o = parameters[layer,'b_o']
+         
+    #     transformer.add_attention( "enc_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+        
+    #     # add res+norm2
+    #     layer = "enc__layer_normalization_2"
+    #     gamma1 = parameters[layer, 'gamma']
+    #     beta1 = parameters[layer, 'beta']
+        
+    #     transformer.add_residual_connection("enc_norm_1", "enc__self_attention_1", f"{layer}__residual_1")
+    #     transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_2", gamma1, beta1)
+         
+    #     # add ffn1
+    #     ffn_parameter_dict = {}
+    #     input_shape = parameters["enc__ffn_1"]['input_shape']
+    #     ffn_params = transformer.get_fnn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
+    #     ffn_parameter_dict["enc__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
+
+    #     # add res+norm3
+    #     layer = "enc__layer_normalization_3"
+    #     gamma1 = parameters[layer, 'gamma']
+    #     beta1 = parameters[layer, 'beta']
+        
+    #     transformer.add_residual_connection("enc_norm_2", "enc__ffn_1", f"{layer}__residual_1")
+    #     transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_3", gamma1, beta1)
+        
+    #     # ## Encoder Layer 2:
+        
+    #     # Add residual
+        
+    #     # Add encoder self attention layer
+    #     layer = "enc__self_attention_2"
+    #     W_q = parameters[layer,'W_q']
+    #     W_k = parameters[layer,'W_k']
+    #     W_v = parameters[layer,'W_v']
+    #     W_o = parameters[layer,'W_o']
+    #     b_q = parameters[layer,'b_q']
+    #     b_k = parameters[layer,'b_k']
+    #     b_v = parameters[layer,'b_v']
+    #     b_o = parameters[layer,'b_o']
+    #     transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+        
+    #     #add res+norm4
+    #     layer = "enc__layer_normalization_4"
+    #     gamma1 = parameters[layer, 'gamma']
+    #     beta1 = parameters[layer, 'beta']
+        
+    #     transformer.add_residual_connection("enc_norm_1", "enc__self_attention_2", f"{layer}__residual_1")
+    #     transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_4", gamma1, beta1)
+        
+        
+    #     # add ffn2
+    #     ffn_parameter_dict = {}
+    #     input_shape = parameters["enc__ffn_2"]['input_shape']
+    #     ffn_params = transformer.get_fnn( "enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters)
+    #     ffn_parameter_dict["enc__ffn_2"] = ffn_params # ffn_params: nn, input_nn, output_nn
+
+    #     # add res+norm5
+    #     layer = "enc__layer_normalization_5"
+    #     gamma1 = parameters[layer, 'gamma']
+    #     beta1 = parameters[layer, 'beta']
+        
+    #     transformer.add_residual_connection("enc_norm_4", "enc__ffn_2", f"{layer}__residual_1")
+    #     transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_5", gamma1, beta1)
+         
+         
+        
+    #     # Set objective: maximise amount of methanol at reactor outlet
+    #     m.obj = pyo.Objective(
+    #             expr = m.x[m.dec_space.last(), "CH3OH"], sense=-1
+    #         )  # -1: maximize, +1: minimize (default)
+        
+    #     # Convert to gurobi
+    #     gurobi_model, map_var , _ = convert_pyomo.to_gurobi(m)
+        
+    #     # Add FNN1 to gurobi model
+    #     for key, value in ffn_parameter_dict.items():
+    #         nn, input_nn, output_nn = value
+    #         input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+    #         pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
+        
+    #     gurobi_model.update() # update gurobi model with FFN constraints
+        
+            
+    #     # Optimize
+    #     gurobi_model.setParam('MIPFocus', 1) 
+    #     gurobi_model.setParam('SolutionLimit', 1)
+    #     gurobi_model.optimize()
+
+    #     if gurobi_model.status == GRB.OPTIMAL:
+    #         optimal_parameters = {}
+    #         for v in gurobi_model.getVars():
+    #             #print(f'var name: {v.varName}, var type {type(v)}')
+    #             if "[" in v.varName:
+    #                 name = v.varname.split("[")[0]
+    #                 if name in optimal_parameters.keys():
+    #                     optimal_parameters[name] += [v.x]
+    #                 else:
+    #                     optimal_parameters[name] = [v.x]
+    #             else:    
+    #                 optimal_parameters[v.varName] = v.x
+                    
+    #     if gurobi_model.status == GRB.INFEASIBLE:
+    #         gurobi_model.computeIIS()
+    #         gurobi_model.write("pytorch_model.ilp")
+            
+    #     # input TNN
+    #     model_enc_input = np.array(optimal_parameters["enc_input"])
+    #     model_dec_input = np.array(optimal_parameters["dec_input"])
+    #     expected_enc_input = src.numpy()
+    #     expected_dec_input = tgt.numpy()
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(model_enc_input.shape, expected_enc_input.flatten().shape)) # pyomo input data and transformer input data must be the same shape
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(model_enc_input, expected_enc_input.flatten(), decimal = 7))             # both inputs must be equal
+    #     print("input enc tnn = expected enc input tnn")
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(model_dec_input.shape, expected_dec_input.flatten().shape)) # pyomo input data and transformer input data must be the same shape
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(model_dec_input, expected_dec_input.flatten(), decimal = 7))             # both inputs must be equal
+    #     print("input dec tnn = expected dec input tnn")
+            
+    #     #ENc Layer 2: Self attn
+    #     self_attn2_enc = np.array(optimal_parameters["enc__self_attention_2"])
+    #     self_attn2_expected_out = np.array(list(layer_outputs_dict['model.encoder.layers.1.self_attn.out_proj'])[0][0]).flatten()
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(self_attn2_expected_out.shape, self_attn2_enc.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(self_attn2_expected_out, self_attn2_enc , decimal=4)) # compare value with transformer output
+    #     print("Enc MHA Layer 2 == expected Enc MHA Layer 2 ")  
+        
+    #     #Norm 4
+    #     norm4 = np.array(optimal_parameters["enc_norm_4"])
+    #     norm4_expected = np.array(list(layer_outputs_dict['model.encoder.layers.1.self_attn_layer_norm']))[0].flatten()
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(norm4.shape, norm4_expected.shape)) 
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(norm4, norm4_expected, decimal = 4)) 
+    #     print("Enc Norm4 = expected Enc Norm4")
+        
+    #     # FFN 2 
+    #     ffn2_enc = np.array(optimal_parameters["enc__ffn_2"])
+    #     ffn2_expected = np.array(list(layer_outputs_dict['model.encoder.layers.1.fc2']))[0].flatten()
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(ffn2_expected.shape, ffn2_enc.shape)) # compare shape with transformer
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(ffn2_expected, ffn2_enc , decimal=4)) # compare value with transformer output
+    #     print("Enc FFN2 formulation == Enc FNN2 Trained TNN")
+        
+    #     #Enc layer 2: norm final
+    #     norm5 = np.array(optimal_parameters["enc_norm_5"])
+    #     norm5_expected = np.array(list(layer_outputs_dict['model.encoder.layers.1.self_attn_layer_norm']))[0].flatten()
+        
+    #     self.assertIsNone(np.testing.assert_array_equal(norm5.shape, norm5_expected.shape)) 
+    #     self.assertIsNone(np.testing.assert_array_almost_equal(norm5, norm5_expected, decimal = 4)) 
+    #     print("Enc Output = expected Enc Output (Last Encoder Layer 2)")   
+        
+    def test_decoder_TNN(self):
         m = opt_model.clone()
         
         transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", m) 
@@ -205,7 +638,7 @@ class TestTransformer(unittest.TestCase):
         ffn_params = transformer.get_fnn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
         ffn_parameter_dict["enc__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
 
-        # add res+norm3
+        # add res+norm2
         layer = "enc__layer_normalization_3"
         gamma1 = parameters[layer, 'gamma']
         beta1 = parameters[layer, 'beta']
@@ -214,9 +647,6 @@ class TestTransformer(unittest.TestCase):
         transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_3", gamma1, beta1)
         
         ## Encoder Layer 2:
-        
-        # Add residual
-        
         # Add encoder self attention layer
         layer = "enc__self_attention_2"
         W_q = parameters[layer,'W_q']
@@ -229,22 +659,21 @@ class TestTransformer(unittest.TestCase):
         b_o = parameters[layer,'b_o']
         transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
         
-        #add res+norm4
+        #add res+norm2
         layer = "enc__layer_normalization_4"
         gamma1 = parameters[layer, 'gamma']
         beta1 = parameters[layer, 'beta']
         
-        transformer.add_residual_connection("enc_norm_3", "enc__self_attention_2", f"{layer}__residual_1")
+        transformer.add_residual_connection("enc_norm_1", "enc__self_attention_2", f"{layer}__residual_1")
         transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_4", gamma1, beta1)
-        
-        
-        # add ffn2
+         
+        # add ffn1
         ffn_parameter_dict = {}
         input_shape = parameters["enc__ffn_2"]['input_shape']
         ffn_params = transformer.get_fnn( "enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters)
         ffn_parameter_dict["enc__ffn_2"] = ffn_params # ffn_params: nn, input_nn, output_nn
 
-        # add res+norm5
+        # add res+norm2
         layer = "enc__layer_normalization_5"
         gamma1 = parameters[layer, 'gamma']
         beta1 = parameters[layer, 'beta']
@@ -252,9 +681,71 @@ class TestTransformer(unittest.TestCase):
         transformer.add_residual_connection("enc_norm_4", "enc__ffn_2", f"{layer}__residual_1")
         transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_5", gamma1, beta1)
          
+        # ## Decoder
+        # ## Dec Add Linear:
+        # embed_dim = transformer.M.model_dims # embed from current dim to self.M.model_dims
+        # layer = "dec_linear_1"
+        # W_linear = parameters[layer,'W']
+        # b_linear = parameters[layer,'b'] 
+        # transformer.embed_input( "dec_input", layer, embed_dim, W_linear, b_linear)
          
+        # # Dec Add positiona encoding
+        # layer = "dec_pos_encoding_1"
+        # b_pe = parameters[layer,'b']
+        # transformer.add_pos_encoding("dec_linear_1", layer, b_pe)
         
-        # Set objective: maximise amount of methanol at reactor outlet
+        # # Dec Add norm1
+        # layer = "dec__layer_normalization_1"
+        # gamma1 = parameters[layer, 'gamma']
+        # beta1 = parameters[layer, 'beta']
+        # transformer.add_layer_norm("dec_pos_encoding_1", "dec_norm_1", gamma1, beta1)
+        
+        # # Dec Add decoder self attention layer
+        # layer = "dec__self_attention_1"
+        # W_q = parameters[layer,'W_q']
+        # W_k = parameters[layer,'W_k']
+        # W_v = parameters[layer,'W_v']
+        # W_o = parameters[layer,'W_o']
+        # b_q = parameters[layer,'b_q']
+        # b_k = parameters[layer,'b_k']
+        # b_v = parameters[layer,'b_v']
+        # b_o = parameters[layer,'b_o']
+        # transformer.add_attention( "dec_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+        
+        # # Dec add res+norm2
+        # layer = "dec__layer_normalization_2"
+        # gamma1 = parameters[layer, 'gamma']
+        # beta1 = parameters[layer, 'beta']
+        
+        # transformer.add_residual_connection("dec_norm_1", "dec__self_attention_1", f"{layer}__residual_1")
+        # transformer.add_layer_norm(f"{layer}__residual_1", "dec_norm_2", gamma1, beta1)
+         
+        # # Dec Cross Attn
+        # W_q = parameters["dec__mutli_head_attention_1",'W_q'] # query from encoder
+        # W_k = parameters["dec__mutli_head_attention_1",'W_k']
+        # W_v = parameters["dec__mutli_head_attention_1",'W_v']
+        # W_o = parameters["dec__mutli_head_attention_1",'W_o']
+        
+        # b_q = parameters["dec__mutli_head_attention_1",'b_q'] # query from encoder
+        # b_k = parameters["dec__mutli_head_attention_1",'b_k']
+        # b_v = parameters["dec__mutli_head_attention_1",'b_v']
+        # b_o = parameters["dec__mutli_head_attention_1",'b_o']
+            
+        # transformer.add_attention( "dec_norm_2", "dec__mutli_head_attention_1", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_5")
+
+        
+        # # add res+norm3
+        # layer = "enc__layer_normalization_3"
+        # gamma1 = parameters[layer, 'gamma']
+        # beta1 = parameters[layer, 'beta']
+        
+        # transformer.add_residual_connection("enc_norm_2", "enc__ffn_1", f"{layer}__residual_1")
+        # transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_3", gamma1, beta1)
+        
+        
+        
+        ##----------------------------------------------------------------##
+        ## Set objective: maximise amount of methanol at reactor outlet
         m.obj = pyo.Objective(
                 expr = m.x[m.dec_space.last(), "CH3OH"], sense=-1
             )  # -1: maximize, +1: minimize (default)
@@ -272,7 +763,6 @@ class TestTransformer(unittest.TestCase):
         
             
         # Optimize
-        gurobi_model.setParam('MIPFocus', 1) 
         gurobi_model.optimize()
 
         if gurobi_model.status == GRB.OPTIMAL:
@@ -291,7 +781,8 @@ class TestTransformer(unittest.TestCase):
         if gurobi_model.status == GRB.INFEASIBLE:
             gurobi_model.computeIIS()
             gurobi_model.write("pytorch_model.ilp")
-            
+          
+        ##----------------------------------------------------------------##  
         # input TNN
         model_enc_input = np.array(optimal_parameters["enc_input"])
         model_dec_input = np.array(optimal_parameters["dec_input"])
@@ -304,395 +795,63 @@ class TestTransformer(unittest.TestCase):
         self.assertIsNone(np.testing.assert_array_equal(model_dec_input.shape, expected_dec_input.flatten().shape)) # pyomo input data and transformer input data must be the same shape
         self.assertIsNone(np.testing.assert_array_almost_equal(model_dec_input, expected_dec_input.flatten(), decimal = 7))             # both inputs must be equal
         print("input tnn = expected input tnn")
-            
-        # Linear
-        enc_linear_1 = np.array(optimal_parameters["enc_linear_1"])
-        enc_linear_1_expected = np.array(list(layer_outputs_dict['model.encoder.value_embedding.value_projection']))[0].flatten()
         
-        self.assertIsNone(np.testing.assert_array_equal(enc_linear_1.shape, enc_linear_1_expected.shape)) 
-        self.assertIsNone(np.testing.assert_array_almost_equal(enc_linear_1, enc_linear_1_expected, decimal = 7)) 
-        print("Enc linear 1 = expected enc linear 1")
-            
-        # Positional Embedding
-        enc_pe = np.array(optimal_parameters["enc_pos_encoding_1"])
-        enc_pe_expected = np.array(list(layer_outputs_dict['model.encoder.embed_positions']))[0].flatten() + enc_linear_1_expected
-        
-        self.assertIsNone(np.testing.assert_array_equal(enc_pe.shape, enc_pe_expected.shape)) 
-        self.assertIsNone(np.testing.assert_array_almost_equal(enc_pe, enc_pe_expected, decimal = 7)) 
-        print("Enc PE = expected Enc PE")
-        
-        # Norm 1
-        norm1 = np.array(optimal_parameters["enc_norm_1"])
-        norm1_expected = np.array(list(layer_outputs_dict['model.encoder.layernorm_embedding']))[0].flatten()
-        
-        self.assertIsNone(np.testing.assert_array_equal(norm1.shape, norm1_expected.shape)) 
-        self.assertIsNone(np.testing.assert_array_almost_equal(norm1, norm1_expected, decimal = 6)) 
-        print("Enc Norm1= expected Enc Norm1")
-        
-        #Self attn
-        self_attn_enc = np.array(optimal_parameters["enc__self_attention_1"])
-        self_attn_expected_out = np.array(list(layer_outputs_dict['model.encoder.layers.0.self_attn.out_proj'])[0][0]).flatten()
-        
-        self.assertIsNone(np.testing.assert_array_equal(self_attn_expected_out.shape, self_attn_enc.shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(self_attn_expected_out, self_attn_enc , decimal=6)) # compare value with transformer output
-        print("Enc MHA output formulation == Enc MHA Trained TNN")  
-        
-        # Norm 2
-        norm2 = np.array(optimal_parameters["enc_norm_2"])
-        norm2_expected = np.array(list(layer_outputs_dict['model.encoder.layers.0.self_attn_layer_norm']))[0].flatten()
-        
-        self.assertIsNone(np.testing.assert_array_equal(norm2.shape, norm2_expected.shape)) 
-        self.assertIsNone(np.testing.assert_array_almost_equal(norm2, norm2_expected, decimal = 5)) 
-        print("Enc Norm2= expected Enc Norm2")
-        
-        # FFN 1 
-        ffn1_enc = np.array(optimal_parameters["enc__ffn_1"])
-        ffn1_expected = np.array(list(layer_outputs_dict['model.encoder.layers.0.fc2']))[0].flatten()
-        
-        self.assertIsNone(np.testing.assert_array_equal(ffn1_expected.shape, ffn1_enc.shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(ffn1_expected, ffn1_enc , decimal=5)) # compare value with transformer output
-        print("Enc FFN1 formulation == Enc FNN1 Trained TNN") 
-        
-        # Norm 3
-        norm3 = np.array(optimal_parameters["enc_norm_3"])
-        norm3_expected = np.array(list(layer_outputs_dict['model.encoder.layers.0.final_layer_norm']))[0].flatten()
-        
-        self.assertIsNone(np.testing.assert_array_equal(norm3.shape, norm3_expected.shape)) 
-        self.assertIsNone(np.testing.assert_array_almost_equal(norm3, norm3_expected, decimal = 5)) 
-        print("Enc Norm3 = expected Enc Norm3")
-        
-        #ENc Layer 2: Self attn
-        self_attn2_enc = np.array(optimal_parameters["enc__self_attention_2"])
-        self_attn2_expected_out = np.array(list(layer_outputs_dict['model.encoder.layers.1.self_attn.out_proj'])[0][0]).flatten()
-        
-        self.assertIsNone(np.testing.assert_array_equal(self_attn2_expected_out.shape, self_attn2_enc.shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(self_attn2_expected_out, self_attn2_enc , decimal=5)) # compare value with transformer output
-        print("Enc MHA Layer 2 == expected Enc MHA Layer 2 ")  
-        
-        # Norm 4
-        norm4 = np.array(optimal_parameters["enc_norm_4"])
-        norm4_expected = np.array(list(layer_outputs_dict['model.encoder.layers.1.self_attn_layer_norm']))[0].flatten()
-        
-        self.assertIsNone(np.testing.assert_array_equal(norm4.shape, norm4_expected.shape)) 
-        self.assertIsNone(np.testing.assert_array_almost_equal(norm4, norm4_expected, decimal = 4)) 
-        print("Enc Norm4 = expected Enc Norm4")
-        
-        # FFN 2 
-        ffn2_enc = np.array(optimal_parameters["enc__ffn_2"])
-        ffn2_expected = np.array(list(layer_outputs_dict['model.encoder.layers.1.fc2']))[0].flatten()
-        
-        self.assertIsNone(np.testing.assert_array_equal(ffn2_expected.shape, ffn2_enc.shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(ffn2_expected, ffn2_enc , decimal=4)) # compare value with transformer output
-        print("Enc FFN2 formulation == Enc FNN2 Trained TNN")
-        
-        #Enc layer 2: norm final
+        # Enc output:
         norm5 = np.array(optimal_parameters["enc_norm_5"])
         norm5_expected = np.array(list(layer_outputs_dict['model.encoder.layers.1.self_attn_layer_norm']))[0].flatten()
         
         self.assertIsNone(np.testing.assert_array_equal(norm5.shape, norm5_expected.shape)) 
-        self.assertIsNone(np.testing.assert_array_almost_equal(norm5, norm5_expected, decimal = 5)) 
-        print("Enc Output = expected Enc Output")
-        
-        
-    # def test_decoder_TNN(self):
-    #     m = opt_model.clone()
-        
-    #     transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", m) 
-        
-    #     enc_dim_1 = src.size(0)
-    #     dec_dim_1 = tgt.size(0)
-    #     transformer.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
-    #     transformer.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
-    #     transformer.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) 
-    #     transformer.M.model_dims = pyo.Set(initialize= list(range(transformer.d_model)))
-    #     transformer.M.input_dims = pyo.Set(initialize= list(range(transformer.input_dim)))
-    
-    #     bounds_target = (None, None)
-    #     # Add TNN input vars
-    #     transformer.M.enc_input = pyo.Var(transformer.M.enc_time_dims,  transformer.M.input_dims, bounds=bounds_target)
-    #     transformer.M.dec_input = pyo.Var(transformer.M.dec_time_dims,  transformer.M.input_dims, bounds=bounds_target)
-        
-    #     # Add constraints to TNN encoder input
-    #     m.tnn_input_constraints = pyo.ConstraintList()
-    #     indices = []
-    #     for set in str(transformer.M.enc_input.index_set()).split("*"): # get TNN enc input index sets
-    #         indices.append( getattr(m, set) )
-    #     for tnn_index, index in zip(indices[0], m.enc_space):
-    #         for tnn_dim, dim in zip(indices[1], m.dims):
-    #             m.tnn_input_constraints.add(expr= transformer.M.enc_input[tnn_index, tnn_dim] == m.x_enc[index, dim])
-                
-    #     # Add constraints to TNN decoder input
-    #     indices = []
-    #     for set in str(transformer.M.dec_input.index_set()).split("*"):# get TNN dec input index sets
-    #         indices.append( getattr(m, set) )
-    #     for tnn_index, index in zip(indices[0], m.dec_space):
-    #         for tnn_dim, dim in zip(indices[1], m.dims):
-    #             m.tnn_input_constraints.add(expr= transformer.M.dec_input[tnn_index, tnn_dim]== m.x[index, dim])
-                
-                
-    #     # ADD ENCODER COMPONENTS
-    #     # Add Linear transform
-    #     # Linear transform
-    #     embed_dim = transformer.M.model_dims # embed from current dim to self.M.model_dims
-    #     layer = "enc_linear_1"
-    #     W_linear = parameters[layer,'W']
-    #     b_linear = parameters[layer,'b'] 
-    #     transformer.embed_input( "enc_input", layer, embed_dim, W_linear, b_linear)
-        
-    #     # # # Add positiona encoding
-    #     layer = "enc_pos_encoding_1"
-    #     b_pe = parameters[layer,'b']
-    #     transformer.add_pos_encoding("enc_linear_1", layer, b_pe)
-        
-        
-    #     # add norm1
-    #     layer = "enc__layer_normalization_1"
-    #     gamma1 = parameters["enc__layer_normalization_1", 'gamma']
-    #     beta1 = parameters["enc__layer_normalization_1", 'beta']
-        
-    #     transformer.add_layer_norm("enc_pos_encoding_1", "enc_norm_1", gamma1, beta1)
-        
-    #     # Add encoder self attention layer
-    #     layer = "enc__self_attention_1"
-        
-    #     W_q = parameters[layer,'W_q']
-    #     W_k = parameters[layer,'W_k']
-    #     W_v = parameters[layer,'W_v']
-    #     W_o = parameters[layer,'W_o']
-    #     b_q = parameters[layer,'b_q']
-    #     b_k = parameters[layer,'b_k']
-    #     b_v = parameters[layer,'b_v']
-    #     b_o = parameters[layer,'b_o']
-         
-    #     transformer.add_attention( "enc_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
-        
-    #     # add res+norm2
-    #     layer = "enc__layer_normalization_2"
-    #     gamma1 = parameters[layer, 'gamma']
-    #     beta1 = parameters[layer, 'beta']
-        
-    #     transformer.add_residual_connection("enc_norm_1", "enc__self_attention_1", f"{layer}__residual_1")
-    #     transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_2", gamma1, beta1)
-         
-    #     # add ffn1
-    #     ffn_parameter_dict = {}
-    #     input_shape = parameters["enc__ffn_1"]['input_shape']
-    #     ffn_params = transformer.get_fnn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
-    #     ffn_parameter_dict["enc__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
-
-    #     # add res+norm2
-    #     layer = "enc__layer_normalization_3"
-    #     gamma1 = parameters[layer, 'gamma']
-    #     beta1 = parameters[layer, 'beta']
-        
-    #     transformer.add_residual_connection("enc_norm_2", "enc__ffn_1", f"{layer}__residual_1")
-    #     transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_3", gamma1, beta1)
-        
-    #     ## Encoder Layer 2:
-    #     # Add encoder self attention layer
-    #     layer = "enc__self_attention_2"
-    #     W_q = parameters[layer,'W_q']
-    #     W_k = parameters[layer,'W_k']
-    #     W_v = parameters[layer,'W_v']
-    #     W_o = parameters[layer,'W_o']
-    #     b_q = parameters[layer,'b_q']
-    #     b_k = parameters[layer,'b_k']
-    #     b_v = parameters[layer,'b_v']
-    #     b_o = parameters[layer,'b_o']
-    #     transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
-        
-    #     #add res+norm2
-    #     layer = "enc__layer_normalization_4"
-    #     gamma1 = parameters[layer, 'gamma']
-    #     beta1 = parameters[layer, 'beta']
-        
-    #     transformer.add_residual_connection("enc_norm_1", "enc__self_attention_2", f"{layer}__residual_1")
-    #     transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_4", gamma1, beta1)
-         
-    #     # add ffn1
-    #     ffn_parameter_dict = {}
-    #     input_shape = parameters["enc__ffn_2"]['input_shape']
-    #     ffn_params = transformer.get_fnn( "enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters)
-    #     ffn_parameter_dict["enc__ffn_2"] = ffn_params # ffn_params: nn, input_nn, output_nn
-
-    #     # add res+norm2
-    #     layer = "enc__layer_normalization_5"
-    #     gamma1 = parameters[layer, 'gamma']
-    #     beta1 = parameters[layer, 'beta']
-        
-    #     transformer.add_residual_connection("enc_norm_4", "enc__ffn_2", f"{layer}__residual_1")
-    #     transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_5", gamma1, beta1)
-         
-    #     ## Decoder
-    #     ## Dec Add Linear:
-    #     embed_dim = transformer.M.model_dims # embed from current dim to self.M.model_dims
-    #     layer = "dec_linear_1"
-    #     W_linear = parameters[layer,'W']
-    #     b_linear = parameters[layer,'b'] 
-    #     transformer.embed_input( "dec_input", layer, embed_dim, W_linear, b_linear)
-         
-    #     # Dec Add positiona encoding
-    #     layer = "dec_pos_encoding_1"
-    #     b_pe = parameters[layer,'b']
-    #     transformer.add_pos_encoding("dec_linear_1", layer, b_pe)
-        
-    #     # Dec Add norm1
-    #     layer = "dec__layer_normalization_1"
-    #     gamma1 = parameters[layer, 'gamma']
-    #     beta1 = parameters[layer, 'beta']
-    #     transformer.add_layer_norm("dec_pos_encoding_1", "dec_norm_1", gamma1, beta1)
-        
-    #     # Dec Add decoder self attention layer
-    #     layer = "dec__self_attention_1"
-    #     W_q = parameters[layer,'W_q']
-    #     W_k = parameters[layer,'W_k']
-    #     W_v = parameters[layer,'W_v']
-    #     W_o = parameters[layer,'W_o']
-    #     b_q = parameters[layer,'b_q']
-    #     b_k = parameters[layer,'b_k']
-    #     b_v = parameters[layer,'b_v']
-    #     b_o = parameters[layer,'b_o']
-    #     transformer.add_attention( "dec_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
-        
-    #     # Dec add res+norm2
-    #     layer = "dec__layer_normalization_2"
-    #     gamma1 = parameters[layer, 'gamma']
-    #     beta1 = parameters[layer, 'beta']
-        
-    #     transformer.add_residual_connection("dec_norm_1", "dec__self_attention_1", f"{layer}__residual_1")
-    #     transformer.add_layer_norm(f"{layer}__residual_1", "dec_norm_2", gamma1, beta1)
-         
-    #     # Dec Cross Attn
-    #     W_q = parameters["dec__mutli_head_attention_1",'W_q'] # query from encoder
-    #     W_k = parameters["dec__mutli_head_attention_1",'W_k']
-    #     W_v = parameters["dec__mutli_head_attention_1",'W_v']
-    #     W_o = parameters["dec__mutli_head_attention_1",'W_o']
-        
-    #     b_q = parameters["dec__mutli_head_attention_1",'b_q'] # query from encoder
-    #     b_k = parameters["dec__mutli_head_attention_1",'b_k']
-    #     b_v = parameters["dec__mutli_head_attention_1",'b_v']
-    #     b_o = parameters["dec__mutli_head_attention_1",'b_o']
+        self.assertIsNone(np.testing.assert_array_almost_equal(norm5, norm5_expected, decimal = 4)) 
+        print("Enc Norm5 = expected Enc Norm5")
+        #---
             
-    #     transformer.add_attention( "dec_norm_2", "dec__mutli_head_attention_1", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_5")
-
+        # Dec Linear
+        dec_linear_1 = np.array(optimal_parameters["dec_linear_1"])
+        dec_linear_1_expected = np.array(list(layer_outputs_dict['model.decoder.value_embedding.value_projection']))[0].flatten()
         
-    #     # # add res+norm3
-    #     # layer = "enc__layer_normalization_3"
-    #     # gamma1 = parameters[layer, 'gamma']
-    #     # beta1 = parameters[layer, 'beta']
+        self.assertIsNone(np.testing.assert_array_equal(dec_linear_1.shape, dec_linear_1_expected.shape)) 
+        self.assertIsNone(np.testing.assert_array_almost_equal(dec_linear_1, dec_linear_1_expected, decimal = 4)) 
+        print("Dec linear 1 = expected Dec linear 1")
         
-    #     # transformer.add_residual_connection("enc_norm_2", "enc__ffn_1", f"{layer}__residual_1")
-    #     # transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_3", gamma1, beta1)
+        # Positional Embedding
+        dec_pe = np.array(optimal_parameters["dec_pos_encoding_1"])
+        dec_pe_expected = np.array(list(layer_outputs_dict['model.decoder.embed_positions']))[0].flatten() + dec_linear_1_expected
         
+        self.assertIsNone(np.testing.assert_array_equal(dec_pe.shape, dec_pe_expected.shape)) 
+        self.assertIsNone(np.testing.assert_array_almost_equal(dec_pe, dec_pe_expected, decimal = 4)) 
+        print("Dec PE = expected Dec PE")
         
+        # Norm 1
+        norm1 = np.array(optimal_parameters["dec_norm_1"])
+        norm1_expected = np.array(list(layer_outputs_dict['model.decoder.layernorm_embedding']))[0].flatten()
         
-    #     ##----------------------------------------------------------------##
-    #     ## Set objective: maximise amount of methanol at reactor outlet
-    #     m.obj = pyo.Objective(
-    #             expr = m.x[m.dec_space.last(), "CH3OH"], sense=-1
-    #         )  # -1: maximize, +1: minimize (default)
+        self.assertIsNone(np.testing.assert_array_equal(norm1.shape, norm1_expected.shape)) 
+        self.assertIsNone(np.testing.assert_array_almost_equal(norm1, norm1_expected, decimal = 4)) 
+        print("Dec Norm1= expected Dec Norm1")
         
-    #     # Convert to gurobi
-    #     gurobi_model, map_var , _ = convert_pyomo.to_gurobi(m)
+        #Self attn
+        self_attn_dec = np.array(optimal_parameters["dec__self_attention_1"])
+        self_attn_expected_out = np.array(list(layer_outputs_dict['model.decoder.layers.0.self_attn.out_proj'])[0][0]).flatten()
         
-    #     # Add FNN1 to gurobi model
-    #     for key, value in ffn_parameter_dict.items():
-    #         nn, input_nn, output_nn = value
-    #         input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
-    #         pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
-        
-    #     gurobi_model.update() # update gurobi model with FFN constraints
-        
-            
-    #     # Optimize
-    #     gurobi_model.optimize()
-
-    #     if gurobi_model.status == GRB.OPTIMAL:
-    #         optimal_parameters = {}
-    #         for v in gurobi_model.getVars():
-    #             #print(f'var name: {v.varName}, var type {type(v)}')
-    #             if "[" in v.varName:
-    #                 name = v.varname.split("[")[0]
-    #                 if name in optimal_parameters.keys():
-    #                     optimal_parameters[name] += [v.x]
-    #                 else:
-    #                     optimal_parameters[name] = [v.x]
-    #             else:    
-    #                 optimal_parameters[v.varName] = v.x
-                    
-    #     if gurobi_model.status == GRB.INFEASIBLE:
-    #         gurobi_model.computeIIS()
-    #         gurobi_model.write("pytorch_model.ilp")
+        self.assertIsNone(np.testing.assert_array_equal(self_attn_expected_out.shape, self_attn_dec.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(self_attn_expected_out, self_attn_dec , decimal=4)) # compare value with transformer output
+        print("Dec MHA output formulation == Dec MHA Trained TNN")
           
-    #     ##----------------------------------------------------------------##  
-    #     # input TNN
-    #     model_enc_input = np.array(optimal_parameters["enc_input"])
-    #     model_dec_input = np.array(optimal_parameters["dec_input"])
-    #     expected_enc_input = src.numpy()
-    #     expected_dec_input = tgt.numpy()
-
-    #     self.assertIsNone(np.testing.assert_array_equal(model_enc_input.shape, expected_enc_input.flatten().shape)) # pyomo input data and transformer input data must be the same shape
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(model_enc_input, expected_enc_input.flatten(), decimal = 7))             # both inputs must be equal
+        # Norm 2
+        norm2 = np.array(optimal_parameters["dec_norm_2"])
+        norm2_expected = np.array(list(layer_outputs_dict['model.decoder.layers.0.self_attn_layer_norm']))[0].flatten()
         
-    #     self.assertIsNone(np.testing.assert_array_equal(model_dec_input.shape, expected_dec_input.flatten().shape)) # pyomo input data and transformer input data must be the same shape
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(model_dec_input, expected_dec_input.flatten(), decimal = 7))             # both inputs must be equal
-    #     print("input tnn = expected input tnn")
+        self.assertIsNone(np.testing.assert_array_equal(norm2.shape, norm2_expected.shape)) 
+        self.assertIsNone(np.testing.assert_array_almost_equal(norm2, norm2_expected, decimal = 4)) 
+        print("Dec Norm2= expected Dec Norm2")
         
-    #     # Enc output:
-    #     norm5 = np.array(optimal_parameters["enc_norm_5"])
-    #     norm5_expected = np.array(list(layer_outputs_dict['model.encoder.layers.1.self_attn_layer_norm']))[0].flatten()
+        #Cross attn
+        self_cross_attn_dec = np.array(optimal_parameters["dec__multi_head_attention_1"])
+        self_cross_attn_expected_out = np.array(list(layer_outputs_dict['model.decoder.layers.0.encoder_attn.out_proj'])[0][0]).flatten()
         
-    #     self.assertIsNone(np.testing.assert_array_equal(norm5.shape, norm5_expected.shape)) 
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(norm5, norm5_expected, decimal = 5)) 
-    #     print("Enc Norm5 = expected Enc Norm5")
-            
-    #     # Dec Linear
-    #     dec_linear_1 = np.array(optimal_parameters["dec_linear_1"])
-    #     dec_linear_1_expected = np.array(list(layer_outputs_dict['model.decoder.value_embedding.value_projection']))[0].flatten()
-        
-    #     self.assertIsNone(np.testing.assert_array_equal(dec_linear_1.shape, dec_linear_1_expected.shape)) 
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(dec_linear_1, dec_linear_1_expected, decimal = 5)) 
-    #     print("Dec linear 1 = expected Dec linear 1")
-        
-    #     # Positional Embedding
-    #     dec_pe = np.array(optimal_parameters["dec_pos_encoding_1"])
-    #     dec_pe_expected = np.array(list(layer_outputs_dict['model.decoder.embed_positions']))[0].flatten() + dec_linear_1_expected
-        
-    #     self.assertIsNone(np.testing.assert_array_equal(dec_pe.shape, dec_pe_expected.shape)) 
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(dec_pe, dec_pe_expected, decimal = 5)) 
-    #     print("Dec PE = expected Dec PE")
-        
-    #     # Norm 1
-    #     norm1 = np.array(optimal_parameters["dec_norm_1"])
-    #     norm1_expected = np.array(list(layer_outputs_dict['model.decoder.layernorm_embedding']))[0].flatten()
-        
-    #     self.assertIsNone(np.testing.assert_array_equal(norm1.shape, norm1_expected.shape)) 
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(norm1, norm1_expected, decimal = 5)) 
-    #     print("Dec Norm1= expected Dec Norm1")
-        
-    #     #Self attn
-    #     self_attn_dec = np.array(optimal_parameters["dec__self_attention_1"])
-    #     self_attn_expected_out = np.array(list(layer_outputs_dict['model.decoder.layers.0.self_attn.out_proj'])[0][0]).flatten()
-        
-    #     self.assertIsNone(np.testing.assert_array_equal(self_attn_expected_out.shape, self_attn_dec.shape)) # compare shape with transformer
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(self_attn_expected_out, self_attn_dec , decimal=5)) # compare value with transformer output
-    #     print("Dec MHA output formulation == Dec MHA Trained TNN")
-          
-    #     # Norm 2
-    #     norm2 = np.array(optimal_parameters["dec_norm_2"])
-    #     norm2_expected = np.array(list(layer_outputs_dict['model.decoder.layers.0.self_attn_layer_norm']))[0].flatten()
-        
-    #     self.assertIsNone(np.testing.assert_array_equal(norm2.shape, norm2_expected.shape)) 
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(norm2, norm2_expected, decimal = 5)) 
-    #     print("Dec Norm2= expected Dec Norm2")
-        
-    #     #Cross attn
-    #     self_cross_attn_dec = np.array(optimal_parameters["dec__multi_head_attention_1"])
-    #     self_cross_attn_expected_out = np.array(list(layer_outputs_dict['model.decoder.layers.0.encoder_attn.out_proj'])[0][0]).flatten()
-        
-    #     self.assertIsNone(np.testing.assert_array_equal(self_cross_attn_expected_out.shape, self_cross_attn_dec.shape)) # compare shape with transformer
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(self_cross_attn_expected_out, self_cross_attn_dec , decimal=5)) # compare value with transformer output
-    #     print("Dec Cross Attn output formulation == Dec Cross Attn Trained TNN")
+        self.assertIsNone(np.testing.assert_array_equal(self_cross_attn_expected_out.shape, self_cross_attn_dec.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(self_cross_attn_expected_out, self_cross_attn_dec , decimal=4)) # compare value with transformer output
+        print("Dec Cross Attn output formulation == Dec Cross Attn Trained TNN")
         
         #-------------------------------#   
         
@@ -839,14 +998,54 @@ if __name__ == '__main__':
 
     layer_names, parameters, _, enc_dec_count, layer_outputs_dict = extract_from_pretrained.get_hugging_learned_parameters(tnn_model, src , tgt, 2, hugging_face_dict)
      
-    # __________________RMOVE_______________________##
+
     # fix inputs
     input = tgt.numpy()
     opt_model.x_fixed_constraints = pyo.ConstraintList()
     for s, space in enumerate(opt_model.dec_space):
         for d, dim in enumerate(opt_model.dims):
+            #if space < opt_model.dec_space.last():
             opt_model.x_fixed_constraints.add(expr= opt_model.x[space,dim] == input[s,d])
 
+    # set configuration of enhancement bounds and cuts
+    ACTI_LIST_FULL = [
+            "LN_var", "LN_mean", "LN_num", "LN_num_squ", "LN_denom", "LN_num_squ_sum",
+             "MHA_Q", "MHA_K", "MHA_V", "MHA_attn_weight_sum", "MHA_attn_weight",
+            "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_QK_MC", "MHA_WK_MC", "MHA_attn_score", "MHA_output", 
+            "RES_var", "MHA_softmax_env", "AVG_POOL_var", "embed_var"]
+
+    activation_dict = {}
+    for key in ACTI_LIST_FULL:
+        activation_dict[key] = False
+        
+    combinations = [
+    #    1, 1, 1, 1,1  # all
+    #1 , 0, 1, 1, 1, #1
+    1 , 0, 1, 1, 0 #2 -- fastest feasibile solution
+    # [1 , 0, 1, 0, 0], #3 
+    # [1 , 0, 0, 0, 0], #4 -- smallest opt. gap
+    # [1 , 0, 0, 1, 1], #5
+    # [1 , 0, 0, 1, 0], #6 --- fastest optimal solution
+    # [0 , 0, 0, 0, 0]  #7
+    ]
+    combinations = [bool(val) for val in combinations]
+    
+    ACTI = {}  
+    ACTI["LN_I"] = {"list": ["LN_var"]}
+    ACTI["LN_D"] = {"list": ["LN_num", "LN_num_squ", "LN_denom"]}
+
+    ACTI["MHA_I"] = {"list": ["MHA_attn_weight_sum", "MHA_attn_weight"]}
+    ACTI["MHA_D"] = {"list": ["MHA_Q", "MHA_K", "MHA_V", "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" , "RES_var"]}
+    ACTI["MHA_MC"] = {"list":[ "MHA_QK_MC", "MHA_WK_MC"]}
+    
+    ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACTI["MHA_D"]["act_val"], ACTI["MHA_MC"]["act_val"] = combinations
+
+    for k, val in ACTI.items():
+        for elem in val["list"]:
+            activation_dict[elem] = val["act_val"] # set activation dict to new combi
+        
+    
+    
     unittest.main() 
     # # instantiate transformer
     # transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", opt_model) 

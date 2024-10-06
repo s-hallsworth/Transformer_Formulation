@@ -6,7 +6,10 @@ import os
 from torch import nn
 import collections
 from torch.nn import ReLU, SiLU
-
+from transformers.src.transformers.activations import SiLUActivation as hf_SiLU
+import transformers, sys
+sys.modules['transformers.src'] = transformers
+sys.modules['transformers.src.transformers'] = transformers
     
 def get_weights(model_path, save_json=True, file_name="model_weights.json"):
     """
@@ -485,13 +488,13 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
             if isinstance(module, ReLU):
                 activations_dict[enc_prefix] = "relu"
                 activations_dict[dec_prefix] = "relu"
-            elif isinstance(module, SiLU):
+            elif isinstance(module, hf_SiLU) or isinstance(module, SiLU):
                 activations_dict[enc_prefix] = "silu"
                 activations_dict[dec_prefix] = "silu"
             else:
                 activations_dict[enc_prefix] = "UNKNOWN"
                 activations_dict[dec_prefix] = "UNKNOWN"
-                raise ValueError("Error parsing transformer model. Unrecognised activation function used in decoder")
+                raise ValueError(f"Error parsing transformer model. Unrecognised activation function \"{type(module)}\" used in transformer")
             
     # Register hooks to all layers
     hook_names = ["linear", "encoder", "decoder", "layer", "attention", "scaler", "embedding","proj","regression"]
