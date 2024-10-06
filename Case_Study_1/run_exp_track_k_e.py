@@ -124,14 +124,10 @@ FFN_out = np.array(layer_outputs_dict["dense_4"])[0].transpose(1,0)
 if TESTING:
     REP = 1
     model.fixed_loc_constraints = pyo.ConstraintList()
-    for i,t in enumerate(model.time):
-        if t <= model.time_history.last():
-            model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
-            model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
-        else:
-            print(i, FFN_out[0][i-1], FFN_out[1][i-1])
-            model.fixed_loc_constraints.add(expr= FFN_out[0][i-1] == model.x1[t])
-            model.fixed_loc_constraints.add(expr= FFN_out[1][i-1]  == model.x2[t])
+    for i,t in enumerate(model.time_history):
+        model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
+        model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
+       
 
 # ## --------------------------------##
 

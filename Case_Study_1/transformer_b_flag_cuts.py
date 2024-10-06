@@ -831,7 +831,7 @@ class Transformer:
             #     numerator_squared_sum[t].lb = 0
             
         
-    def add_attention(self, input_var_name, output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, cross_attn=False, encoder_output=None, exp_approx=False, tnn_from='keras'):
+    def add_attention(self, input_var_name, output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, cross_attn=False, encoder_output=None, exp_approx=False, tnn_from='pytorch'):
         """
         Multihead attention between each element of embedded sequence
         
@@ -967,7 +967,7 @@ class Transformer:
         MHA_Block.QK = pyo.Var(MHA_Block.heads, time_dim, time_dim_enc, MHA_Block.head_dims, within=pyo.Reals) 
         MHA_Block.compatibility = pyo.Var(MHA_Block.heads, time_dim, time_dim_enc, within=pyo.Reals) 
         
-        scale = 1.0/np.sqrt(d_heads)
+        scale = 1.0/(np.sqrt(d_heads))
         if tnn_from == 'keras':
             MHA_Block.compatibility_max = pyo.Var(MHA_Block.heads, time_dim, within=pyo.Reals) 
             MHA_Block.compatibility_max_s = pyo.Var(MHA_Block.heads, time_dim, time_dim_enc, within=pyo.Binary) 
@@ -1167,7 +1167,7 @@ class Transformer:
                                 ==  scale * sum(MHA_Block.QK[h, n, p, k] for k in MHA_Block.head_dims)
                             ) 
                         else:
-                            raise ValueError(f'Error: tnn_from = {tnn_from}. Only tansformers trained using keras or pytorch supported')
+                            raise ValueError(f'Error: tnn_from = {tnn_from}. Only tansformers trained using keras, pytorch or hugging face supported')
                         
                         if exp_approx: # usepower series approx exp()
                             
