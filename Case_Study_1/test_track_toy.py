@@ -624,7 +624,7 @@ class TestTransformer(unittest.TestCase):
         m = model.clone()
         
         # create optimization transformer
-        transformer = TNN.Transformer( ".\\data\\toy_config_pytorch.json", m) 
+        transformer = TNN.Transformer( ".\\data\\toy_config_pytorch.json", m. activation_dict) 
         
         # define sets for inputs
         enc_dim_1 = transformer.N 
@@ -753,24 +753,24 @@ class TestTransformer(unittest.TestCase):
         transformer.add_layer_norm(f"dec__{dec_layer}_residual_1", "dec_norm_1", gamma1, beta1)
         
         # Add decoder cross attention
-        W_q = parameters["dec__mutli_head_attention_1",'W_q'] # query from encoder
-        W_k = parameters["dec__mutli_head_attention_1",'W_k']
-        W_v = parameters["dec__mutli_head_attention_1",'W_v']
-        W_o = parameters["dec__mutli_head_attention_1",'W_o']
+        W_q = parameters["dec__multi_head_attention_1",'W_q'] # query from encoder
+        W_k = parameters["dec__multi_head_attention_1",'W_k']
+        W_v = parameters["dec__multi_head_attention_1",'W_v']
+        W_o = parameters["dec__multi_head_attention_1",'W_o']
         
-        b_q = parameters["dec__mutli_head_attention_1",'b_q'] # query from encoder
-        b_k = parameters["dec__mutli_head_attention_1",'b_k']
-        b_v = parameters["dec__mutli_head_attention_1",'b_v']
-        b_o = parameters["dec__mutli_head_attention_1",'b_o']
+        b_q = parameters["dec__multi_head_attention_1",'b_q'] # query from encoder
+        b_k = parameters["dec__multi_head_attention_1",'b_k']
+        b_v = parameters["dec__multi_head_attention_1",'b_v']
+        b_o = parameters["dec__multi_head_attention_1",'b_o']
             
-        transformer.add_attention( "dec_norm_1", "dec__mutli_head_attention_1", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_3")
+        transformer.add_attention( "dec_norm_1", "dec__multi_head_attention_1", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_3")
 
         # decoder add res+norm2
         dec_layer = 0
         gamma2 = parameters["dec__layer_normalization_2", 'gamma']
         beta2 = parameters["dec__layer_normalization_2", 'beta']
         
-        transformer.add_residual_connection("dec_norm_1", "dec__mutli_head_attention_1", f"dec__{dec_layer}_residual_2")
+        transformer.add_residual_connection("dec_norm_1", "dec__multi_head_attention_1", f"dec__{dec_layer}_residual_2")
         transformer.add_layer_norm(f"dec__{dec_layer}_residual_2", "dec_norm_2", gamma2, beta2)
         
         # Add decoder FFN
@@ -896,7 +896,7 @@ class TestTransformer(unittest.TestCase):
         norm1_dec = np.array(optimal_parameters["dec_norm_1"])
         norm1_expected = np.array(list(layer_outputs_dict['transformer.decoder.layers.0.norm1']))[0].flatten()
 
-        cross_dec = np.array(optimal_parameters["dec__mutli_head_attention_1"])
+        cross_dec = np.array(optimal_parameters["dec__multi_head_attention_1"])
         cross_dec_expected = np.array(list(layer_outputs_dict['transformer.decoder.layers.0.multihead_attn'])[0][0]).flatten()
 
         norm2_dec = np.array(optimal_parameters["dec_norm_2"])
@@ -940,6 +940,9 @@ class TestTransformer(unittest.TestCase):
         self.assertIsNone(np.testing.assert_array_almost_equal(norm4_dec_expected, norm4_dec , decimal=3)) # compare value with transformer output
         print("- Dec Output formulation == Dec Output Trained TNN") 
         
+        # ----------
+        print("trained tnn decoder ffn1 : ", ffn1_dec_expected )
+        print("solved ffn1: ", ffn1_dec)
     
         # Check Transformer output
         out_dec = np.array(optimal_parameters["dec_linear_2"])

@@ -555,10 +555,12 @@ class TestTransformer(unittest.TestCase):
     def test_decoder_TNN(self):
         m = opt_model.clone()
         
-        transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", m, activation_dict) 
+        transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", m) 
         
         enc_dim_1 = src.size(0)
         transformer.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
+        #transformer.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) 
+        transformer.M.model_dims = pyo.Set(initialize= list(range(transformer.d_model)))
         transformer.M.input_dims = pyo.Set(initialize= list(range(transformer.input_dim)))
     
         bounds_target = (None, None)
@@ -608,7 +610,7 @@ class TestTransformer(unittest.TestCase):
         b_v = parameters[layer,'b_v']
         b_o = parameters[layer,'b_o']
          
-        transformer.add_attention( "enc_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+        transformer.add_attention( "enc_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, exp_approx=True)
         
         # add res+norm2
         layer = "enc__layer_normalization_2"
@@ -621,15 +623,15 @@ class TestTransformer(unittest.TestCase):
         # add ffn1
         ffn_parameter_dict = {}
         input_shape = parameters["enc__ffn_1"]['input_shape']
-        ffn_params = transformer.get_fnn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
-        ffn_parameter_dict["enc__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
-
+        output_var = transformer.add_FFN_2D("enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters, bounds = None)
+        
+        
         # add res+norm2
         layer = "enc__layer_normalization_3"
         gamma1 = parameters[layer, 'gamma']
         beta1 = parameters[layer, 'beta']
         
-        transformer.add_residual_connection("enc_norm_2", "enc__ffn_1", f"{layer}__residual_1")
+        transformer.add_residual_connection("enc_norm_2", output_var, f"{layer}__residual_1")
         transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_3", gamma1, beta1)
         
         ## Encoder Layer 2:
@@ -643,7 +645,7 @@ class TestTransformer(unittest.TestCase):
         b_k = parameters[layer,'b_k']
         b_v = parameters[layer,'b_v']
         b_o = parameters[layer,'b_o']
-        transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+        transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, exp_approx=True)
         
         #add res+norm2
         layer = "enc__layer_normalization_4"
@@ -656,284 +658,256 @@ class TestTransformer(unittest.TestCase):
         # add ffn1
         ffn_parameter_dict = {}
         input_shape = parameters["enc__ffn_2"]['input_shape']
-        ffn_params = transformer.get_fnn( "enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters)
-        ffn_parameter_dict["enc__ffn_2"] = ffn_params # ffn_params: nn, input_nn, output_nn
-
+        output_var = transformer.add_FFN_2D("enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters, bounds = None)
+        
         # add res+norm2
         layer = "enc__layer_normalization_5"
         gamma1 = parameters[layer, 'gamma']
         beta1 = parameters[layer, 'beta']
         
-        transformer.add_residual_connection("enc_norm_4", "enc__ffn_2", f"{layer}__residual_1")
+        transformer.add_residual_connection("enc_norm_4", output_var, f"{layer}__residual_1")
         transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_5", gamma1, beta1)
          
         ## Decoder
         # Add constraints to TNN decoder input
         dec_dim_1 = tgt.size(0)
         transformer.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
-        transformer.M.dec_input = pyo.Var(transformer.M.dec_time_dims,  transformer.M.input_dims, bounds=bounds_target)
-        transformer.M.dec_output = pyo.Var(transformer.M.dec_time_dims,  transformer.M.input_dims, bounds=bounds_target)
-
+        transformer.M.DB = pyo.Block(transformer.M.dec_time_dims)
+        for T in transformer.M.dec_time_dims:
+            transformer.M.DB[T].input = pyo.Var(transformer.M.dec_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+            transformer.M.DB[T].output = pyo.Var(transformer.M.dec_time_dims,  transformer.M.input_dims, bounds=bounds_target)
+            
         indices = []
-        for set in str(transformer.M.dec_input.index_set()).split("*"):# get TNN dec input index sets
+        for set in str(transformer.M.DB[transformer.M.dec_time_dims.first()].input.index_set()).split("*"):# get TNN dec input index sets
             indices.append( getattr(m, set) )
+        
+        
+        for t, T in enumerate(transformer.M.dec_time_dims):
+            dec_in = transformer.M.DB[T].input
+            dec_out = transformer.M.DB[T].output
+            print("T: ", T)
+            
+            ##--------##
+            if t > 0:
+                break
+            
+            # link decoder input value to variable storing states
+            for tnn_index, index in zip(indices[0], m.dec_space):
+                for tnn_dim, dim in zip(indices[1], m.dims):
+                    if T <= tnn_index:
+                        m.tnn_input_constraints.add(expr= dec_in[tnn_index, tnn_dim] == m.x[index, dim])
+                        
+                        if t > 0:
+                            # previous autoregressive output = next auto regressive input
+                            m.tnn_input_constraints.add(expr= dec_out_prev[tnn_index, tnn_dim] == dec_in[tnn_index, tnn_dim])
+                    else:
+                        m.tnn_input_constraints.add(expr= dec_in[tnn_index, tnn_dim] == 0) #mask value  
+            dec_out_prev = transformer.M.DB[T].output
+            
+            ## Dec Add Linear:
+            embed_dim = transformer.M.model_dims # embed from current dim to self.M.model_dims
+            layer = "dec_linear_1"
+            W_linear = parameters[layer,'W']
+            b_linear = parameters[layer,'b'] 
+            
+            layer = layer+f"_{str(t)}"
+            dec_in = transformer.embed_input( dec_in, layer, embed_dim, W_linear, b_linear)
+            
+            # Dec Add positiona encoding
+            layer = "dec_pos_encoding_1"
+            b_pe = parameters[layer,'b']
+            
+            layer = layer+f"_{str(t)}"
+            dec_in = transformer.add_pos_encoding(dec_in, layer, b_pe)
+            
+            # # Dec Add norm1
+            # layer = "dec__layer_normalization_1"
+            # gamma1 = parameters[layer, 'gamma']
+            # beta1 = parameters[layer, 'beta']
+            
+            # layer = "dec_norm_1"+f"_{str(t)}"
+            # dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
+            # dec_norm_1 = dec_in
+            
+            # # Dec Add decoder self attention layer
+            # layer = "dec__self_attention_1"
+            # W_q = parameters[layer,'W_q']
+            # W_k = parameters[layer,'W_k']
+            # W_v = parameters[layer,'W_v']
+            # W_o = parameters[layer,'W_o']
+            # b_q = parameters[layer,'b_q']
+            # b_k = parameters[layer,'b_k']
+            # b_v = parameters[layer,'b_v']
+            # b_o = parameters[layer,'b_o']
+            
+            # layer = layer+f"_{str(t)}"
+            # dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+            
+            # # Dec add res+norm2
+            # layer = "dec__layer_normalization_2"
+            # gamma1 = parameters[layer, 'gamma']
+            # beta1 = parameters[layer, 'beta']
+            
+            # layer = "d_LN_2"+f"_{str(t)}"
+            # dec_in = transformer.add_residual_connection(dec_norm_1, dec_in, f"{layer}__res")
+            
+            # layer = "dec_norm_2"+f"_{str(t)}"
+            # dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
+            # dec_norm_2 = dec_in
+            
+            # # Dec Cross Attn
+            # layer = "dec__multi_head_attention_1" 
+            # W_q = parameters["dec__multi_head_attention_1",'W_q'] # query from encoder
+            # W_k = parameters["dec__multi_head_attention_1",'W_k']
+            # W_v = parameters["dec__multi_head_attention_1",'W_v']
+            # W_o = parameters["dec__multi_head_attention_1",'W_o']
+            
+            # b_q = parameters["dec__multi_head_attention_1",'b_q'] # query from encoder
+            # b_k = parameters["dec__multi_head_attention_1",'b_k']
+            # b_v = parameters["dec__multi_head_attention_1",'b_v']
+            # b_o = parameters["dec__multi_head_attention_1",'b_o']
+            
+            # layer = layer + f"_{str(t)}"
+            # dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_5")
 
-        # link decoder input value to variable storing states
-        for tnn_index, index in zip(indices[0], m.dec_space):
-            for tnn_dim, dim in zip(indices[1], m.dims):
-                m.tnn_input_constraints.add(expr= transformer.M.dec_input[tnn_index, tnn_dim] == m.x[index, dim])
-        dec_in = transformer.M.dec_input
-        
-        ## Dec Add Linear:
-        embed_dim = transformer.M.model_dims # embed from current dim to self.M.model_dims
-        layer = "dec_linear_1"
-        W_linear = parameters[layer,'W']
-        b_linear = parameters[layer,'b'] 
-        
-        layer = layer
-        dec_in = transformer.embed_input( dec_in, layer, embed_dim, W_linear, b_linear)
-        
-        # Dec Add positiona encoding
-        layer = "dec_pos_encoding_1"
-        b_pe = parameters[layer,'b']
-        
-        layer = layer
-        dec_in = transformer.add_pos_encoding(dec_in, layer, b_pe)
-        
-        # Dec Add norm1
-        layer = "dec__layer_normalization_1"
-        gamma1 = parameters[layer, 'gamma']
-        beta1 = parameters[layer, 'beta']
-        
-        layer = "dec_norm_1"
-        dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
-        dec_norm_1 = dec_in
-        
-        # Dec Add decoder self attention layer
-        layer = "dec__self_attention_1"
-        W_q = parameters[layer,'W_q']
-        W_k = parameters[layer,'W_k']
-        W_v = parameters[layer,'W_v']
-        W_o = parameters[layer,'W_o']
-        b_q = parameters[layer,'b_q']
-        b_k = parameters[layer,'b_k']
-        b_v = parameters[layer,'b_v']
-        b_o = parameters[layer,'b_o']
-        
-        layer = layer
-        dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
-        
-        # Dec add res+norm2
-        layer = "dec__layer_normalization_2"
-        gamma1 = parameters[layer, 'gamma']
-        beta1 = parameters[layer, 'beta']
-        
-        layer = "d_LN_2"
-        dec_in = transformer.add_residual_connection(dec_norm_1, dec_in, f"{layer}__res")
-        
-        layer = "dec_norm_2"
-        dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
-        dec_norm_2 = dec_in
-        
-        # Dec Cross Attn
-        layer = "dec__multi_head_attention_1" 
-        W_q = parameters["dec__multi_head_attention_1",'W_q'] # query from encoder
-        W_k = parameters["dec__multi_head_attention_1",'W_k']
-        W_v = parameters["dec__multi_head_attention_1",'W_v']
-        W_o = parameters["dec__multi_head_attention_1",'W_o']
-        
-        b_q = parameters["dec__multi_head_attention_1",'b_q'] # query from encoder
-        b_k = parameters["dec__multi_head_attention_1",'b_k']
-        b_v = parameters["dec__multi_head_attention_1",'b_v']
-        b_o = parameters["dec__multi_head_attention_1",'b_o']
-        
-        layer = layer 
-        dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_5")
+            
+            # # add res+norm3
+            # layer = "dec__layer_normalization_3"
+            # gamma1 = parameters[layer, 'gamma']
+            # beta1 = parameters[layer, 'beta']
+            
+            # layer = "d_ln_3" + f"_{str(t)}"
+            # dec_in = transformer.add_residual_connection(dec_norm_2, dec_in, f"{layer}__res")
+            
+            # layer = "dec_norm_3"+f"_{str(t)}"
+            # dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
+            # dec_norm_3 = dec_in
+            
+            # # add FFN
+            # nn_name = "dec__ffn_1"
+            # input_shape = parameters[nn_name]['input_shape']
+            # layer = nn_name+f"_{str(t)}"
+            # ffn_params = transformer.get_fnn( dec_norm_3,layer, nn_name, input_shape, parameters)
+            # ffn_parameter_dict[nn_name] = ffn_params # ffn_params: nn, input_nn, output_nn
+            # dec_in = ffn_params[-1]
+            
+            # # add Norm 4
+            # layer = "dec__layer_normalization_4"
+            # gamma1 = parameters[layer, 'gamma']
+            # beta1 = parameters[layer, 'beta']
+            
+            # layer = "d_ln_4" + f"_{str(t)}"
+            # dec_in = transformer.add_residual_connection(dec_norm_3, dec_in, f"{layer}__res")
+            
+            # layer = "dec_norm_4"+f"_{str(t)}"
+            # dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
+            # dec_norm_4 = dec_in
+            
+            # ##-- Decoder Layer 2:
+            # # Dec Add decoder self attention layer
+            # layer = "dec__self_attention_2"
+            # W_q = parameters[layer,'W_q']
+            # W_k = parameters[layer,'W_k']
+            # W_v = parameters[layer,'W_v']
+            # W_o = parameters[layer,'W_o']
+            # b_q = parameters[layer,'b_q']
+            # b_k = parameters[layer,'b_k']
+            # b_v = parameters[layer,'b_v']
+            # b_o = parameters[layer,'b_o']
+            
+            # layer = layer+f"_{str(t)}"
+            # dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+            
+            # # Dec add res+norm2
+            # layer = "dec__layer_normalization_5"
+            # gamma1 = parameters[layer, 'gamma']
+            # beta1 = parameters[layer, 'beta']
+            
+            # layer = "d_LN_5"+f"_{str(t)}"
+            # dec_in = transformer.add_residual_connection(dec_norm_1, dec_in, f"{layer}__res") ## res to LN1
+            
+            # layer = "dec_norm_5"+f"_{str(t)}"
+            # dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
+            # dec_norm_5 = dec_in
+            
+            # # Dec Cross Attn
+            # layer = "dec__multi_head_attention_2" 
+            # W_q = parameters[layer,'W_q'] # query from encoder
+            # W_k = parameters[layer,'W_k']
+            # W_v = parameters[layer,'W_v']
+            # W_o = parameters[layer,'W_o']
+            
+            # b_q = parameters[layer,'b_q'] # query from encoder
+            # b_k = parameters[layer,'b_k']
+            # b_v = parameters[layer,'b_v']
+            # b_o = parameters[layer,'b_o']
+            
+            # layer = layer + f"_{str(t)}"
+            # dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_5")
 
+            
+            # # add res+norm6
+            # layer = "dec__layer_normalization_6"
+            # gamma1 = parameters[layer, 'gamma']
+            # beta1 = parameters[layer, 'beta']
+            
+            # layer = "d_ln_6" + f"_{str(t)}"
+            # dec_in = transformer.add_residual_connection(dec_norm_5, dec_in, f"{layer}__res")
+            
+            # layer = "dec_norm_6"+f"_{str(t)}"
+            # dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
+            # dec_norm_6 = dec_in
+            
+            # # add FFN
+            # nn_name = "dec__ffn_2"
+            # input_shape = parameters[nn_name]['input_shape']
+            # layer = nn_name+f"_{str(t)}"
+            # ffn_params = transformer.get_fnn( dec_norm_3,layer, nn_name, input_shape, parameters)
+            # ffn_parameter_dict[nn_name] = ffn_params # ffn_params: nn, input_nn, output_nn
+            # dec_in = ffn_params[-1]
+            
+            # # add Norm 4
+            # layer = "dec__layer_normalization_7"
+            # gamma1 = parameters[layer, 'gamma']
+            # beta1 = parameters[layer, 'beta']
+            
+            # layer = "d_ln_7" + f"_{str(t)}"
+            # dec_in = transformer.add_residual_connection(dec_norm_6, dec_in, f"{layer}__res")
+            
+            # layer = "dec_norm_7"+f"_{str(t)}"
+            # dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
+            # dec_norm_7 = dec_in
         
-        # add res+norm3
-        layer = "dec__layer_normalization_3"
-        gamma1 = parameters[layer, 'gamma']
-        beta1 = parameters[layer, 'beta']
-        
-        layer = "d_ln_3" 
-        dec_in = transformer.add_residual_connection(dec_norm_2, dec_in, f"{layer}__res")
-        
-        layer = "dec_norm_3"
-        dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
-        dec_norm_3 = dec_in
-        
-        # add FFN
-        nn_name = "dec__ffn_1"
-        input_shape = parameters[nn_name]['input_shape']
-        layer = nn_name
-        ffn_params = transformer.get_fnn( dec_norm_3,layer, nn_name, input_shape, parameters)
-        ffn_parameter_dict[nn_name] = ffn_params # ffn_params: nn, input_nn, output_nn
-        dec_in = ffn_params[-1]
-        
-        # add Norm 4
-        layer = "dec__layer_normalization_4"
-        gamma1 = parameters[layer, 'gamma']
-        beta1 = parameters[layer, 'beta']
-        
-        layer = "d_ln_4" 
-        dec_in = transformer.add_residual_connection(dec_norm_3, dec_in, f"{layer}__res")
-        
-        layer = "dec_norm_4"
-        dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
-        dec_norm_4 = dec_in
-        
-        ##-- Decoder Layer 2:
-        # Dec Add decoder self attention layer
-        layer = "dec__self_attention_2"
-        W_q = parameters[layer,'W_q']
-        W_k = parameters[layer,'W_k']
-        W_v = parameters[layer,'W_v']
-        W_o = parameters[layer,'W_o']
-        b_q = parameters[layer,'b_q']
-        b_k = parameters[layer,'b_k']
-        b_v = parameters[layer,'b_v']
-        b_o = parameters[layer,'b_o']
-        
-        layer = layer
-        dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
-        
-        # Dec add res+norm2
-        layer = "dec__layer_normalization_5"
-        gamma1 = parameters[layer, 'gamma']
-        beta1 = parameters[layer, 'beta']
-        
-        layer = "d_LN_5"
-        dec_in = transformer.add_residual_connection(dec_norm_1, dec_in, f"{layer}__res") ## res to LN1
-        
-        layer = "dec_norm_5"
-        dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
-        dec_norm_5 = dec_in
-        
-        # Dec Cross Attn
-        layer = "dec__multi_head_attention_2" 
-        W_q = parameters[layer,'W_q'] # query from encoder
-        W_k = parameters[layer,'W_k']
-        W_v = parameters[layer,'W_v']
-        W_o = parameters[layer,'W_o']
-        
-        b_q = parameters[layer,'b_q'] # query from encoder
-        b_k = parameters[layer,'b_k']
-        b_v = parameters[layer,'b_v']
-        b_o = parameters[layer,'b_o']
-        
-        layer = layer 
-        dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_5")
-
-        
-        # add res+norm6
-        layer = "dec__layer_normalization_6"
-        gamma1 = parameters[layer, 'gamma']
-        beta1 = parameters[layer, 'beta']
-        
-        layer = "d_ln_6" 
-        dec_in = transformer.add_residual_connection(dec_norm_5, dec_in, f"{layer}__res")
-        
-        layer = "dec_norm_6"
-        dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
-        dec_norm_6 = dec_in
-        
-        # add FFN
-        nn_name = "dec__ffn_2"
-        input_shape = parameters[nn_name]['input_shape']
-        layer = nn_name
-        ffn_params = transformer.get_fnn( dec_norm_3,layer, nn_name, input_shape, parameters)
-        ffn_parameter_dict[nn_name] = ffn_params # ffn_params: nn, input_nn, output_nn
-        dec_in = ffn_params[-1]
-        
-        # add Norm 4
-        layer = "dec__layer_normalization_7"
-        gamma1 = parameters[layer, 'gamma']
-        beta1 = parameters[layer, 'beta']
-        
-        layer = "d_ln_7" 
-        dec_in = transformer.add_residual_connection(dec_norm_6, dec_in, f"{layer}__res")
-        
-        layer = "dec_norm_7"
-        dec_in = transformer.add_layer_norm(dec_in, layer, gamma1, beta1)
-        dec_norm_7 = dec_in
-        
-        # Linear transform 1
-        transformer.M.dims_9 = pyo.Set(initialize= list(range(9)))
-        embed_dim = transformer.M.dims_9
-        layer = "linear_1"
-        W_linear = parameters[layer,'W']
-        b_linear = parameters[layer,'b'] 
-        out = transformer.embed_input( dec_in, layer, embed_dim, W_linear, b_linear)
-        
-        # Linear transform 2
-        embed_dim = transformer.M.dims_9
-        layer = "linear_2"
-        W_linear = parameters[layer,'W']
-        b_linear = parameters[layer,'b'] 
-        out = transformer.embed_input( dec_in, layer, embed_dim, W_linear, b_linear)
-        
-        
-        # Linear transform 3
-        embed_dim = transformer.M.dims_9 
-        layer = "linear_3"
-        W_linear = parameters[layer,'W']
-        b_linear = parameters[layer,'b'] 
-        out = transformer.embed_input( dec_in, layer, embed_dim, W_linear, b_linear)
-        
-    
-        # # link decoder input value to variable storing states
-        # for tnn_index, index in zip(indices[0], m.dec_space):
-        #     for tnn_dim, dim in zip(indices[1], m.dims):
-        #         # if tnn_index <= t:
-        #         #     print(t, T, tnn_index, tnn_dim)
-        #         m.tnn_input_constraints.add(expr= out[tnn_index, tnn_dim] == m.x[index, dim])
-                
-                
         ##----------------------------------------------------------------##
         ## Set objective: maximise amount of methanol at reactor outlet
         m.obj = pyo.Objective(
                 expr = m.x[m.dec_space.last(), "CH3OH"], sense=-1
             )  # -1: maximize, +1: minimize (default)
         
-        # Convert to gurobi
-        gurobi_model, map_var , _ = convert_pyomo.to_gurobi(m)
+        #Solve
+        solver = pyo.SolverFactory("knitro")
+        #solver.options['solver'] = 'knitro'
+        #time_limit = None
+        #solver.options['timelimit'] = time_limit
+        result = solver.solve(m, tee=True, logfile="cs_pyomo_1.log")
         
-        # Add FNN1 to gurobi model
-        for key, value in ffn_parameter_dict.items():
-            nn, input_nn, output_nn = value
-            input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
-            pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
-        
-        gurobi_model.update() # update gurobi model with FFN constraints
-        
-            
-        # # Optimize
-        gurobi_model.setParam('TimeLimit', 21600) #6 hours
-        gurobi_model.setParam('MIPFocus',1)
-        PATH = r".\Experiments"
-        gurobi_model.setParam('LogFile', PATH+f'\\cs_config_2_TL.log')
-        
-        #gurobi_model.write("cs_model.lp")
-        gurobi_model.optimize()
-
-        if gurobi_model.status == GRB.OPTIMAL:
+        def get_optimal_dict(result, model):
             optimal_parameters = {}
-            for v in gurobi_model.getVars():
-                #print(f'var name: {v.varName}, var type {type(v)}')
-                if "[" in v.varName:
-                    name = v.varname.split("[")[0]
-                    if name in optimal_parameters.keys():
-                        optimal_parameters[name] += [v.x]
+            if result.solver.status == 'ok' and result.solver.termination_condition == 'optimal':
+                for varname, var in model.component_map(pyo.Var).items():
+                    # Check if the variable is indexed
+                    if var.is_indexed():
+                        optimal_parameters[varname] = {index: pyo.value(var[index]) for index in var.index_set()}
                     else:
-                        optimal_parameters[name] = [v.x]
-                else:    
-                    optimal_parameters[v.varName] = v.x
-                    
-        if gurobi_model.status == GRB.INFEASIBLE:
-            gurobi_model.computeIIS()
-            gurobi_model.write("pytorch_model.ilp")
-          
+                        optimal_parameters[varname] = pyo.value(var)
+                #print("Optimal Parameters:", optimal_parameters)
+            else:
+                print("No optimal solution obtained.")
+            
+            return optimal_parameters
+            #----------------------------
+        optimal_parameters = get_optimal_dict(result, m) # get optimal parameters & reformat  --> (1, input_feature, sequence_element)
+
         ##----------------------------------------------------------------##  
         # input TNN
         # model_enc_input = np.array(optimal_parameters["enc_input"])
@@ -949,7 +923,7 @@ class TestTransformer(unittest.TestCase):
         # print("input tnn = expected input tnn")
         
         # Enc output:
-        norm5 = np.array(optimal_parameters["enc_norm_5"])
+        norm5 = np.array(list(optimal_parameters["enc_norm_5"].values()))
         norm5_expected = np.array(list(layer_outputs_dict['model.encoder.layers.1.self_attn_layer_norm']))[0].flatten()
         
         self.assertIsNone(np.testing.assert_array_equal(norm5.shape, norm5_expected.shape)) 
@@ -958,32 +932,31 @@ class TestTransformer(unittest.TestCase):
         #---
             
         #Dec Linear
-        t = 0
-        dec_linear_1 = np.array(optimal_parameters["dec_linear_1"])
-        dec_linear_1__expected = []
-        for x in list(layer_outputs_dict['model.decoder.value_embedding.value_projection']):
-            print(np.array(x).shape)
-            if np.array(x).shape[1] ==  8:   
-                dec_linear_1__expected = np.array(x.tolist())
-        #print(dec_linear_1__expected.shape)
+        for t in range(dec_dim_1):
+            dec_linear_1 = np.array(list(optimal_parameters["dec_linear_1"+f"_{str(t)}"].values()))
+            dec_linear_1__expected = []
+            for x in list(layer_outputs_dict['model.decoder.value_embedding.value_projection']):
+                print(np.array(x).shape)
+                if np.array(x).shape[1] ==  t:   
+                    dec_linear_1__expected = np.array(x.tolist())
+            #print(dec_linear_1__expected.shape)
 
+            
+            dec_linear_1_expected = dec_linear_1__expected[0].flatten('C')
+            
+            self.assertIsNone(np.testing.assert_array_equal(dec_linear_1.shape, dec_linear_1_expected.shape)) 
+            self.assertIsNone(np.testing.assert_array_almost_equal(dec_linear_1, dec_linear_1_expected, decimal = 3)) 
+            print("Dec linear 1 = expected Dec linear 1")
         
-        dec_linear_1_expected = dec_linear_1__expected[0].flatten('C')
-        
-        self.assertIsNone(np.testing.assert_array_equal(dec_linear_1.shape, dec_linear_1_expected.shape)) 
-        self.assertIsNone(np.testing.assert_array_almost_equal(dec_linear_1, dec_linear_1_expected, decimal = 3)) 
-        print("Dec linear 1 = expected Dec linear 1")
-    
-        # Positional Embedding
-        dec_pe = np.array(optimal_parameters["dec_pos_encoding_1"])
-        
-        dec_expected = []
-        for x in list(layer_outputs_dict['model.decoder.embed_positions']):
-            print(np.array(x).shape)
-            if np.array(x).shape[0] ==  t:   
-                dec_expected = np.array(x)
-        print(dec_expected.shape)
-        dec_pe_expected= dec_expected.flatten('C')
+            # Positional Embedding
+            dec_pe = np.array(list(optimal_parameters["dec_pos_encoding_1"+f"_{str(t)}"].values()))
+            dec_expected = []
+            for x in list(layer_outputs_dict['model.decoder.embed_positions']):
+                print(np.array(x).shape)
+                if np.array(x).shape[0] ==  t:   
+                    dec_expected = np.array(x)
+            print(dec_expected.shape)
+            dec_pe_expected= dec_expected.flatten('C')
 
         self.assertIsNone(np.testing.assert_array_equal(dec_pe.shape, dec_pe_expected.shape)) 
         self.assertIsNone(np.testing.assert_array_almost_equal(dec_pe, dec_pe_expected, decimal = 3)) 
@@ -1188,13 +1161,13 @@ if __name__ == '__main__':
         
     combinations = [
     #    1, 1, 1, 1,1  # all
-     1 , 0, 1, 1, 1, #1 -- fastest feasibile solution
+    1 , 0, 1, 1, 1, #1 -- fastest feasibile solution
     # 1 , 0, 1, 1, 0 #2 -- good trade off speed and solve time
     # [1 , 0, 1, 0, 0], #3 
     # [1 , 0, 0, 0, 0], #4 -- smallest opt. gap
     # [1 , 0, 0, 1, 1], #5
-    #1 , 0, 0, 1, 0, #6 --- fastest optimal solution
-    # 0 , 0, 0, 0, 0,  #7
+    # [1 , 0, 0, 1, 0], #6 --- fastest optimal solution
+    # [0 , 0, 0, 0, 0]  #7
     ]
     combinations = [bool(val) for val in combinations]
     
