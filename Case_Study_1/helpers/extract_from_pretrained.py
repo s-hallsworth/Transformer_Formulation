@@ -1,15 +1,11 @@
 import json
 import numpy as np
-import keras
+import tensorflow.keras as keras
 import torch
 import os
 from torch import nn
 import collections
 from torch.nn import ReLU, SiLU
-from transformers.src.transformers.activations import SiLUActivation as hf_SiLU
-import transformers, sys
-sys.modules['transformers.src'] = transformers
-sys.modules['transformers.src.transformers'] = transformers
     
 def get_weights(model_path, save_json=True, file_name="model_weights.json"):
     """
@@ -452,6 +448,11 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
     """
     Read model parameters and store in dict with associated name. 
     """
+    
+    import transformers, sys
+    sys.modules['transformers.src'] = transformers
+    sys.modules['transformers.src.transformers'] = transformers
+    from transformers.src.transformers.activations import SiLUActivation as hf_SiLU
 
     src = torch.as_tensor(enc_input).float()
     tgt = torch.as_tensor(dec_input).float()
@@ -497,7 +498,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
                 raise ValueError(f"Error parsing transformer model. Unrecognised activation function \"{type(module)}\" used in transformer")
             
     # Register hooks to all layers
-    hook_names = ["linear", "encoder", "decoder", "layer", "attention", "scaler", "embedding","proj","regression"]
+    hook_names = ["linear", "encoder", "decoder", "layer", "attention", "scaler", "embedding","proj","regr"]
     for name, layer in model.named_modules():
         if any(value in name.lower() for value in hook_names):
             layer.register_forward_hook(lambda module, input, output, name=name: hook_fn(module, input, output, name, layer))
@@ -533,6 +534,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
     
     # for each layer
     for i, layer in enumerate(layers):
+        print(layer)
         layer_name = layer #[0]
         new_layer_name = None
         suffix = "_"

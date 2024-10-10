@@ -18,7 +18,7 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
     # get weights, biases, num inputs, num outputs for each layer of FFN
     for layer_name, val in model_parameters[NN_name].items():
         # print("---------------------------")
-        # # print(layer_name)
+        # print(layer_name)
         
         if "dense" in layer_name or "linear" in layer_name or "fc" in layer_name:
             if "linear" in layer_name or "fc" in layer_name:
@@ -45,7 +45,7 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
             else:
                 raise TypeError(f'Error in layer: {layer_name}. Activation function not currently supported for ', val['activation'])
 
-    # print("model summary",nn.summary())
+    #print("model summary",nn.summary())
 
     # set weights for each layer
     for i, w in enumerate(weights_list):

@@ -149,7 +149,7 @@ def convert_block(var, var_map, gurobi_model, block_map):
         block_attr = getattr(var, attr)
         
         # Map & convert block params and vars to gurobi vars
-        if isinstance(block_attr, (pyo.Var, pyo_base.var.VarData, pyo.Param)):
+        if isinstance(block_attr, (pyo.Var, pyo_base.VarData, pyo.Param)):
             var_map, block_map = create_gurobi_var(block_attr, var_map, gurobi_model, block_map) 
             
         # Check for sub-block
@@ -181,7 +181,7 @@ def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
             vtype = get_gurobi_vtype(var[index_set[0]])
             
             gurobi_var = gurobi_model.addVars(index_set, name=str(var), vtype=vtype)
-            
+
             # add bounds
             for index in index_set:
                 pyomo_var = var[index]
