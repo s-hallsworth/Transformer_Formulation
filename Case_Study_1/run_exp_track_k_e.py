@@ -30,11 +30,11 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0'
 # Set Up
 TESTING = False # fix TNN input for testing (faster solve)
 combine_files = not TESTING
-REP = 2 # number of repetitions of each scenario
-NAME = "track_traj_keras_enc"
+REP = 3 # number of repetitions of each scenario
+NAME = "track_k_e_none_2"
 SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
-exp_name = "Track_k_e_2_reruns"
+exp_name = "Track_k_e_none_2"
 PATH =  f".\\Experiments\\{exp_name}"+"\\"
 
 # Store TNN Architecture info
@@ -128,10 +128,6 @@ if TESTING:
         if t <= model.time_history.last():
             model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
             model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
-        else:
-            print(i, FFN_out[0][i-1], FFN_out[1][i-1])
-            model.fixed_loc_constraints.add(expr= FFN_out[0][i-1] == model.x1[t])
-            model.fixed_loc_constraints.add(expr= FFN_out[1][i-1]  == model.x2[t])
 
 # ## --------------------------------##
 
@@ -208,13 +204,15 @@ MHA_ALL = ACTI["MHA_I"]["list"]  + ACTI["MHA_D"]["list"] + ACTI["MHA_MC"]["list"
 
 
 combinations = [
-    [1 , 0, 1, 1, 1], #1
-    [1 , 0, 1, 1, 0], #2
-    [1 , 0, 1, 0, 0], #3
-    [1 , 0, 0, 0, 0], #4
-    [1 , 0, 0, 1, 1], #10
+    # [1 , 0, 1, 1, 1], #1
+    # [1 , 0, 1, 1, 0], #2
+    # [1 , 0, 1, 0, 0], #3
+    # [1 , 0, 0, 0, 0], #4
+    # [1 , 0, 0, 1, 1], #10
     [1 , 0, 0, 1, 0], #11
-    [0 , 0, 0, 0, 0]  #13
+    [0 , 0, 0, 0, 0],  #13
+    [1 , 0, 1, 1, 1],
+    [0 , 0, 0, 0, 0],
 ]
 combinations = [[bool(val) for val in sublist] for sublist in combinations]
 
@@ -222,7 +220,7 @@ combinations = [[bool(val) for val in sublist] for sublist in combinations]
 for r in range(REP):
         
     for c, combi in enumerate(combinations):# for each combination of constraints/bounds
-        experiment_name = f"{exp_name}_r{r+1+3}_c{c+1}"
+        experiment_name = f"{exp_name}_r{r+1}_c{c+1}"
         # activate constraints
         ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACTI["MHA_D"]["act_val"], ACTI["MHA_MC"]["act_val"] = combi
 
@@ -233,6 +231,15 @@ for r in range(REP):
         print(activation_dict)
         # clone optimization model
         m = model.clone()
+        
+        # ____ FIX INNPUTS ____ #
+        if c==1 or c==2:
+            m.fixed_loc_constraints = pyo.ConstraintList()
+            for i,t in enumerate(model.time):
+                if t <= model.time_history.last():
+                    m.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
+                    m.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
+        #----------------------#
     
         #init and activate constraints
         transformer = TNN.Transformer(config_file, m, activation_dict)  
@@ -286,7 +293,7 @@ for r in range(REP):
         # gurobi_model.setParam('DualReductions',0)
         # gurobi_model.setParam('MIPFocus',1)
         gurobi_model.setParam('LogFile', PATH+f'Logs\\{experiment_name}.log')
-        gurobi_model.setParam('TimeLimit', 3600) # 1h
+        gurobi_model.setParam('TimeLimit', 21600) # 6h
         gurobi_model.optimize()
 
         if gurobi_model.status == GRB.OPTIMAL:
@@ -310,7 +317,7 @@ for r in range(REP):
             loc1 = np.array([v for k,v in model.loc1.items()])
             loc2 = np.array([v for k,v in model.loc2.items()])
 
-            plt.figure(1, figsize=(8, 4))
+            plt.figure( figsize=(8, 4))
             plt.plot(time[2], FFN_out[1][1],'s', color='tab:cyan',label= "y TNN pred.")
             plt.plot(time[2], FFN_out[0][1],'s', color='tab:gray',label= "x TNN pred.")
             
@@ -358,10 +365,18 @@ for r in range(REP):
         tnn_config["TNN Head Dims"] = transformer.d_k
         tnn_config["TNN Head Size"] = transformer.d_H
         tnn_config["TNN Input Dim"] = transformer.input_dim
-        tnn_config["Config"] = c+1
+        
+        if c==1:
+            tnn_config["Config"] = "fixed tnn inputs"
+        elif c==2:
+            tnn_config["Config"] = "fixed tnn inputs with all (1)"
+        elif c == 0:
+            tnn_config["Config"] = "LN_prop (6)"
+        else:
+            tnn_config["Config"] = "only initial tnn input"
 
         if not TESTING:
-            save_gurobi_results(gurobi_model, PATH+experiment_name, experiment_name, r+1+3, tnn_config)
+            save_gurobi_results(gurobi_model, PATH+experiment_name, experiment_name, r+1, tnn_config)
 
 if combine_files:            
     output_filename = f'{exp_name}.csv'
