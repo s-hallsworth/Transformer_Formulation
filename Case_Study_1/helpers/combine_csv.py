@@ -26,9 +26,10 @@ def combine(PATH, output_filename):
     print(f"File saved to: {output_file}")
     
     
-# exp_name = "Track_k_e_2_reruns"
-# PATH =  r".\Experiments\Track_k_e_2_reruns"
+# exp_name = "Reactor2"
+# PATH =  r"..\Experiments"+ f"\{exp_name}"
 
+# exp_name = "Reactor"
 # output_filename = f'{exp_name}.csv'
 # combine(PATH, output_filename)
 
