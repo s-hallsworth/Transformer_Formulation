@@ -34,7 +34,7 @@ REP = 3 # number of repetitions of each scenario
 NAME = "track_k_e_none_2"
 SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
-exp_name = "Track_k_e_none_2"
+exp_name = "Track_k_e_none_2_reruns"
 PATH =  f".\\Experiments\\{exp_name}"+"\\"
 
 # Store TNN Architecture info
@@ -213,6 +213,7 @@ combinations = [
     [0 , 0, 0, 0, 0],  #13
     [1 , 0, 1, 1, 1],
     [0 , 0, 0, 0, 0],
+    [0 , 0, 0, 0, 0],
 ]
 combinations = [[bool(val) for val in sublist] for sublist in combinations]
 
@@ -220,7 +221,7 @@ combinations = [[bool(val) for val in sublist] for sublist in combinations]
 for r in range(REP):
         
     for c, combi in enumerate(combinations):# for each combination of constraints/bounds
-        experiment_name = f"{exp_name}_r{r+1}_c{c+1}"
+        experiment_name = f"{exp_name}_r{r+1+1}_c{c+1}"
         # activate constraints
         ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACTI["MHA_D"]["act_val"], ACTI["MHA_MC"]["act_val"] = combi
 
@@ -239,6 +240,7 @@ for r in range(REP):
                 if t <= model.time_history.last():
                     m.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
                     m.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
+
         #----------------------#
     
         #init and activate constraints
@@ -271,11 +273,18 @@ for r in range(REP):
         for t_index, t in enumerate(m.time):
             index = t_index + 1 # 1 indexing
             
-            if t > m.time_history.last(): # since overlap is 1
-                out_index += 2
-                print(t, indices[0].at(out_index), indices[1].first(), indices[1].last())
-                m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.x1[t])
-                m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.x2[t])
+            if t >= m.time_history.last(): # since overlap is 1
+                if c==3:
+                    out_index += 1
+                    m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.x1[t])
+                    m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.x2[t])
+                elif out_index == 0:
+                    continue
+                else:
+                    out_index += 2
+                    print(t, indices[0].at(out_index), indices[1].first(), indices[1].last())
+                    m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.x1[t])
+                    m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.x2[t])
 
         # # Convert to gurobipy
         gurobi_model, map_var, _ = convert_pyomo.to_gurobi(m)
@@ -372,11 +381,14 @@ for r in range(REP):
             tnn_config["Config"] = "fixed tnn inputs with all (1)"
         elif c == 0:
             tnn_config["Config"] = "LN_prop (6)"
+            
+        elif c == 3:
+            tnn_config["Config"] = "fixed tnn inputs 2"
         else:
             tnn_config["Config"] = "only initial tnn input"
 
         if not TESTING:
-            save_gurobi_results(gurobi_model, PATH+experiment_name, experiment_name, r+1, tnn_config)
+            save_gurobi_results(gurobi_model, PATH+experiment_name, experiment_name, r+1+1, tnn_config)
 
 if combine_files:            
     output_filename = f'{exp_name}.csv'
