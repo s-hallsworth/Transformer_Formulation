@@ -122,7 +122,7 @@ class TestTransformer(unittest.TestCase):
     def test_encoder_TNN(self):
         m = opt_model.clone()
         
-        transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", m) 
+        transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", m, activation_dict) 
         
         enc_dim_1 = src.size(0)
         dec_dim_1 = tgt.size(0)
@@ -234,7 +234,7 @@ class TestTransformer(unittest.TestCase):
         gamma1 = parameters[layer, 'gamma']
         beta1 = parameters[layer, 'beta']
         
-        transformer.add_residual_connection("enc_norm_3", "enc__self_attention_2", f"{layer}__residual_1")
+        transformer.add_residual_connection("enc_norm_1", "enc__self_attention_2", f"{layer}__residual_1")
         transformer.add_layer_norm(f"{layer}__residual_1", "enc_norm_4", gamma1, beta1)
         
         
@@ -397,7 +397,7 @@ class TestTransformer(unittest.TestCase):
     # def test_decoder_TNN(self):
     #     m = opt_model.clone()
         
-    #     transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", m) 
+    #     transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", m, activation_dict) 
         
     #     enc_dim_1 = src.size(0)
     #     dec_dim_1 = tgt.size(0)
@@ -845,7 +845,54 @@ if __name__ == '__main__':
     opt_model.x_fixed_constraints = pyo.ConstraintList()
     for s, space in enumerate(opt_model.dec_space):
         for d, dim in enumerate(opt_model.dims):
-            opt_model.x_fixed_constraints.add(expr= opt_model.x[space,dim] == input[s,d])
+            if space < opt_model.dec_space.last():
+                opt_model.x_fixed_constraints.add(expr= opt_model.x[space,dim] == input[s,d])
+                
+                
+    # Set enhancement configuration
+    ACTI_LIST_FULL = [
+            "LN_var", "LN_mean", "LN_num", "LN_num_squ", "LN_denom", "LN_num_squ_sum",
+             "MHA_Q", "MHA_K", "MHA_V", "MHA_attn_weight_sum", "MHA_attn_weight",
+            "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_QK_MC", "MHA_WK_MC", "MHA_attn_score", "MHA_output", 
+            "RES_var", "MHA_softmax_env", "AVG_POOL_var", "embed_var"]
+
+    activation_dict = {}
+    for key in ACTI_LIST_FULL:
+        activation_dict[key] = False
+
+    ACTI = {}  
+    ACTI["LN_I"] = {"list": ["LN_var"]}
+    ACTI["LN_D"] = {"list": ["LN_mean", "LN_num", "LN_num_squ", "LN_denom", "LN_num_squ_sum"]}
+
+    ACTI["MHA_I"] = {"list": ["MHA_attn_weight_sum", "MHA_attn_weight"]}
+    ACTI["MHA_D"] = {"list": ["MHA_Q", "MHA_K", "MHA_V", "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" , "RES_var"]}
+    ACTI["MHA_MC"] = {"list":[ "MHA_QK_MC", "MHA_WK_MC"]}
+
+    #ACTI["RES_ALL"] = {"list":[ "RES_var"]}
+
+    ACTI_Groups = 6
+    LN_ALL = ACTI["LN_I"]["list"] + ACTI["LN_D"]["list"]
+    MHA_ALL = ACTI["MHA_I"]["list"]  + ACTI["MHA_D"]["list"] + ACTI["MHA_MC"]["list"]
+    #check all bounds and constraints in the lists
+    #assert(len(ACTI["RES_ALL"]["list"])+ len(MHA_ALL)+ len(LN_ALL) == len(ACTI_LIST)) 
+
+
+    combinations = [
+        # [1 , 0, 1, 1, 1], #1
+        # [1 , 0, 1, 1, 0], #2 -- best initial feas, no optimal
+        # [1 , 0, 1, 0, 0], #3 --2nd best initial feas, relatively fast opt
+        # [1 , 0, 0, 0, 0], #4
+        # [1 , 0, 0, 1, 1], #5 -- 3rd best initial feas, slower opt
+        1 , 0, 0, 1, 0 #6 -- slow initial feas, fastest solving
+        #[0 , 0, 0, 0, 0],  #7
+    ]
+    combinations = [[bool(val) for val in sublist] for sublist in combinations]
+
+    ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACTI["MHA_D"]["act_val"], ACTI["MHA_MC"]["act_val"] = combi
+
+    for k, val in ACTI.items():
+        for elem in val["list"]:
+            activation_dict[elem] = val["act_val"] # set activation dict to new combi
 
     unittest.main() 
     # # instantiate transformer
