@@ -1,0 +1,67 @@
+
+Gurobi 11.0.2 (win64) logging started Tue Oct 15 02:02:16 2024
+
+Set parameter LogFile to value ".\Experiments\Track_k_e_none_2_reruns\Logs\Track_k_e_none_2_reruns_r3_c3.log"
+Set parameter TimeLimit to value 21600
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 300 rows, 462 columns and 1052 nonzeros
+Model fingerprint: 0x760538d1
+Model has 6 quadratic objective terms
+Model has 68 quadratic constraints
+Model has 116 general constraints
+Variable types: 458 continuous, 4 integer (4 binary)
+Coefficient statistics:
+  Matrix range     [9e-06, 1e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 2e-01]
+  QObjective range [2e+00, 2e+00]
+  Bounds range     [8e-05, 9e+01]
+  RHS range        [8e-05, 1e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 61 rows and 214 columns
+Presolve time: 0.01s
+Presolved: 378 rows, 255 columns, 971 nonzeros
+Presolved model has 2 SOS constraint(s)
+Presolved model has 31 bilinear constraint(s)
+Presolved model has 4 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 189 continuous, 66 integer (66 binary)
+
+Root relaxation: objective 3.053145e-04, 121 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0    0.00031    0   21          -    0.00031      -     -    0s
+     0     0    0.00031    0   18          -    0.00031      -     -    0s
+     0     0    0.00031    0   17          -    0.00031      -     -    0s
+     0     0    0.00031    0   17          -    0.00031      -     -    0s
+     0     0    0.00031    0   18          -    0.00031      -     -    0s
+     0     0    0.00031    0   15          -    0.00031      -     -    0s
+     0     2    0.00031    0   15          -    0.00031      -     -    0s
+*  315   223              50       0.0003053    0.00031  0.00%   8.1    0s
+
+Cutting planes:
+  Implied bound: 1
+  MIR: 1
+  RLT: 8
+
+Explored 610 nodes (5092 simplex iterations) in 0.15 seconds (0.09 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 1: 0.000305314 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 3.053144895828e-04, best bound 3.053144895828e-04, gap 0.0000%
