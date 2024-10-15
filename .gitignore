@@ -1,4 +1,5 @@
-*\pyomo_env
+*\pyomo_env*
+*\pyomo_venv2
 __pycache__
 .\OneDrive\Thesis\Gurobi
 *.cfg
