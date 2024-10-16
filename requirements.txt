@@ -16,3 +16,5 @@ omlt==1.1
 amplpy==0.14.0 
 ampltools==0.7.5
 torchinfo==1.8.0
+einops==0.8.0
+torchvision==0.19.1
