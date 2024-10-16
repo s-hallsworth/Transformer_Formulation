@@ -236,15 +236,16 @@ channels=1
 # depth=2
 heads=6
 # mlp_dim=32
-csv_file_path = r".\trained_transformer\verification2\vit_results.csv"
+path = r".\trained_transformer\verification"
+csv_file_path = path+"\\vit_results.csv"
 columns = ['name', 'dim', 'depth', 'heads', 'mlp_dim', 'avg_test_loss', 'test_accuracy']
 
 
-for dim in [18, 24]:
+for dim in [18, 24, 48, 60, 90]:
     for depth in [1, 2, 4]:
         for mlp_dim in [12, 24, 32, 64]:
-
-            model = ViT(image_size=image_size, patch_size=patch_size, num_classes=num_classes, channels=channels, dim=dim, depth=depth, heads=heads, mlp_dim=mlp_dim)
+            dim_head = int(dim/heads)
+            model = ViT(image_size=image_size, patch_size=patch_size, num_classes=num_classes, channels=channels, dim=dim, dim_head=dim_head, depth=depth, heads=heads, mlp_dim=mlp_dim)
             optimizer = optim.Adam(model.parameters(), lr=0.003)
 
             summary(model)
@@ -311,7 +312,7 @@ for dim in [18, 24]:
             print('Execution time:', '{:5.2f}'.format(time.time() - start_time), 'seconds')
 
             name= f"vit_{dim}_{depth}_{heads}_{mlp_dim}"
-            torch.save(model, r".\trained_transformer\verification2"+f"\{name}.pt")
+            torch.save(model, path+f"\{name}.pt")
 
             print(name)
             avg_test_loss, test_accuracy = evaluate(model, test_loader, test_loss_history)
