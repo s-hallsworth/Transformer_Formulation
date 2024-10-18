@@ -124,7 +124,7 @@ csv_file_path = path+"\\vit_results.csv"
 columns = ['name', 'dim', 'depth', 'heads', 'mlp_dim', 'avg_test_loss', 'test_accuracy']
 
 
-for dim in [18, 24, 48, 60, 90]:
+for dim in [6, 12]:
     for depth in [1, 2, 4]:
         for mlp_dim in [12, 24, 32, 64]:
             dim_head = int(dim/heads)
