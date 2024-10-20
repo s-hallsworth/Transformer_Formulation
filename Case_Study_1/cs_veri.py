@@ -17,7 +17,7 @@ import helpers.partitioningStrategies as partitioningStrategies
 
 problemNo = 0 # image to select from MNIST dataset
 N = 1 # number of partitions = 1 --> big M formulation
-epsilon = 5
+epsilon = 0 #5
 
 nLayers = 3
 instances = np.load(r'.\data\mnist2x50instances.npz')

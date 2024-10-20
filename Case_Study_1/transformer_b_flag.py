@@ -7,7 +7,7 @@ import json
 import os
 from helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_hugging_learned_parameters
 from omlt import OmltBlock
-from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation, FullSpaceSmoothNNFormulation
+from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation#, FullSpaceSmoothNNFormulation
 from omlt.io.keras import keras_reader
 import omlt
 import helpers.OMLT_helper 
@@ -41,24 +41,32 @@ def activate_envelope_att(model):
 
 class Transformer:
     """ A Time Series Transformer based on Vaswani et al's "Attention is All You Need" paper."""
-    def __init__(self, config_file, opt_model, set_bound_cut=None):
+    def __init__(self, config_file:Union[list,str], opt_model, set_bound_cut=None):
         
         self.M = opt_model
         # # time set
         # time_input = getattr( self.M, time_var_name)
         
          # get hyper params
-        with open(config_file, "r") as file:
-            config = json.load(file)
+        if isinstance(config_file, str):
+            with open(config_file, "r") as file:
+                config = json.load(file)
 
-        self.N = config['hyper_params']['N'] # enc sequence length
-        self.d_model = config['hyper_params']['d_model'] # embedding dimensions of model
-        self.d_k = config['hyper_params']['d_k']
-        self.d_H = config['hyper_params']['d_H']
-        self.input_dim = config['hyper_params']['input_dim']
-        self.epsilon = config['hyper_params']['epsilon']
-        
-        file.close()
+            self.N = config['hyper_params']['N'] # enc sequence length
+            self.d_model = config['hyper_params']['d_model'] # embedding dimensions of model
+            self.d_k = config['hyper_params']['d_k']
+            self.d_H = config['hyper_params']['d_H']
+            self.input_dim = config['hyper_params']['input_dim']
+            self.epsilon = config['hyper_params']['epsilon']
+            
+            file.close()
+        else:
+            self.N = config_file[0] # enc sequence length
+            self.d_model = config_file[1]  # embedding dimensions of model
+            self.d_k = config_file[2]
+            self.d_H = config_file[3]
+            self.input_dim = config_file[4]
+            self.epsilon = config_file[5]
 
         #Dict of bounds and cuts to activate
         list_act= [ "embed_var",
@@ -656,7 +664,7 @@ class Transformer:
                           
             else: # w_emb has a value
                 # Create weight variable
-                # print(len(indices[0]))
+                # print(len(indices[0]), len(indices[1]))
                 # print(len(indices[1]), len(embed_dim_2))
                 # print(np.array(W_emb).shape)
                 W_emb_dict = {
@@ -756,7 +764,7 @@ class Transformer:
             setattr( self.M, f"beta_{layer_norm_var_name}", pyo.Param( self.M.model_dims, initialize = dict_beta))
             gamma = getattr( self.M, f"gamma_{layer_norm_var_name}")
             beta  = getattr( self.M, f"beta_{layer_norm_var_name}")
-            
+  
             # define calculation variables
             sum_name = 'sum_'+ layer_norm_var_name
             setattr( self.M, sum_name, pyo.Var(time_dim, within=pyo.Reals))
@@ -802,21 +810,23 @@ class Transformer:
         #     return
 
         for t in time_dim: 
-            self.M.layer_norm_constraints.add(expr= sum_t[t] == sum(input_var[t, d] for d in model_dims) )
+            self.M.layer_norm_constraints.add(expr= sum_t[t] == sum(input_var[t,  d_prime] for d_prime in model_dims) )
+            
+            self.M.layer_norm_constraints.add(expr= numerator_squared_sum[t] == sum(numerator_squared[t,d_prime] for d_prime in model_dims))
+            self.M.layer_norm_constraints.add(expr= variance[t] * len(model_dims) == numerator_squared_sum[t])
+            
+
+            self.M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
+            self.M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
+            
+            self.M.layer_norm_constraints.add(expr= variance[t] + self.epsilon == (denominator[t]*denominator_abs[t]) )
             
             # Constraints for each element in sequence
             for d in model_dims:  
                 self.M.layer_norm_constraints.add(expr= numerator[t,d] == input_var[t, d] - ((1/ len(model_dims)) *sum_t[t]))
                 self.M.layer_norm_constraints.add(expr= numerator_squared[t,d] == numerator[t,d]**2)
                 
-                self.M.layer_norm_constraints.add(expr= numerator_squared_sum[t] == sum(numerator_squared[t,d_prime] for d_prime in model_dims))
-                self.M.layer_norm_constraints.add(expr= variance[t] * len(model_dims) == numerator_squared_sum[t])
                 
-
-                self.M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
-                self.M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
-                
-                self.M.layer_norm_constraints.add(expr= variance[t] + self.epsilon == (denominator[t]*denominator_abs[t]) )
                 self.M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
                 
                 
@@ -853,7 +863,7 @@ class Transformer:
             #     except: 
             #         pass
             #     numerator_squared_sum[t].lb = 0
-            return layer_norm_var
+        return layer_norm_var
         
     def add_attention(self, input_var_name:Union[pyo.Var,str], output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, cross_attn=False, encoder_output:Union[pyo.Var,str]=None, exp_approx=False, tnn_from='pytorch'):
         """
@@ -1180,6 +1190,12 @@ class Transformer:
                         
                         # max compatibility
                         if tnn_from == 'keras':
+                            """ exp(compatibility)
+                        from Keras Softmax: 
+                            exp_x = exp(x - max(x))
+                            f(x) = exp_x / sum(exp_x)
+                        """
+                            
                             MHA_Block.attention_constraints.add(
                                 expr=MHA_Block.compatibility_scaled[h, n, p] 
                                 ==  scale * sum(MHA_Block.QK[h, n, p, k] for k in MHA_Block.head_dims)
@@ -1205,11 +1221,6 @@ class Transformer:
                         
                         if exp_approx: # usepower series approx exp()
                             
-                            """ exp(compatibility)
-                            from Keras Softmax: 
-                                exp_x = exp(x - max(x))
-                                f(x) = exp_x / sum(exp_x)
-                            """
                             # power series approx for EXP
                             MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]**2 == MHA_Block.compatibility_2[h, n, p] )#problem for gurobi
                             MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_2[h, n, p] == MHA_Block.compatibility_3[h, n, p] )
@@ -1673,7 +1684,7 @@ class Transformer:
             input_bounds[dim] = bounds
         
         net_relu = helpers.OMLT_helper.weights_to_NetDef(output_var_name, nn_name, input_shape, model_parameters, input_bounds)
-        NN_block.build_formulation(FullSpaceSmoothNNFormulation(net_relu))
+        NN_block.build_formulation(ReluBigMFormulation(net_relu))
         
         # Set input constraints
         if input_indices_len == 1:
