@@ -962,12 +962,22 @@ class Transformer:
             for h,H in enumerate(MHA_Block.heads)
             for k,K in enumerate(MHA_Block.head_dims)
         }
-        W_o_dict = {
-            (D, H, K): W_o[h][k][d]
-            for d,D in enumerate(model_dims )
-            for h,H in enumerate(MHA_Block.heads)
-            for k,K in enumerate(MHA_Block.head_dims)
-        }
+        
+        if not W_o is None:
+            W_o_dict = {
+                (D, H, K): W_o[h][k][d]
+                for d,D in enumerate(model_dims )
+                for h,H in enumerate(MHA_Block.heads)
+                for k,K in enumerate(MHA_Block.head_dims)
+            }
+        else:
+            W_o_dict = {
+                (D, H, K): 1
+                for d,D in enumerate(model_dims )
+                for h,H in enumerate(MHA_Block.heads)
+                for k,K in enumerate(MHA_Block.head_dims)
+            }
+            
  
         MHA_Block.W_q = pyo.Param(model_dims ,MHA_Block.heads,MHA_Block.head_dims, initialize=W_q_dict, mutable=False)
         MHA_Block.W_k = pyo.Param(model_dims_enc ,MHA_Block.heads,MHA_Block.head_dims, initialize=W_k_dict, mutable=False)

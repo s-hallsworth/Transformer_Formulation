@@ -161,7 +161,6 @@ b_emb = parameters[layer,'b']
 model.patch_input= pyo.Var(model.num_patch_dim, model.patch_dim)
 
 #--------
-print(num_patch_dim, dim, num_patch_dim*dim)
 model.rearrange_constraints = pyo.ConstraintList()
 for i in range(0, image_size, patch_size):  
     for j in range(0, image_size, patch_size):  
@@ -196,11 +195,10 @@ out = transformer.add_pos_encoding(model.cls, "pe", b_pe )
 # Layer Norm
 gamma1 = parameters['layer_normalization_1', 'gamma']
 beta1  = parameters['layer_normalization_1', 'beta']
-print(gamma1, beta1)
 out = transformer.add_layer_norm( out, "LN_1", gamma1, beta1)
 res = out
        
-# Attention
+Attention
 layer = 'self_attention_1'
 W_q = parameters[layer,'W_q']
 W_k = parameters[layer,'W_k']
@@ -313,10 +311,18 @@ if TESTING:
     embed = np.array(optimal_parameters['embed_input'])
     embed_exp = np.array(list(layer_outputs_dict['to_patch_embedding'])[0].tolist()).flatten()
     assert np.isclose(embed, embed_exp , atol=1e-6).all()
+    
 
     # check layer norm:
     val = np.array(optimal_parameters["LN_1"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.norm'])[0].tolist()).flatten()
+    assert np.isclose(val, val_exp , atol=1e-6).all()
+    print("mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+
+    
+    # check self attention:
+    val = np.array(optimal_parameters["attention_output"])
+    val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_out.0'])[0].tolist()).flatten()
     assert np.isclose(val, val_exp , atol=1e-6).all()
     
 print("---------------------------------------------------")
