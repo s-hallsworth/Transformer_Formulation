@@ -663,7 +663,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
             # if next layer also dense, count as part of previous FFN
             if 'relu' in list(map.keys())[i-1]:
                 # set activation function
-                activation = 'relu'
+                activation = None
                 
                 # set name
                 name = 'ffn'
