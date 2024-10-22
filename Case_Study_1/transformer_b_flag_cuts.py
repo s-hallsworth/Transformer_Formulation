@@ -12,6 +12,7 @@ from omlt.io.keras import keras_reader
 import omlt
 import helpers.OMLT_helper 
 import helpers.GUROBI_ML_helper as GUROBI_ML_helper
+from typing import Union
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
@@ -40,24 +41,32 @@ def activate_envelope_att(model):
 
 class Transformer:
     """ A Time Series Transformer based on Vaswani et al's "Attention is All You Need" paper."""
-    def __init__(self, config_file, opt_model, set_bound_cut=None):
+    def __init__(self, config_file:Union[list,str], opt_model, set_bound_cut=None):
         
         self.M = opt_model
         # # time set
         # time_input = getattr( self.M, time_var_name)
         
          # get hyper params
-        with open(config_file, "r") as file:
-            config = json.load(file)
+        if isinstance(config_file, str):
+            with open(config_file, "r") as file:
+                config = json.load(file)
 
-        self.N = config['hyper_params']['N'] # enc sequence length
-        self.d_model = config['hyper_params']['d_model'] # embedding dimensions of model
-        self.d_k = config['hyper_params']['d_k']
-        self.d_H = config['hyper_params']['d_H']
-        self.input_dim = config['hyper_params']['input_dim']
-        self.epsilon = config['hyper_params']['epsilon']
-        
-        file.close()
+            self.N = config['hyper_params']['N'] # enc sequence length
+            self.d_model = config['hyper_params']['d_model'] # embedding dimensions of model
+            self.d_k = config['hyper_params']['d_k']
+            self.d_H = config['hyper_params']['d_H']
+            self.input_dim = config['hyper_params']['input_dim']
+            self.epsilon = config['hyper_params']['epsilon']
+            
+            file.close()
+        else:
+            self.N = config_file[0] # enc sequence length
+            self.d_model = config_file[1]  # embedding dimensions of model
+            self.d_k = config_file[2]
+            self.d_H = config_file[3]
+            self.input_dim = config_file[4]
+            self.epsilon = config_file[5]
 
         #Dict of bounds and cuts to activate
         list_act= [ "embed_var",

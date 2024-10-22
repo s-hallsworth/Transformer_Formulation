@@ -605,16 +605,23 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
             W_parameters = transformer_weights.get(layer_name )
             b_parameters = transformer_bias.get(layer_name, None)
             
-            # print("weight shape: ", np.array(W_parameters).shape)
+            print("weight shape: ", np.array(W_parameters).shape)
             # print("bias shape: ",np.array(b_parameters).shape)
             
             emb_shape = [int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3)]
-            W_q, W_k, W_v = torch.split(torch.tensor(W_parameters), emb_shape)
-            # print("weight shape: ", W_q.shape,  W_k.shape,  W_v.shape)
+            W_parameters = torch.tensor(W_parameters)
+            W_q, W_k, W_v = torch.split(W_parameters, emb_shape, dim=0)
+            
+            from einops import rearrange
+            W_q = rearrange(W_q, '(h k) d-> d h k', h=num_heads)
+            W_k = rearrange(W_k, '(h k) d -> d h k', h=num_heads)
+            W_v = rearrange(W_v, '(h k) d -> d h k', h=num_heads)
+            
+            print("weight shape: ", W_q.shape,  W_k.shape,  W_v.shape)
             if not b_parameters is None:
                 b_q, b_k, b_v = torch.split(torch.tensor(b_parameters), emb_shape)
 
-            # print("bias shape: ",  b_q.shape)
+                print("bias shape: ",  b_q.shape)
                 
             
             # set name of type of attention   
@@ -626,10 +633,9 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
             layer_names.append(new_layer_name)
 
             # Save in dict Q, K, V weights and biases
-            dict_transformer_params[(new_layer_name, 'W_q')] =  arrange_qkv(W_q, num_heads).detach().cpu().numpy().tolist()
-            dict_transformer_params[(new_layer_name, 'W_k')] =  arrange_qkv(W_k, num_heads).detach().cpu().numpy().tolist()
-            dict_transformer_params[(new_layer_name, 'W_v')] =  arrange_qkv(W_v, num_heads).detach().cpu().numpy().tolist()
-            
+            dict_transformer_params[(new_layer_name, 'W_q')] =  W_q.detach().cpu().numpy().tolist()
+            dict_transformer_params[(new_layer_name, 'W_k')] =  W_k.detach().cpu().numpy().tolist()
+            dict_transformer_params[(new_layer_name, 'W_v')] =  W_v.detach().cpu().numpy().tolist()
             if not b_parameters is None:
                 dict_transformer_params[(new_layer_name, 'b_q')] = torch.reshape(b_q, (num_heads, int(b_q.shape[0]/num_heads))).detach().cpu().numpy().tolist()
                 dict_transformer_params[(new_layer_name, 'b_k')] = torch.reshape(b_k, (num_heads, int(b_k.shape[0]/num_heads))).detach().cpu().numpy().tolist()
@@ -640,10 +646,15 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
                 dict_transformer_params[(new_layer_name, 'b_v')] = None
             
             out_proj_name = list(map.values())[i+1]
-            W_o = transformer_weights.get(out_proj_name, None)
-            dict_transformer_params[(new_layer_name, 'W_o')] =  arrange_o(W_o, num_heads).detach().cpu().numpy().tolist()
+            print(list(map.values())[i+1])
+            W_o = transformer_weights.get(out_proj_name, None) 
+            W_o = torch.tensor(W_o) #.view(model_dims,  qkv_dim , num_heads).permute(2,1,0) #(d, k*h)  -->(h,k,d)
+            W_o = rearrange(W_o, 'd (h k) -> h k d', h=num_heads)
+            print("W_o shape", np.array(W_o).shape)
+            dict_transformer_params[(new_layer_name, 'W_o')] =   W_o.detach().cpu().numpy().tolist()
             
             b_o = transformer_bias.get(out_proj_name , None)
+            print("b_o shape", np.array(b_o).shape)
             if not b_o  is None:
                 dict_transformer_params[(new_layer_name, 'b_o')] = b_o
                 
