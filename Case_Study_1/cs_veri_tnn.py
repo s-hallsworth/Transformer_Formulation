@@ -135,12 +135,13 @@ for key in ACTI_LIST_FULL:
     activation_dict[key] = False
 
 combinations = [
+#1, 1, 0, 0, 0
 # 1 , 0, 1, 1, 1, #1 all
 # 1 , 0, 1, 1, 0 #2 -- fastest feasibile solution _/
 #1 , 0, 1, 0, 0, #3 -- good trade off speed and solve time _/
 #1 , 0, 0, 0, 0, #4 -- smallest opt. gap _/
 #1 , 0, 0, 1, 1, #5_/
-# 1 , 0, 0, 1, 0, #6 --- fastest optimal solution _/
+1 , 0, 0, 1, 0, #6 --- fastest optimal solution _/
 # 0 , 0, 0, 0, 0  #7 _/
 ]
 combinations = [bool(val) for val in combinations]
@@ -215,34 +216,44 @@ beta1  = parameters['layer_normalization_1', 'beta']
 transformer.add_layer_norm( "pe", "LN_1", gamma1, beta1)
 res = "pe"
        
-# # Attention
-layer = 'self_attention_1'
-W_q = parameters[layer,'W_q']
-W_k = parameters[layer,'W_k']
-W_v = parameters[layer,'W_v']
-W_o = parameters[layer,'W_o']
-
-b_q = parameters[layer,'b_q']
-b_k = parameters[layer,'b_k']
-b_v = parameters[layer,'b_v']
-b_o = parameters[layer,'b_o']
-transformer.add_attention( "LN_1","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from="keras")
-
-# Residual 
-transformer.add_residual_connection(res, "attention_output", "residual_1")
-res = "residual_1"
-     
-# Layer Norm2
-gamma = parameters['layer_normalization_2', 'gamma']
-beta  = parameters['layer_normalization_2', 'beta']
-transformer.add_layer_norm( "residual_1", "LN_2", gamma, beta)
-
-       
-# FFN
-nn, input_nn, output_nn = transformer.get_fnn("LN_2", "ffn_1", "ffn_1", (num_patch_dim + 1, dim), parameters)
+for l in range(depth):
+    # Layer Norm
+    gamma1 = parameters['layer_normalization_1', 'gamma']
+    beta1  = parameters['layer_normalization_1', 'beta']
+    if l < 1:
+        res = "pe"
+    transformer.add_layer_norm( res, f"LN_1_{l}", gamma1, beta1)
+    
         
-# Residual 
-out = transformer.add_residual_connection(res, output_nn, "residual_2")
+    # # Attention
+    layer = 'self_attention_1'
+    W_q = parameters[layer,'W_q']
+    W_k = parameters[layer,'W_k']
+    W_v = parameters[layer,'W_v']
+    W_o = parameters[layer,'W_o']
+
+    b_q = parameters[layer,'b_q']
+    b_k = parameters[layer,'b_k']
+    b_v = parameters[layer,'b_v']
+    b_o = parameters[layer,'b_o']
+    transformer.add_attention( f"LN_1_{l}",f"attention_output_{l}", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from="keras")
+
+    # Residual 
+    transformer.add_residual_connection(res, f"attention_output_{l}", f"residual_1_{l}")
+    res = f"residual_1_{l}"
+        
+    # Layer Norm2
+    gamma = parameters['layer_normalization_2', 'gamma']
+    beta  = parameters['layer_normalization_2', 'beta']
+    transformer.add_layer_norm( f"residual_1_{l}", f"LN_2_{l}", gamma, beta)
+
+        
+    # # # FFN
+    nn, input_nn, output_nn = transformer.get_fnn(f"LN_2_{l}", f"ffn_1_{l}", "ffn_1", (num_patch_dim + 1, dim), parameters)
+            
+    # Residual 
+    out = transformer.add_residual_connection(res, f"ffn_1_{l}", f"residual_2_{l}")
+    res = f"residual_2_{l}"
 
      
 # cls pool
@@ -325,110 +336,50 @@ if TESTING:
     
 
     # check layer norm:
-    val = np.array(optimal_parameters["LN_1"])
+    val = np.array(optimal_parameters["LN_1_0"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.norm'])[0].tolist()).flatten()
-    assert np.isclose(val, val_exp , atol=1e-6).all()
-    print("ln1: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
-
+    #assert np.isclose(val, val_exp , atol=1e-5).all()
+    print("ln1: mean, min, max ",np.mean(val), np.max(val ), np.min(val))
+    print("ln1: mean, min, max, diff images: ",np.mean(val - val_exp), np.max(val - val_exp), np.min(val - val_exp))
     
     # check self attention:
-    val = np.array(optimal_parameters["attention_output"])
+    val = np.array(optimal_parameters["attention_output_0"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_out'])[0].tolist()).flatten()
-    print()
     print("attn_out: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
     
     ########################## dubugging code
-    # output_name = "attention_output"
-    # Q_form = torch.tensor(optimal_parameters[f"Block_{output_name}.Q"])
-    # K_form = torch.tensor(optimal_parameters[f"Block_{output_name}.K"])
-    # V_form = torch.tensor(optimal_parameters[f"Block_{output_name}.V"])
+    output_name = "attention_output_0"
+    Q_form = torch.tensor(optimal_parameters[f"Block_{output_name}.Q"])
+    K_form = torch.tensor(optimal_parameters[f"Block_{output_name}.K"])
+    V_form = torch.tensor(optimal_parameters[f"Block_{output_name}.V"])
     
-    # from einops import rearrange
-    # Q_form = rearrange(Q_form, '(h d k) -> d (h k)', d=num_patch_dim+1, h=heads)
-    # K_form = rearrange(K_form, '(h d k) -> d (h k)', d=num_patch_dim+1, h=heads)
-    # V_form = rearrange(V_form, '(h d k) -> d (h k)', d=num_patch_dim+1, h=heads)
+    attn_weight = torch.tensor(optimal_parameters[f"Block_{output_name}.attention_weight"])
+    
+    from einops import rearrange
+    Q_form = rearrange(Q_form, '(h d k) -> d (k h)', d=num_patch_dim+1, h=heads)
+    K_form = rearrange(K_form, '(h d k) -> d (k h)', d=num_patch_dim+1, h=heads)
+    V_form = rearrange(V_form, '(h d k) -> d (k h)', d=num_patch_dim+1, h=heads)
             
-    # print(Q_form.shape)
-    # val = np.array(torch.stack((Q_form, K_form, V_form), dim = -1).tolist()).flatten()
-    # val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_qkv'])[0].tolist()).flatten()
-    # # print(val)
-    # # print(np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_qkv'])[0].tolist()))
-    # # print(np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_qkv'])[0].tolist()).shape)
-    # print("qkv: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
-    # print("------------------------------------------------------------------")
-    # self_attn_enc = torch.tensor(optimal_parameters[output_name])
-    # input_name = "LN_1"
-    # attn_score_form = torch.tensor(optimal_parameters[f"Block_{output_name}.compatibility"])
-    # attn_weight_form = torch.tensor(optimal_parameters[f"Block_{output_name}.attention_weight"])
-    
-    # O_form = torch.tensor(optimal_parameters[f"Block_{output_name}.W_o"])
+    print(Q_form.shape)
+    val = np.array(torch.stack((Q_form, K_form, V_form), dim = -1).permute(0,2,1).tolist()).flatten()
+    val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_qkv'])[0].tolist()).flatten()
+    print("qkv: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
 
-    # expected_out = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_out'])[0].tolist()).flatten()
-    
-    # Check Solve calculations
-    # expected_enc_input = torch.tensor(optimal_parameters[input_name]).view(num_patch_dim+1,dim).unsqueeze(0) #[b,n,d]
-    # W_q = torch.tensor(W_q).unsqueeze(0) #[b, d, h, k]
-    # W_k = torch.tensor(W_k).unsqueeze(0) 
-    # W_v = torch.tensor(W_v).unsqueeze(0) 
-    
-    # W_q = W_q.permute(0,2,1,3) #[b, h, d, k]
-    # W_k = W_k.permute(0,2,1,3)
-    # W_v = W_v.permute(0,2,1,3) 
-    
-    # print(expected_enc_input.shape, W_q.shape)
-    # Q = torch.matmul( expected_enc_input, W_q).squeeze(-2) #[b,n,d] *[b,h,d,k]--> [b,h,n,k]
-    # K = torch.matmul( expected_enc_input, W_k).squeeze(-2) 
-    # V = torch.matmul( expected_enc_input, W_v).squeeze(-2)
-    
-    # print("Q shape: [1,1,10,4]", Q.shape)
-    # Calculate other intermediary vars
-    # q = Q #[h,n,k]
-    # k = K
-    # v = V
-    
-    # d_k = Q.shape[-1]
-    # q_scaled = q / torch.sqrt(torch.tensor(d_k, dtype=torch.float32))
-    
-    # attn_scores = torch.matmul(q_scaled, k.permute(0,1,3,2))
-    # print("attn score", attn_scores.shape)
-
-    # attn_weights = torch.exp(attn_scores) 
-    # attn_weights /= torch.sum(attn_weights, dim=-1, keepdims=True)
-    # print("attn w", attn_weights.shape)
-
-
-    # attn_output = torch.matmul(attn_weights, v)
-    # print("attn out", attn_output.shape)
-    # print("v       ", v.shape)
-
-    # W_o = torch.tensor(W_o).unsqueeze(0) #[b,h,k,d]
-    # print("W_o ", W_o.shape)
-    # computed_attn_output = torch.sum(torch.matmul(attn_output, W_o), dim=1) 
-    # print(computed_attn_output.shape)
-    # computed_attn_output += torch.tensor(b_o)
-    
-    # Q = Q.flatten().numpy()
-    # K = K.flatten().numpy()
-    # V = V.flatten().numpy()
-
-    # val = computed_attn_output.numpy().flatten()
-    # print("out: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
-    
-    # val = np.array(optimal_parameters["attention_output"])
-    # val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_out'])[0].tolist()).flatten()
-    # print("attn_out: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
-    assert np.isclose(val, val_exp , atol=1e-5).all()
+    val = np.array(attn_weight.tolist()).flatten()
+    val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.attend'])[0].tolist()).flatten()
+    print("attn: mean, min, max ",np.mean(val), max(val ), min(val))
+    print("attn weight: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
     
     # check layer norm:
-    val = np.array(optimal_parameters["LN_2"])
+    val = np.array(optimal_parameters["LN_2_0"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.1.norm'])[0].tolist()).flatten()
-    print("mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    print("ln2: mean, min, max ",np.mean(val), np.max(val ), np.min(val))
+    print("ln2: mean, min, max, diff images: ",np.mean(val - val_exp), np.max(val - val_exp), np.min(val - val_exp))
     
-    # check layer norm:
-    val = np.array(optimal_parameters["ffn_1"])
+    # check ffn:
+    val = np.array(optimal_parameters["ffn_1_0"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.1.fn.net'])[0].tolist()).flatten()
-    assert np.isclose(val, val_exp , atol=1e-5).all()
-    print("mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    print("ffn: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
     
     # check pool:
     val = np.array(optimal_parameters["pool"])

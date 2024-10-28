@@ -830,31 +830,28 @@ class Transformer:
                     layer_norm_var[t, d].lb = min( beta[d] + 5*gamma[d], beta[d] - 5*gamma[d])
                     
                 #Add bounds
-            #     if input_var[t, d].ub and input_var[t, d].lb:
-            #         if self.bound_cut_activation["LN_num"]:
-            #             mean_u = (sum(input_var[t, d_prime].ub for d_prime in model_dims)/ len(model_dims) )
-            #             mean_l = (sum(input_var[t, d_prime].lb for d_prime in model_dims)/ len(model_dims))
-            #             numerator[t,d].ub = input_var[t, d].ub - mean_l
-            #             numerator[t,d].lb = input_var[t, d].lb - mean_u
+                if input_var[t, d].ub and input_var[t, d].lb:
+                    if self.bound_cut_activation["LN_num"]:
+                        mean_u = (sum(input_var[t, d_prime].ub for d_prime in model_dims)/ len(model_dims) )
+                        mean_l = (sum(input_var[t, d_prime].lb for d_prime in model_dims)/ len(model_dims))
+                        numerator[t,d].ub = input_var[t, d].ub - mean_l
+                        numerator[t,d].lb = input_var[t, d].lb - mean_u
 
-            #         if self.bound_cut_activation["LN_num_squ"]:
-            #             numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
+                    if self.bound_cut_activation["LN_num_squ"]:
+                        numerator_squared[t,d].ub = max(numerator[t,d].ub**2, numerator[t,d].lb**2) 
    
-            #         if self.bound_cut_activation["LN_denom"]:
-            #             denominator_abs[t].ub = (max(input_var[t,:].ub) - min(input_var[t,:].lb))/2 #standard deviation
-            #             denominator_abs[t].lb = 0
-            #             denominator[t].ub = denominator_abs[t].ub  #standard deviation
-            #             denominator[t].lb = -(max(input_var[t,:].ub) - min(input_var[t,:].lb))/2
-                        
-            #     if self.bound_cut_activation["LN_num_squ"]:
-            #         numerator_squared[t,d].lb = 0
+                    if self.bound_cut_activation["LN_denom"]:
+                        denominator_abs[t].ub = (max(input_var[t,:].ub) - min(input_var[t,:].lb))/2 #standard deviation
+                        denominator_abs[t].lb = 0
+                if self.bound_cut_activation["LN_num_squ"]:
+                    numerator_squared[t,d].lb = 0
                     
-            # if self.bound_cut_activation["LN_num_squ"]:       
-            #     try:
-            #         numerator_squared_sum[t].ub = sum( (numerator_squared[t,d_prime].ub) for d_prime in model_dims) 
-            #     except: 
-            #         pass
-            #     numerator_squared_sum[t].lb = 0
+            if self.bound_cut_activation["LN_num_squ"]:       
+                try:
+                    numerator_squared_sum[t].ub = sum( (numerator_squared[t,d_prime].ub) for d_prime in model_dims) 
+                except: 
+                    pass
+                numerator_squared_sum[t].lb = 0
         return layer_norm_var
         
     def add_attention(self, input_var_name:Union[pyo.Var,str], output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, cross_attn=False, encoder_output:Union[pyo.Var,str]=None, exp_approx=False, tnn_from='pytorch'):
