@@ -452,6 +452,51 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
         print(layer, new_layer_name)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
+def get_ViT_model_weights(model, save_json=True, file_name='.\weights.json'):
+    """
+    Save weights of pre-trained PyTorch model to json file with layer name appended.
+    """
+    
+    model.eval()
+
+    # Extract weights
+    model_weights = {}
+    model_bias = {}
+    cls_token = []
+    pos_embedding = []
+    
+    for name, param in model.named_parameters():
+        
+        if "cls" in name:
+            cls_token = param.squeeze(0).squeeze(0).tolist()
+        
+        elif "pos_embedding" in name:
+            pos_embedding  = param.squeeze(0).tolist()
+            
+        else:
+            if "weight" in name:
+                new_name = name.split('weight')[0]
+                if not new_name[-1].isalnum():
+                    new_name = new_name[:-1]
+                model_weights[new_name] = param.detach().cpu().numpy().tolist()    
+
+            if "bias" in name:
+                new_name = name.split('bias')[0]
+                if not new_name[-1].isalnum():
+                    new_name = new_name[:-1]
+                model_bias[new_name] = param.detach().cpu().numpy().tolist()
+                
+        
+    # Save weights
+    if save_json:
+        with open(file_name, 'w') as json_file:
+            json.dump(model_weights, json_file)
+            
+        print(f"Weights of the model have been saved to {file_name}")
+    
+    else:
+        return model_weights, model_bias, cls_token, pos_embedding
+
 def get_torchViT_learned_parameters(model, enc_input, num_heads):
     """
     Read model parameters and store in dict with associated name. 
@@ -463,7 +508,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
     dict_outputs = {}
     activations_dict = {}
     count_layer_names = []
-    map = {}
+    map = collections.OrderedDict()
     
     
     # Get layer input shapes
@@ -508,13 +553,13 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
     layers = [i for i in list(input_shapes.keys()) if i ]
     
     # Get weights and biases
-    transformer_weights, transformer_bias = get_pytorch_model_weights(model, save_json=False)
+    transformer_weights, transformer_bias, cls_token, pos_embedding = get_ViT_model_weights(model, save_json=False)
     
-    print(transformer_weights.keys())
-    print(transformer_bias.keys())
+    # print(transformer_weights.keys())
+    # print(transformer_bias.keys())
     
-    for k,v in map.items():
-        print(f"{k}: {v}")
+    # for k,v in map.items():
+    #     print(f"{k}: {v}")
 
     # # Print the input shapes
     # for layer_name, shape in input_shapes.items():
@@ -527,6 +572,10 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
     layer_names = []
     count_layer_names = []
     next = None
+    
+    #save cls token and pos embedding learned params:
+    dict_transformer_params['cls_token'] = cls_token
+    dict_transformer_params['pos_embedding'] = pos_embedding
     
     # for each layer
     for i, layer in enumerate(map.keys()):
@@ -550,23 +599,29 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
             dict_transformer_params[(new_layer_name, 'gamma')] = W_parameters
             dict_transformer_params[(new_layer_name, 'beta')] = b_parameters
             
-        if "attention" in layer.lower():
+        elif "attention" in layer.lower():
 
             # if embed dim = k, v dim --> weights concatinated in in_proj (see pytorch doc)
             W_parameters = transformer_weights.get(layer_name )
             b_parameters = transformer_bias.get(layer_name, None)
             
             print("weight shape: ", np.array(W_parameters).shape)
-            print("bias shape: ",np.array(b_parameters).shape)
+            # print("bias shape: ",np.array(b_parameters).shape)
             
             emb_shape = [int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3)]
-            W_q, W_k, W_v = torch.split(torch.tensor(W_parameters), emb_shape)
+            W_parameters = torch.tensor(W_parameters)
+            W_q, W_k, W_v = torch.split(W_parameters, emb_shape, dim=0)
+            
+            from einops import rearrange
+            W_q = rearrange(W_q, '(h k) d-> d h k', h=num_heads)
+            W_k = rearrange(W_k, '(h k) d -> d h k', h=num_heads)
+            W_v = rearrange(W_v, '(h k) d -> d h k', h=num_heads)
+            
             print("weight shape: ", W_q.shape,  W_k.shape,  W_v.shape)
-            if b_parameters:
+            if not b_parameters is None:
                 b_q, b_k, b_v = torch.split(torch.tensor(b_parameters), emb_shape)
-            else:
-                b_q = None
-            # print("bias shape: ",  b_q.shape)
+
+                print("bias shape: ",  b_q.shape)
                 
             
             # set name of type of attention   
@@ -578,30 +633,37 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
             layer_names.append(new_layer_name)
 
             # Save in dict Q, K, V weights and biases
-            dict_transformer_params[(new_layer_name, 'W_q')] =  arrange_qkv(W_q, num_heads).detach().cpu().numpy().tolist()
-            dict_transformer_params[(new_layer_name, 'W_k')] =  arrange_qkv(W_k, num_heads).detach().cpu().numpy().tolist()
-            dict_transformer_params[(new_layer_name, 'W_v')] =  arrange_qkv(W_v, num_heads).detach().cpu().numpy().tolist()
-            
-            if not b_q is None:
+            dict_transformer_params[(new_layer_name, 'W_q')] =  W_q.detach().cpu().numpy().tolist()
+            dict_transformer_params[(new_layer_name, 'W_k')] =  W_k.detach().cpu().numpy().tolist()
+            dict_transformer_params[(new_layer_name, 'W_v')] =  W_v.detach().cpu().numpy().tolist()
+            if not b_parameters is None:
                 dict_transformer_params[(new_layer_name, 'b_q')] = torch.reshape(b_q, (num_heads, int(b_q.shape[0]/num_heads))).detach().cpu().numpy().tolist()
                 dict_transformer_params[(new_layer_name, 'b_k')] = torch.reshape(b_k, (num_heads, int(b_k.shape[0]/num_heads))).detach().cpu().numpy().tolist()
                 dict_transformer_params[(new_layer_name, 'b_v')] = torch.reshape(b_v, (num_heads, int(b_v.shape[0]/num_heads))).detach().cpu().numpy().tolist()
+            else:
+                dict_transformer_params[(new_layer_name, 'b_q')] = None
+                dict_transformer_params[(new_layer_name, 'b_k')] = None
+                dict_transformer_params[(new_layer_name, 'b_v')] = None
             
             out_proj_name = list(map.values())[i+1]
-            W_o = transformer_weights.get(out_proj_name)
-            dict_transformer_params[(new_layer_name, 'W_o')] =  arrange_o(W_o, num_heads).detach().cpu().numpy().tolist()
+            print(list(map.values())[i+1])
+            W_o = transformer_weights.get(out_proj_name, None) 
+            W_o = torch.tensor(W_o) #.view(model_dims,  qkv_dim , num_heads).permute(2,1,0) #(d, k*h)  -->(h,k,d)
+            W_o = rearrange(W_o, 'd (h k) -> h k d', h=num_heads)
+            print("W_o shape", np.array(W_o).shape)
+            dict_transformer_params[(new_layer_name, 'W_o')] =   W_o.detach().cpu().numpy().tolist()
             
             b_o = transformer_bias.get(out_proj_name , None)
+            print("b_o shape", np.array(b_o).shape)
             if not b_o  is None:
                 dict_transformer_params[(new_layer_name, 'b_o')] = b_o
                 
             
-        if 'linear' in layer.lower():
+        elif 'linear' in layer.lower():
             # if next layer also dense, count as part of previous FFN
-            
-            if list(map.keys())[i-1]=='relu':
+            if 'relu' in list(map.keys())[i-1]:
                 # set activation function
-                activation = 'relu'
+                activation = None
                 
                 # set name
                 name = 'ffn'
@@ -611,14 +673,15 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
                 # store layer info
                 dict_transformer_params[new_layer_name] |= {layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activation}}  
                 
-            elif list(map.keys())[i+1]=='relu':
-                # get activation function
-                activation = 'relu'
-                
-                # save layer information
-                if "linear" in layers[i+1]:
-                    next = layers[i+1]
+            elif list(map.keys())[-1] != layer:
+                if "relu" in list(map.keys())[i+1]:
+                    # get activation function
+                    activation = 'relu'
                     
+                    # # save layer information
+                    # if "linear" in layers[i+1]:
+                    #     next = layers[i+1]
+                        
                     name = 'ffn'
                     count = count_layer_names.count(prefix+suffix+name) + 1
                     new_layer_name = f"{prefix+suffix+name}_{count}"
@@ -628,7 +691,16 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
                     dict_transformer_params[new_layer_name] = {'input_shape': np.array(input_shapes[layer_name]), 
                                                         'input': layers[-1],
                                                         layer_name: {'W': W_parameters, 'b': b_parameters, 'activation': activation} }
-                
+                else:
+                    name = 'linear'
+                    count = count_layer_names.count(prefix+suffix+name) + 1
+                    new_layer_name = f"{prefix+suffix+name}_{count}"
+                    count_layer_names.append(prefix+name)
+                    
+                    layer_names.append(new_layer_name)
+
+                    dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
+                    dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
             else:
                 name = 'linear'
                 count = count_layer_names.count(prefix+suffix+name) + 1
@@ -640,7 +712,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
                 dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
                 dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
-        print(layer, new_layer_name)
+        print(layer, layer_name, new_layer_name)
     return layer_names, dict_transformer_params, model, dict_outputs
 
 

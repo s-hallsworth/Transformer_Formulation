@@ -10,7 +10,7 @@ For further details see the git repo or refer to the related article "Partition-
 
 This file contains implementations of the Optimal Adversary problem described in
 Section 4.1 of the manuscript. The file can be run directly, with the following parameters.
-Parameters can be changed on lines 45-51.
+Parameters can be changed on lines 46-60.
     
     Parameters:
         problemNo (int): index of problem to be solved, can be in range(100)
@@ -37,80 +37,74 @@ from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
-import transformer_b_flag as TNN
+import transformer_b_flag_cuts as TNN
 from trained_transformer.Tmodel import TransformerModel
 import helpers.extract_from_pretrained as extract_from_pretrained
 
+TESTING = True # TESTING
 
 problemNo = 0 # image to select from MNIST dataset
-epsilon = 5
+epsilon = 0 
 nLayers = 3
 instances = np.load(r'.\data\mnist2x50instances.npz')
-inputimage = instances['images'][problemNo]
+inputimage = instances['images'][problemNo] # flattened image
 labels = instances['labels'][problemNo] # [true label, adversary label]
-image_size = instances['w1'].shape[1]
+image_size_flat = instances['w1'].shape[1]
 classification_labels = 10
+channels = 1
+image_size=28
+patch_size=4 
+num_classes=10
+channels=1
+input = torch.as_tensor(inputimage).float().reshape(1, channels, image_size, image_size) #image_size * image_size image
+
 tgt_dict = {}
-print(inputimage.shape)
-for key, value in zip(range(image_size), inputimage):
-    tgt_dict[key] = value
+for p1 in range(image_size):
+    for p2 in range(image_size):
+        tgt_dict[p1, p2] = input[0,0,p1,p2].tolist()
 
 # Create pyomo model
 model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
 
 # Define parameters and sets
 model.labels = pyo.Set(initialize=labels)
+model.channel_dim = pyo.Set(initialize=range(channels))
 model.image_dim = pyo.Set(initialize=range(image_size))
 model.out_labels_dim = pyo.Set(initialize=range(classification_labels))
 
 model.eps = pyo.Param(initialize=epsilon)
-model.NN_output = pyo.Param(model.out_labels_dim)
-model.purturb_M = pyo.Param(initialize= max(abs(inputimage))+epsilon-1)
-model.target_image = pyo.Param(model.image_dim, initialize=tgt_dict)
+model.target_image = pyo.Param(model.image_dim, model.image_dim, initialize=tgt_dict)
 
 # Define variables
-model.purturb_image = pyo.Var(model.image_dim)
-model.purturb = pyo.Var(model.image_dim, bounds=(0, model.eps))
-model.purturb_s_min = pyo.Var(model.image_dim, within=pyo.Binary)
-model.purturb_s_max = pyo.Var(model.image_dim, within=pyo.Binary)
+model.purturb_image = pyo.Var(model.image_dim, model.image_dim, bounds=(0,1))
+model.purturb = pyo.Var(model.image_dim, model.image_dim, bounds=(0, model.eps))
 
 # Add constraints to purturbed image:
 model.purturb_constraints = pyo.ConstraintList()
 for i in model.purturb_image.index_set():
-    # purturb image: less than min(max purturb,1)
-    model.purturb_constraints.add(expr= model.purturb_image[i] <= model.purturb_s_min[i] + ((model.target_image[i] + model.eps)*(model.purturb_s_min[i]-1)) ) # less than min(max purturb,1)
-    model.purturb_constraints.add(expr= model.target_image[i] + model.eps - 1 <= model.purturb_s_min[i] * model.purturb_M ) 
-    model.purturb_constraints.add(expr= model.target_image[i] + model.eps - 1 >= (model.purturb_s_min[i]-1) * model.purturb_M ) 
+    model.purturb_constraints.add(expr= model.purturb_image[i] <= model.target_image[i] + model.eps) # # purturb image <= min(max purturb,1)
+    model.purturb_constraints.add(expr= model.purturb_image[i] >= model.target_image[i] - model.eps) # # purturb image >=  max(min purturb,0)
     
-    # purturb image: greater than max(min purturb,0)
-    model.purturb_constraints.add(expr= model.purturb_image[i] >= (model.target_image[i] - model.eps)*model.purturb_s_max[i] )
-    model.purturb_constraints.add(expr= model.target_image[i] - model.eps <= model.purturb_s_max[i] * model.purturb_M )
-    model.purturb_constraints.add(expr= model.target_image[i] - model.eps >= (model.purturb_s_max[i] - 1 )* model.purturb_M )
-    
-    #purturb: greater than or equal to the abs different between x and x'
+    #purturb >= to the abs different between x and x'
     model.purturb_constraints.add(expr= model.purturb[i] >= model.purturb_image[i] - model.target_image[i])
     model.purturb_constraints.add(expr= model.purturb[i] >= model.target_image[i] - model.purturb_image[i])
 
 # total purturb at each pixel <= epsilon   
-model.purturb_constraints.add(expr= sum(model.purturb[i] for i in model.image_dim) <= model.eps) 
+model.purturb_constraints.add(expr= sum(model.purturb[i] for i in model.purturb.index_set()) <= model.eps) 
    
    
 # Load transformer
 from vit_TNN import *
-file_name = "vit_18_1_6_12"
+file_name = "vit_6_1_6_12"
 tnn_path = f".\\trained_transformer\\verification\\{file_name}.pt" 
 device = 'cpu'
 config_params = file_name.split('_')
-image_size=28
-patch_size=4 
-num_classes=10
-channels=1
 dim= int(config_params[1])
 depth= int(config_params[2])
 heads= int(config_params[3])
 mlp_dim= int(config_params[4])
-# tnn_model = ViT(image_size=image_size, patch_size=patch_size, num_classes=num_classes, channels=channels, dim=dim, depth=depth, heads=heads, mlp_dim=mlp_dim)
-# tnn_model.load_state_dict(torch.load(tnn_path, map_location=device))
+head_size = int(dim/heads)
+config_list = [channels, dim, head_size , heads, image_size*image_size, 1e-5]
 tnn_model = torch.load(tnn_path, map_location=device)
 
 
@@ -127,11 +121,11 @@ for key in ACTI_LIST_FULL:
 combinations = [
 # 1 , 0, 1, 1, 1, #1 all
 # 1 , 0, 1, 1, 0 #2 -- fastest feasibile solution
-# [1 , 0, 1, 0, 0], #3 -- good trade off speed and solve time
+#1 , 0, 1, 0, 0, #3 -- good trade off speed and solve time
 # [1 , 0, 0, 0, 0], #4 -- smallest opt. gap
 # [1 , 0, 0, 1, 1], #5
-1 , 0, 0, 1, 0, #6 --- fastest optimal solution
-# [0 , 0, 0, 0, 0]  #7
+# 1 , 0, 0, 1, 0, #6 --- fastest optimal solution
+0 , 0, 0, 0, 0  #7
 ]
 combinations = [bool(val) for val in combinations]
 
@@ -146,40 +140,292 @@ ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACT
 for k, val in ACTI.items():
     for elem in val["list"]:
         activation_dict[elem] = val["act_val"] # set activation dict to new combi
-    
+ 
+# TESTING ----   
 # Define formulated transformer
-transformer = TNN.Transformer( ".\\data\\verification_config.json", model, activation_dict)
-input = torch.as_tensor(inputimage).float().reshape(image_size, image_size)
-input = input.unsqueeze(0).unsqueeze(0) # b c h w
+transformer = TNN.Transformer( config_list, model, activation_dict)
 layer_names, parameters, _, layer_outputs_dict = extract_from_pretrained.get_torchViT_learned_parameters(tnn_model, input, heads)
+if TESTING:
+    plt.imshow(input.squeeze(0).squeeze(0), cmap='gray')
+    plt.show()
     
-# Transformer input var:
-tnn_input = model.purturb_image
-
-# Add Sequential
+# Add Sequential 1 x28 x 18 mult 18 x patch size
 layer = "linear_1"
-W_linear = parameters[layer,'W']
-b_linear = parameters[layer,'b']
-transformer.embed_input(tnn_input, "embed", dim, W_linear, b_linear)
-# Add Transfromer Layers
+num_patch_dim = int(image_size_flat/(patch_size*patch_size))
+model.num_patch_dim = pyo.Set(initialize=range(num_patch_dim ))
+model.patch_dim = pyo.Set(initialize=range(patch_size*patch_size))
+model.embed_dim = pyo.Set(initialize=range(dim))
 
-# Add Output transforms
+W_emb = parameters[layer,'W']
+b_emb = parameters[layer,'b']
+model.patch_input= pyo.Var(model.num_patch_dim, model.patch_dim)
 
+#--------
+model.rearrange_constraints = pyo.ConstraintList()
+for i in range(0, image_size, patch_size):  
+    for j in range(0, image_size, patch_size):  
+        patch_i = i // patch_size  
+        patch_j = j // patch_size  
+        patch_index = patch_i * (image_size // patch_size) + patch_j  
+        
+        for pi in range(patch_size):
+            for pj in range(patch_size):
+                pos_i = patch_index  
+                pos_j = pi * patch_size + pj 
 
-# # Set objectivve
-# model.setObjective(-(x[ind+1][labels[1]] - x[ind+1][labels[0]])) #default is min. Thus equiv to max: x[ind+1][labels[1]] - x[ind+1][labels[0]]
+                model.rearrange_constraints.add(expr= model.patch_input[pos_i, pos_j] == model.purturb_image[i + pi, j + pj])
+out = transformer.embed_input( "patch_input" , "embed_input", model.embed_dim, W_emb, b_emb)
 
-# model.setParam('MIPFocus',3) # 3: focus on improving  the dual bound. https://www.gurobi.com/documentation/current/refman/mipfocus.html
-# model.setParam('Cuts',1)     # 1: Moderate cut generation. https://www.gurobi.com/documentation/current/refman/cuts.html 
-# model.setParam('Method', 1)  # 1: dual simplex used to solve continuous model or root node relaxation
-# model.setParam('TimeLimit',3600)
-# #model.setParam('DisplayInterval', 50)
-           
-# # model.optimize()
+#  CLS tokens
+cls_token = parameters['cls_token']
+model.cls_dim= pyo.Set(initialize=range(num_patch_dim + 1))
+model.cls = pyo.Var(model.cls_dim, model.embed_dim)
+model.cls_constraints = pyo.ConstraintList()
+for c, c_dim in enumerate(model.cls_dim):
+    for e, e_dim in enumerate(model.embed_dim):
+        if c < 1:
+            model.cls_constraints.add(expr= model.cls[c_dim, e_dim] == cls_token[e])
+        else:
+           model.cls_constraints.add(expr= model.cls[c_dim, e_dim] == model.embed_input[model.num_patch_dim.at(c), model.embed_dim.at(e+1)] )
+            
+# Add Positional Embedding
+b_pe= parameters['pos_embedding']
+transformer.add_pos_encoding("cls", "pe", b_pe )
+
+# Layer Norm
+gamma1 = parameters['layer_normalization_1', 'gamma']
+beta1  = parameters['layer_normalization_1', 'beta']
+transformer.add_layer_norm( "pe", "LN_1", gamma1, beta1)
+res = "pe"
+       
+# # Attention
+layer = 'self_attention_1'
+W_q = parameters[layer,'W_q']
+W_k = parameters[layer,'W_k']
+W_v = parameters[layer,'W_v']
+W_o = parameters[layer,'W_o']
+
+b_q = parameters[layer,'b_q']
+b_k = parameters[layer,'b_k']
+b_v = parameters[layer,'b_v']
+b_o = parameters[layer,'b_o']
+transformer.add_attention( "LN_1","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+
+# Residual 
+transformer.add_residual_connection(res, "attention_output", "residual_1")
+res = "residual_1"
+     
+# Layer Norm2
+gamma = parameters['layer_normalization_2', 'gamma']
+beta  = parameters['layer_normalization_2', 'beta']
+transformer.add_layer_norm( "residual_1", "LN_2", gamma, beta)
+
+       
+# FFN
+nn, input_nn, output_nn = transformer.get_fnn("LN_2", "ffn_1", "ffn_1", (num_patch_dim + 1, dim), parameters)
+        
+# # Residual 
+# out = transformer.add_residual_connection(res, output_nn, "residual_2")
+
+# # print("TNN output shape")
+# # for i in out.index_set():
+# #     print(i)
+     
+# # cls pool
+# model.pool= pyo.Var(model.channel_dim, model.embed_dim)
+# def pool_rule(model, d):
+#     return model.pool[0, d] == out[0,d]
+# model.pool_constr = pyo.Constraint(model.embed_dim, rule=pool_rule)
+
+# # Norm
+# gamma = parameters['layer_normalization_3', 'gamma']
+# beta  = parameters['layer_normalization_3', 'beta']
+# out = transformer.add_layer_norm( model.pool, "LN_3", gamma, beta)
+
+# # Linear
+# W_emb = parameters['linear_3', 'W']
+# b_emb  = parameters['linear_3', 'b']
+# out = transformer.embed_input( out, "output", model.out_labels_dim, W_emb, b_emb)
+
+# Set objective
+# model.obj = pyo.Objective(
+#     expr= out[0, model.labels.last()] - out[0, model.labels.first()] , sense=pyo.maximize
+# )  # -1: maximize, +1: minimize (default)
+
+# TESTING
+model.obj = pyo.Objective(
+    expr= sum(model.purturb_image[i] - model.target_image[i] for i in model.purturb_image.index_set()), sense=pyo.minimize
+)  # -1: maximize, +1: minimize (default)
+# -------
+
+# Convert & Solve 
+# # Convert to gurobipy
+gurobi_model, map_var, _ = convert_pyomo.to_gurobi(model)
+
+# Add FNN1 to gurobi model
+input_1, output_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+pred_constr1 = add_predictor_constr(gurobi_model, nn, input_1, output_1)
+
+gurobi_model.update()
+
+## Optimizes
+# gurobi_model.setParam('DualReductions',0)
+#gurobi_model.setParam('MIPFocus',1)
+PATH = r".\Experiments\Verification"
+experiment_name = "testing_veri"
+gurobi_model.setParam('LogFile', PATH+f'\\Logs\\{experiment_name}_6.log')
+gurobi_model.setParam('TimeLimit', 43200) #12h
+gurobi_model.optimize()
+    
+# Results
+if gurobi_model.status == GRB.OPTIMAL:
+    optimal_parameters = {}
+    for v in gurobi_model.getVars():
+        #print(f'var name: {v.varName}, var type {type(v)}')
+        if "[" in v.varName:
+            name = v.varname.split("[")[0]
+            if name in optimal_parameters.keys():
+                optimal_parameters[name] += [v.x]
+            else:
+                optimal_parameters[name] = [v.x]
+        else:    
+            optimal_parameters[v.varName] = v.x
+            
+if gurobi_model.status == GRB.INFEASIBLE:
+        gurobi_model.computeIIS()
+        gurobi_model.write("vit_model.ilp")
+        
+purturb_image = np.array(optimal_parameters['purturb_image'])
+target_image = np.array(optimal_parameters['target_image'])
+
+if TESTING:
+    # check input to tnn
+    patch = np.array(optimal_parameters['patch_input']).flatten()
+    patch_exp = np.array(list(layer_outputs_dict['to_patch_embedding.0'])[0].tolist()).flatten() # convert from (image size * image size) to (patch_num * patch size)
+    assert np.isclose(patch, patch_exp , atol=1e-6).all()
+    
+    # check linear layer:
+    embed = np.array(optimal_parameters['embed_input'])
+    embed_exp = np.array(list(layer_outputs_dict['to_patch_embedding'])[0].tolist()).flatten()
+    assert np.isclose(embed, embed_exp , atol=1e-6).all()
     
 
+    # check layer norm:
+    val = np.array(optimal_parameters["LN_1"])
+    val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.norm'])[0].tolist()).flatten()
+    assert np.isclose(val, val_exp , atol=1e-6).all()
+    print("mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+
+    
+    # check self attention:
+    val = np.array(optimal_parameters["attention_output"])
+    val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_out'])[0].tolist()).flatten()
+    print()
+    print("attn_out: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    
+    ########################## dubugging code
+    # output_name = "attention_output"
+    # Q_form = torch.tensor(optimal_parameters[f"Block_{output_name}.Q"])
+    # K_form = torch.tensor(optimal_parameters[f"Block_{output_name}.K"])
+    # V_form = torch.tensor(optimal_parameters[f"Block_{output_name}.V"])
+    
+    # from einops import rearrange
+    # Q_form = rearrange(Q_form, '(h d k) -> d (h k)', d=num_patch_dim+1, h=heads)
+    # K_form = rearrange(K_form, '(h d k) -> d (h k)', d=num_patch_dim+1, h=heads)
+    # V_form = rearrange(V_form, '(h d k) -> d (h k)', d=num_patch_dim+1, h=heads)
+            
+    # print(Q_form.shape)
+    # val = np.array(torch.stack((Q_form, K_form, V_form), dim = -1).tolist()).flatten()
+    # val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_qkv'])[0].tolist()).flatten()
+    # # print(val)
+    # # print(np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_qkv'])[0].tolist()))
+    # # print(np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_qkv'])[0].tolist()).shape)
+    # print("qkv: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    # print("------------------------------------------------------------------")
+    # self_attn_enc = torch.tensor(optimal_parameters[output_name])
+    # input_name = "LN_1"
+    # attn_score_form = torch.tensor(optimal_parameters[f"Block_{output_name}.compatibility"])
+    # attn_weight_form = torch.tensor(optimal_parameters[f"Block_{output_name}.attention_weight"])
+    
+    # O_form = torch.tensor(optimal_parameters[f"Block_{output_name}.W_o"])
+
+    # expected_out = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_out'])[0].tolist()).flatten()
+    
+    # Check Solve calculations
+    # expected_enc_input = torch.tensor(optimal_parameters[input_name]).view(num_patch_dim+1,dim).unsqueeze(0) #[b,n,d]
+    # W_q = torch.tensor(W_q).unsqueeze(0) #[b, d, h, k]
+    # W_k = torch.tensor(W_k).unsqueeze(0) 
+    # W_v = torch.tensor(W_v).unsqueeze(0) 
+    
+    # W_q = W_q.permute(0,2,1,3) #[b, h, d, k]
+    # W_k = W_k.permute(0,2,1,3)
+    # W_v = W_v.permute(0,2,1,3) 
+    
+    # print(expected_enc_input.shape, W_q.shape)
+    # Q = torch.matmul( expected_enc_input, W_q).squeeze(-2) #[b,n,d] *[b,h,d,k]--> [b,h,n,k]
+    # K = torch.matmul( expected_enc_input, W_k).squeeze(-2) 
+    # V = torch.matmul( expected_enc_input, W_v).squeeze(-2)
+    
+    # print("Q shape: [1,1,10,4]", Q.shape)
+    # Calculate other intermediary vars
+    # q = Q #[h,n,k]
+    # k = K
+    # v = V
+    
+    # d_k = Q.shape[-1]
+    # q_scaled = q / torch.sqrt(torch.tensor(d_k, dtype=torch.float32))
+    
+    # attn_scores = torch.matmul(q_scaled, k.permute(0,1,3,2))
+    # print("attn score", attn_scores.shape)
+
+    # attn_weights = torch.exp(attn_scores) 
+    # attn_weights /= torch.sum(attn_weights, dim=-1, keepdims=True)
+    # print("attn w", attn_weights.shape)
 
 
-        
+    # attn_output = torch.matmul(attn_weights, v)
+    # print("attn out", attn_output.shape)
+    # print("v       ", v.shape)
+
+    # W_o = torch.tensor(W_o).unsqueeze(0) #[b,h,k,d]
+    # print("W_o ", W_o.shape)
+    # computed_attn_output = torch.sum(torch.matmul(attn_output, W_o), dim=1) 
+    # print(computed_attn_output.shape)
+    # computed_attn_output += torch.tensor(b_o)
+    
+    # Q = Q.flatten().numpy()
+    # K = K.flatten().numpy()
+    # V = V.flatten().numpy()
+
+    # val = computed_attn_output.numpy().flatten()
+    # print("out: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    
+    # val = np.array(optimal_parameters["attention_output"])
+    # val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_out'])[0].tolist()).flatten()
+    # print("attn_out: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    assert np.isclose(val, val_exp , atol=1e-5).all()
+    
+    # check layer norm:
+    val = np.array(optimal_parameters["LN_2"])
+    val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.1.norm'])[0].tolist()).flatten()
+    assert np.isclose(val, val_exp , atol=1e-5).all()
+    print("mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    
+    # check layer norm:
+    val = np.array(optimal_parameters["ffn_1"])
+    val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.1.fn.net'])[0].tolist()).flatten()
+    assert np.isclose(val, val_exp , atol=1e-5).all()
+    print("mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+
+print("---------------------------------------------------")
+# print("purturbed image: ",purturb_image)
+# print()
+# print("target image: ",target_image)
+print()
+print("mean, min, max, diff images: ",np.mean(purturb_image - target_image), max(purturb_image - target_image), min(purturb_image - target_image))
+print()
+print("layer outputs trained tnn keys: \n", layer_outputs_dict.keys())
+print("---------------------------------------------------")
+
         
     

@@ -7,7 +7,7 @@ import json
 import os
 from helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_hugging_learned_parameters
 from omlt import OmltBlock
-from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation, FullSpaceSmoothNNFormulation
+from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation#, FullSpaceSmoothNNFormulation
 from omlt.io.keras import keras_reader
 import omlt
 import helpers.OMLT_helper 
@@ -41,24 +41,32 @@ def activate_envelope_att(model):
 
 class Transformer:
     """ A Time Series Transformer based on Vaswani et al's "Attention is All You Need" paper."""
-    def __init__(self, config_file, opt_model, set_bound_cut=None):
+    def __init__(self, config_file:Union[list,str], opt_model, set_bound_cut=None):
         
         self.M = opt_model
         # # time set
         # time_input = getattr( self.M, time_var_name)
         
          # get hyper params
-        with open(config_file, "r") as file:
-            config = json.load(file)
+        if isinstance(config_file, str):
+            with open(config_file, "r") as file:
+                config = json.load(file)
 
-        self.N = config['hyper_params']['N'] # enc sequence length
-        self.d_model = config['hyper_params']['d_model'] # embedding dimensions of model
-        self.d_k = config['hyper_params']['d_k']
-        self.d_H = config['hyper_params']['d_H']
-        self.input_dim = config['hyper_params']['input_dim']
-        self.epsilon = config['hyper_params']['epsilon']
-        
-        file.close()
+            self.N = config['hyper_params']['N'] # enc sequence length
+            self.d_model = config['hyper_params']['d_model'] # embedding dimensions of model
+            self.d_k = config['hyper_params']['d_k']
+            self.d_H = config['hyper_params']['d_H']
+            self.input_dim = config['hyper_params']['input_dim']
+            self.epsilon = config['hyper_params']['epsilon']
+            
+            file.close()
+        else:
+            self.N = config_file[0] # enc sequence length
+            self.d_model = config_file[1]  # embedding dimensions of model
+            self.d_k = config_file[2]
+            self.d_H = config_file[3]
+            self.input_dim = config_file[4]
+            self.epsilon = config_file[5]
 
         #Dict of bounds and cuts to activate
         list_act= [ "embed_var",
@@ -656,7 +664,7 @@ class Transformer:
                           
             else: # w_emb has a value
                 # Create weight variable
-                # print(len(indices[0]))
+                # print(len(indices[0]), len(indices[1]))
                 # print(len(indices[1]), len(embed_dim_2))
                 # print(np.array(W_emb).shape)
                 W_emb_dict = {
@@ -756,7 +764,7 @@ class Transformer:
             setattr( self.M, f"beta_{layer_norm_var_name}", pyo.Param( self.M.model_dims, initialize = dict_beta))
             gamma = getattr( self.M, f"gamma_{layer_norm_var_name}")
             beta  = getattr( self.M, f"beta_{layer_norm_var_name}")
-            
+  
             # define calculation variables
             sum_name = 'sum_'+ layer_norm_var_name
             setattr( self.M, sum_name, pyo.Var(time_dim, within=pyo.Reals))
@@ -802,21 +810,22 @@ class Transformer:
         #     return
 
         for t in time_dim: 
-            self.M.layer_norm_constraints.add(expr= sum_t[t] == sum(input_var[t, d] for d in model_dims) )
+            self.M.layer_norm_constraints.add(expr= sum_t[t] == sum(input_var[t,  d_prime] for d_prime in model_dims) )
+            
+            self.M.layer_norm_constraints.add(expr= numerator_squared_sum[t] == sum(numerator_squared[t,d_prime] for d_prime in model_dims))
+            self.M.layer_norm_constraints.add(expr= variance[t] * (len(model_dims)) == numerator_squared_sum[t])
+
+            self.M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
+            self.M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
+            
+            self.M.layer_norm_constraints.add(expr= variance[t] + self.epsilon == (denominator[t]*denominator_abs[t]) )
             
             # Constraints for each element in sequence
             for d in model_dims:  
                 self.M.layer_norm_constraints.add(expr= numerator[t,d] == input_var[t, d] - ((1/ len(model_dims)) *sum_t[t]))
                 self.M.layer_norm_constraints.add(expr= numerator_squared[t,d] == numerator[t,d]**2)
                 
-                self.M.layer_norm_constraints.add(expr= numerator_squared_sum[t] == sum(numerator_squared[t,d_prime] for d_prime in model_dims))
-                self.M.layer_norm_constraints.add(expr= variance[t] * len(model_dims) == numerator_squared_sum[t])
                 
-
-                self.M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
-                self.M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
-                
-                self.M.layer_norm_constraints.add(expr= variance[t] + self.epsilon == (denominator[t]*denominator_abs[t]) )
                 self.M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
                 
                 
@@ -853,14 +862,12 @@ class Transformer:
             #     except: 
             #         pass
             #     numerator_squared_sum[t].lb = 0
-            return layer_norm_var
+        return layer_norm_var
         
     def add_attention(self, input_var_name:Union[pyo.Var,str], output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, cross_attn=False, encoder_output:Union[pyo.Var,str]=None, exp_approx=False, tnn_from='pytorch'):
         """
         Multihead attention between each element of embedded sequence
-        
-        Uses the pyo.exp() function to calculate softmax. 
-        This is compatible with gurobi which allows for the outer approximation of the function to be calculated
+
         """
         
         # get input
@@ -952,12 +959,22 @@ class Transformer:
             for h,H in enumerate(MHA_Block.heads)
             for k,K in enumerate(MHA_Block.head_dims)
         }
-        W_o_dict = {
-            (D, H, K): W_o[h][k][d]
-            for d,D in enumerate(model_dims )
-            for h,H in enumerate(MHA_Block.heads)
-            for k,K in enumerate(MHA_Block.head_dims)
-        }
+        
+        if not W_o is None:
+            W_o_dict = {
+                (D, H, K): W_o[h][k][d]
+                for d,D in enumerate(model_dims )
+                for h,H in enumerate(MHA_Block.heads)
+                for k,K in enumerate(MHA_Block.head_dims)
+            }
+        else:
+            W_o_dict = {
+                (D, H, K): 1
+                for d,D in enumerate(model_dims )
+                for h,H in enumerate(MHA_Block.heads)
+                for k,K in enumerate(MHA_Block.head_dims)
+            }
+            
  
         MHA_Block.W_q = pyo.Param(model_dims ,MHA_Block.heads,MHA_Block.head_dims, initialize=W_q_dict, mutable=False)
         MHA_Block.W_k = pyo.Param(model_dims_enc ,MHA_Block.heads,MHA_Block.head_dims, initialize=W_k_dict, mutable=False)
@@ -970,7 +987,13 @@ class Transformer:
                         for h in MHA_Block.heads
                         for k in MHA_Block.head_dims
                        }
-            MHA_Block.b_q = pyo.Param(MHA_Block.heads, MHA_Block.head_dims, initialize=b_q_dict, mutable=False)
+        else:
+            b_q_dict = {
+                        (h, k): 0
+                        for h in MHA_Block.heads
+                        for k in MHA_Block.head_dims
+                       }
+        MHA_Block.b_q = pyo.Param(MHA_Block.heads, MHA_Block.head_dims, initialize=b_q_dict, mutable=False)
             
         if not b_k is None:
             b_k_dict = {
@@ -978,7 +1001,13 @@ class Transformer:
                         for h in MHA_Block.heads
                         for k in MHA_Block.head_dims
                        }
-            MHA_Block.b_k = pyo.Param(MHA_Block.heads, MHA_Block.head_dims, initialize=b_k_dict, mutable=False)
+        else:
+            b_k_dict = {
+                        (h, k): 0
+                        for h in MHA_Block.heads
+                        for k in MHA_Block.head_dims
+                       }
+        MHA_Block.b_k = pyo.Param(MHA_Block.heads, MHA_Block.head_dims, initialize=b_k_dict, mutable=False)
             
         if not b_v is None: 
             b_v_dict = {
@@ -986,11 +1015,20 @@ class Transformer:
                         for h in MHA_Block.heads
                         for k in MHA_Block.head_dims
                        }
-            MHA_Block.b_v = pyo.Param(MHA_Block.heads, MHA_Block.head_dims, initialize=b_v_dict, mutable=False)
+        else:
+            b_v_dict = {
+                        (h, k): 0
+                        for h in MHA_Block.heads
+                        for k in MHA_Block.head_dims
+                       }
+        MHA_Block.b_v = pyo.Param(MHA_Block.heads, MHA_Block.head_dims, initialize=b_v_dict, mutable=False)
             
         if not b_o is None:
             b_o_dict = {(d): val for d, val in zip(model_dims , b_o) }
-            MHA_Block.b_o = pyo.Param(model_dims , initialize=b_o_dict, mutable=False)
+        else:
+            b_o_dict = {(d): 0 for d in model_dims }
+            
+        MHA_Block.b_o = pyo.Param(model_dims , initialize=b_o_dict, mutable=False)
             
 
         MHA_Block.Q = pyo.Var(MHA_Block.heads, time_dim, MHA_Block.head_dims, within=pyo.Reals) 
@@ -1082,85 +1120,46 @@ class Transformer:
                     for k in MHA_Block.head_dims:
 
                         # constraints for Key
-                        if not b_k is None:
-                            MHA_Block.attention_constraints.add(
+                        MHA_Block.attention_constraints.add(
                             expr=MHA_Block.K[h, n, k]
                             == sum(input[n, d] * MHA_Block.W_k[d, h, k] for d in model_dims_enc ) + MHA_Block.b_k[h,k]
                             )  
-                            #Add bounds
-                            if self.bound_cut_activation["MHA_K"]: 
-                                try:
-                                    MHA_Block.K[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in model_dims_enc ) + MHA_Block.b_k[h,k]
-                                    MHA_Block.K[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in model_dims_enc ) + MHA_Block.b_k[h,k]
-                                except:
-                                    pass
-                        else: 
-                            MHA_Block.attention_constraints.add(
-                                expr=MHA_Block.K[h, n, k]
-                                == sum(input[n, d] * MHA_Block.W_k[d, h, k] for d in model_dims_enc)
-                            )
-                            #Add bounds
-                            if self.bound_cut_activation["MHA_K"]: 
-                                try:
-                                    MHA_Block.K[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in model_dims_enc ) 
-                                    MHA_Block.K[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in model_dims_enc ) 
-                                except:
-                                    pass
+                        #Add bounds
+                        if self.bound_cut_activation["MHA_K"]: 
+                            try:
+                                MHA_Block.K[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in model_dims_enc ) + MHA_Block.b_k[h,k]
+                                MHA_Block.K[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_k[d, h, k], input[n,d].lb * MHA_Block.W_k[d, h, k])  for d in model_dims_enc ) + MHA_Block.b_k[h,k]
+                            except:
+                                pass
+                            
                         # constraints for Value    
-                        if not b_v is None:
-                            MHA_Block.attention_constraints.add(
-                            expr=MHA_Block.V[h, n, k]
-                            == sum(input[n, d] * MHA_Block.W_v[d, h, k] for d in model_dims_enc) + MHA_Block.b_v[h,k]
-                            )  
-                            #Add bounds
-                            if self.bound_cut_activation["MHA_V"]: 
-                                try:
-                                    MHA_Block.V[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in model_dims_enc ) + MHA_Block.b_v[h,k]
-                                    MHA_Block.V[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in model_dims_enc ) + MHA_Block.b_v[h,k]
-                                except:
-                                    pass
-                        else: 
-                            MHA_Block.attention_constraints.add(
-                                expr=MHA_Block.V[h, n, k]
-                                == sum(input[n, d] * MHA_Block.W_v[d, h, k] for d in model_dims_enc ) 
-                            )
-                            #Add bounds 
-                            if self.bound_cut_activation["MHA_V"]:     
-                                try: 
-                                    MHA_Block.V[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in model_dims_enc )
-                                    MHA_Block.V[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in model_dims_enc )
-                                except:
-                                    pass
+                        MHA_Block.attention_constraints.add(
+                        expr=MHA_Block.V[h, n, k]
+                        == sum(input[n, d] * MHA_Block.W_v[d, h, k] for d in model_dims_enc) + MHA_Block.b_v[h,k]
+                        )  
+                        #Add bounds
+                        if self.bound_cut_activation["MHA_V"]: 
+                            try:
+                                MHA_Block.V[h, n, k].ub = sum( max(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in model_dims_enc ) + MHA_Block.b_v[h,k]
+                                MHA_Block.V[h, n, k].lb = sum( min(input[n,d].ub * MHA_Block.W_v[d, h, k], input[n,d].lb * MHA_Block.W_v[d, h, k])  for d in model_dims_enc ) + MHA_Block.b_v[h,k]
+                            except:
+                                pass
             for n in time_dim:
                     for k in MHA_Block.head_dims:
                         
                         # constraints for Query
-                        if not b_q is None:
-                            MHA_Block.attention_constraints.add(
+                        MHA_Block.attention_constraints.add(
                             expr=MHA_Block.Q[h, n, k]
                             == sum(input_var[n,d] * MHA_Block.W_q[d, h, k] for d in model_dims ) + MHA_Block.b_q[h,k] 
                             )  
                             
-                            #Add bounds
-                            if self.bound_cut_activation["MHA_Q"]: 
-                                try:
-                                    MHA_Block.Q[h, n, k].ub = sum( max(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims ) + MHA_Block.b_q[h,k]
-                                    MHA_Block.Q[h, n, k].lb = sum( min(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims ) + MHA_Block.b_q[h,k]
-                                except:
-                                    pass
-                                
-                        else: 
-                            MHA_Block.attention_constraints.add(
-                                expr=MHA_Block.Q[h, n, k]
-                                == sum(input_var[n, d] * MHA_Block.W_q[d, h, k] for d in model_dims )
-                            )
-                            #Add bounds
-                            if self.bound_cut_activation["MHA_Q"]:
-                                try: 
-                                    MHA_Block.Q[h, n, k].ub = sum( max(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims )
-                                    MHA_Block.Q[h, n, k].lb = sum( min(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims )
-                                except:
-                                    pass
+                        #Add bounds
+                        if self.bound_cut_activation["MHA_Q"]: 
+                            try:
+                                MHA_Block.Q[h, n, k].ub = sum( max(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims ) + MHA_Block.b_q[h,k]
+                                MHA_Block.Q[h, n, k].lb = sum( min(input_var[n,d].ub * MHA_Block.W_q[d, h, k], input_var[n,d].lb * MHA_Block.W_q[d, h, k])  for d in model_dims ) + MHA_Block.b_q[h,k]
+                            except:
+                                pass
                                 
                         # attention score = sum(attention_weight * V)
                         for p in time_dim_enc:
@@ -1180,6 +1179,12 @@ class Transformer:
                         
                         # max compatibility
                         if tnn_from == 'keras':
+                            """ exp(compatibility)
+                        from Keras Softmax: 
+                            exp_x = exp(x - max(x))
+                            f(x) = exp_x / sum(exp_x)
+                        """
+                            
                             MHA_Block.attention_constraints.add(
                                 expr=MHA_Block.compatibility_scaled[h, n, p] 
                                 ==  scale * sum(MHA_Block.QK[h, n, p, k] for k in MHA_Block.head_dims)
@@ -1205,11 +1210,6 @@ class Transformer:
                         
                         if exp_approx: # usepower series approx exp()
                             
-                            """ exp(compatibility)
-                            from Keras Softmax: 
-                                exp_x = exp(x - max(x))
-                                f(x) = exp_x / sum(exp_x)
-                            """
                             # power series approx for EXP
                             MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]**2 == MHA_Block.compatibility_2[h, n, p] )#problem for gurobi
                             MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_2[h, n, p] == MHA_Block.compatibility_3[h, n, p] )
@@ -1538,8 +1538,7 @@ class Transformer:
         # multihead attention output constraint
         for n in time_dim:
             for d in model_dims :
-                if not b_o is None:
-                    MHA_Block.attention_constraints.add(
+                MHA_Block.attention_constraints.add(
                         expr= attention_output[n, d]
                         == sum(
                             (sum(
@@ -1550,29 +1549,12 @@ class Transformer:
                         
                         ) + MHA_Block.b_o[d]
                     )
-                    if self.bound_cut_activation["MHA_output"]: 
-                        try:
-                            attention_output[n, d].ub  = sum(sum( max(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.head_dims) for h in MHA_Block.heads) + MHA_Block.b_o[d]
-                            attention_output[n, d].lb  = sum(sum( min(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.head_dims) for h in MHA_Block.heads) + MHA_Block.b_o[d]
-                        except:
-                            pass
-                else:
-                    MHA_Block.attention_constraints.add(
-                        expr= attention_output[n, d]
-                        == sum(
-                            (sum(
-                            MHA_Block.attention_score[h, n, k] * MHA_Block.W_o[d,h, k]
-                            for k in MHA_Block.head_dims
-                             ) )
-                        for h in MHA_Block.heads
-                        )
-                    )
-                    if self.bound_cut_activation["MHA_output"]: 
-                        try:
-                            attention_output[n, d].ub  = sum(sum( max(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.head_dims) for h in MHA_Block.heads)
-                            attention_output[n, d].lb  = sum(sum( min(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.head_dims) for h in MHA_Block.heads)
-                        except: 
-                            pass
+                if self.bound_cut_activation["MHA_output"]: 
+                    try:
+                        attention_output[n, d].ub  = sum(sum( max(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.head_dims) for h in MHA_Block.heads) + MHA_Block.b_o[d]
+                        attention_output[n, d].lb  = sum(sum( min(MHA_Block.attention_score[h, n, k].ub * MHA_Block.W_o[d,h, k], MHA_Block.attention_score[h, n, k].lb * MHA_Block.W_o[d,h, k]) for k in MHA_Block.head_dims) for h in MHA_Block.heads) + MHA_Block.b_o[d]
+                    except:
+                        pass
         # # activate softmax envelope constraints
         if self.bound_cut_activation["MHA_softmax_env"]:               
             MHA_Block.activate_constraints = pyo.BuildAction(rule=activate_envelope_att)               
@@ -1673,7 +1655,7 @@ class Transformer:
             input_bounds[dim] = bounds
         
         net_relu = helpers.OMLT_helper.weights_to_NetDef(output_var_name, nn_name, input_shape, model_parameters, input_bounds)
-        NN_block.build_formulation(FullSpaceSmoothNNFormulation(net_relu))
+        NN_block.build_formulation(ReluBigMFormulation(net_relu))
         
         # Set input constraints
         if input_indices_len == 1:
