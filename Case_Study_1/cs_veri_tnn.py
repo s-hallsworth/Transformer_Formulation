@@ -28,12 +28,19 @@ import unittest
 import os
 from omlt import OmltBlock
 import torch
-from helpers.print_stats import solve_pyomo, solve_gurobipy
-import helpers.convert_pyomo as convert_pyomo
 from gurobipy import Model, GRB
 from gurobi_ml import add_predictor_constr
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
 import torchvision
+
+# Import from repo file
+from helpers.print_stats import solve_pyomo, solve_gurobipy
+import helpers.convert_pyomo as convert_pyomo
+from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
+import transformer_b_flag as TNN
+from trained_transformer.Tmodel import TransformerModel
+import helpers.extract_from_pretrained as extract_from_pretrained
+
+TESTING = True # TESTING
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 #Load MNIST data
 torch.manual_seed(42)
@@ -51,20 +58,7 @@ epsilon = 0
 inputimage = images[problemNo] # flattened image
 max_input = np.max(inputimage.numpy())
 min_input = np.min(inputimage.numpy())
-
-# Import from repo file
-import transformer_b_flag as TNN
-from trained_transformer.Tmodel import TransformerModel
-import helpers.extract_from_pretrained as extract_from_pretrained
-
-TESTING = True # TESTING
-
-# problemNo = 0 # image to select from MNIST dataset
-# epsilon = 0 
-# nLayers = 3
-# instances = np.load(r'.\data\mnist2x50instances.npz')
-# inputimage = instances['images'][problemNo] # flattened image
-# labels = instances['labels'][problemNo] # [true label, adversary label]
+labels = [labels[problemNo].item(), 1] # [true label, adversary label]
 classification_labels = 10
 channels = 1
 image_size=28
@@ -163,9 +157,9 @@ for k, val in ACTI.items():
 # Define formulated transformer
 transformer = TNN.Transformer( config_list, model, activation_dict)
 layer_names, parameters, _, layer_outputs_dict = extract_from_pretrained.get_torchViT_learned_parameters(tnn_model, input, heads)
-if TESTING:
-    plt.imshow(input.squeeze(0).squeeze(0), cmap='gray')
-    plt.show()
+# if TESTING:
+#     plt.imshow(input.squeeze(0).squeeze(0), cmap='gray')
+#     plt.show()
     
 # Add Sequential 1 x28 x 18 mult 18 x patch size
 layer = "linear_1"
@@ -272,16 +266,16 @@ W_emb = parameters['linear_3', 'W']
 b_emb  = parameters['linear_3', 'b']
 out = transformer.embed_input( out, "output", model.out_labels_dim, W_emb, b_emb)
 
-# Set objective
-# model.obj = pyo.Objective(
-#     expr= out[0, model.labels.last()] - out[0, model.labels.first()] , sense=pyo.maximize
-# )  # -1: maximize, +1: minimize (default)
-
-# TESTING
+#Set objective
 model.obj = pyo.Objective(
-    expr= sum(model.purturb_image[i] - model.target_image[i] for i in model.purturb_image.index_set()), sense=pyo.minimize
-)  # -1: maximize, +1: minimize (default)
-# -------
+    expr= out[0, model.labels.last()] - out[0, model.labels.first()] , sense=pyo.maximize
+)  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
+
+# # TESTING
+# model.obj = pyo.Objective(
+#     expr= sum(model.purturb_image[i] - model.target_image[i] for i in model.purturb_image.index_set()), sense=pyo.minimize
+# )  # -1: maximize, +1: minimize (default)
+# # -------
 
 # Convert & Solve 
 # # Convert to gurobipy
