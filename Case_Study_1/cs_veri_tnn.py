@@ -33,26 +33,42 @@ import helpers.convert_pyomo as convert_pyomo
 from gurobipy import Model, GRB
 from gurobi_ml import add_predictor_constr
 from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
-
+import torchvision
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
+#Load MNIST data
+torch.manual_seed(42)
+DOWNLOAD_PATH = '/data/mnist'
+transform_mnist = torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
+                                torchvision.transforms.Normalize((0,), (1,))])
+                               #torchvision.transforms.Normalize((0.1307,), (0.3081,))]) #transform to match training data scale
+mnist_testset = torchvision.datasets.MNIST(DOWNLOAD_PATH, train=False, download=True, transform=transform_mnist)
+test_loader = torch.utils.data.DataLoader(mnist_testset, batch_size=10, shuffle=False)
+images, labels = next(iter(test_loader))
+
+# Set parameters
+problemNo = 0 # image to select from MNIST dataset ( test: 0 --> the number 7)
+epsilon = 0
+inputimage = images[problemNo] # flattened image
+max_input = np.max(inputimage.numpy())
+min_input = np.min(inputimage.numpy())
 
 # Import from repo file
-import transformer_b_flag_cuts as TNN
+import transformer_b_flag as TNN
 from trained_transformer.Tmodel import TransformerModel
 import helpers.extract_from_pretrained as extract_from_pretrained
 
 TESTING = True # TESTING
 
-problemNo = 0 # image to select from MNIST dataset
-epsilon = 0 
-nLayers = 3
-instances = np.load(r'.\data\mnist2x50instances.npz')
-inputimage = instances['images'][problemNo] # flattened image
-labels = instances['labels'][problemNo] # [true label, adversary label]
-image_size_flat = instances['w1'].shape[1]
+# problemNo = 0 # image to select from MNIST dataset
+# epsilon = 0 
+# nLayers = 3
+# instances = np.load(r'.\data\mnist2x50instances.npz')
+# inputimage = instances['images'][problemNo] # flattened image
+# labels = instances['labels'][problemNo] # [true label, adversary label]
 classification_labels = 10
 channels = 1
 image_size=28
+image_size_flat = image_size * image_size
 patch_size=4 
 num_classes=10
 channels=1
@@ -104,7 +120,7 @@ depth= int(config_params[2])
 heads= int(config_params[3])
 mlp_dim= int(config_params[4])
 head_size = int(dim/heads)
-config_list = [channels, dim, head_size , heads, image_size*image_size, 1e-5]
+config_list = [channels, dim, head_size , heads, image_size*image_size, 1e-6]
 tnn_model = torch.load(tnn_path, map_location=device)
 
 
@@ -209,7 +225,7 @@ b_q = parameters[layer,'b_q']
 b_k = parameters[layer,'b_k']
 b_v = parameters[layer,'b_v']
 b_o = parameters[layer,'b_o']
-transformer.add_attention( "LN_1","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+transformer.add_attention( "LN_1","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from="keras")
 
 # Residual 
 transformer.add_residual_connection(res, "attention_output", "residual_1")
@@ -224,28 +240,25 @@ transformer.add_layer_norm( "residual_1", "LN_2", gamma, beta)
 # FFN
 nn, input_nn, output_nn = transformer.get_fnn("LN_2", "ffn_1", "ffn_1", (num_patch_dim + 1, dim), parameters)
         
-# # Residual 
-# out = transformer.add_residual_connection(res, output_nn, "residual_2")
+# Residual 
+out = transformer.add_residual_connection(res, output_nn, "residual_2")
 
-# # print("TNN output shape")
-# # for i in out.index_set():
-# #     print(i)
      
-# # cls pool
-# model.pool= pyo.Var(model.channel_dim, model.embed_dim)
-# def pool_rule(model, d):
-#     return model.pool[0, d] == out[0,d]
-# model.pool_constr = pyo.Constraint(model.embed_dim, rule=pool_rule)
+# cls pool
+model.pool= pyo.Var(model.channel_dim, model.embed_dim)
+def pool_rule(model, d):
+    return model.pool[0, d] == out[0,d]
+model.pool_constr = pyo.Constraint(model.embed_dim, rule=pool_rule)
 
-# # Norm
-# gamma = parameters['layer_normalization_3', 'gamma']
-# beta  = parameters['layer_normalization_3', 'beta']
-# out = transformer.add_layer_norm( model.pool, "LN_3", gamma, beta)
+# Norm
+gamma = parameters['layer_normalization_3', 'gamma']
+beta  = parameters['layer_normalization_3', 'beta']
+out = transformer.add_layer_norm( model.pool, "LN_3", gamma, beta)
 
-# # Linear
-# W_emb = parameters['linear_3', 'W']
-# b_emb  = parameters['linear_3', 'b']
-# out = transformer.embed_input( out, "output", model.out_labels_dim, W_emb, b_emb)
+# Linear
+W_emb = parameters['linear_3', 'W']
+b_emb  = parameters['linear_3', 'b']
+out = transformer.embed_input( out, "output", model.out_labels_dim, W_emb, b_emb)
 
 # Set objective
 # model.obj = pyo.Objective(
@@ -314,7 +327,7 @@ if TESTING:
     val = np.array(optimal_parameters["LN_1"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.norm'])[0].tolist()).flatten()
     assert np.isclose(val, val_exp , atol=1e-6).all()
-    print("mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    print("ln1: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
 
     
     # check self attention:

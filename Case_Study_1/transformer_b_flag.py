@@ -718,12 +718,15 @@ class Transformer:
             raise ValueError('Input value must be indexed')
         return embed_var
         
-    def add_layer_norm(self, input_var_name:Union[pyo.Var,str], layer_norm_var_name, gamma= None, beta = None):  # non-linear
+    def add_layer_norm(self, input_var_name:Union[pyo.Var,str], layer_norm_var_name, gamma= None, beta = None, eps=None):  # non-linear
         """
         Normalization over the sequennce of input
         """
         if not hasattr( self.M, "layer_norm_constraints"):
             self.M.layer_norm_constraints = pyo.ConstraintList()
+            
+        if not eps is None:
+            self.epsilon = eps
         
         # get input
         if not isinstance(input_var_name, pyo.Var):
@@ -778,9 +781,9 @@ class Transformer:
             setattr( self.M, div_name, pyo.Var(time_dim, model_dims, within=pyo.Reals))
             div = getattr( self.M, div_name)
             
-            denominator_name = 'denominator_'+ layer_norm_var_name
-            setattr( self.M, denominator_name, pyo.Var(time_dim, within=pyo.Reals))
-            denominator = getattr( self.M, denominator_name)
+            # denominator_name = 'denominator_'+ layer_norm_var_name
+            # setattr( self.M, denominator_name, pyo.Var(time_dim, within=pyo.Reals))
+            # denominator = getattr( self.M, denominator_name)
             
             denominator_abs_name = 'denominator_abs_'+ layer_norm_var_name
             setattr( self.M, denominator_abs_name, pyo.Var(time_dim, within=pyo.NonNegativeReals, bounds=(0,None)))
@@ -815,10 +818,11 @@ class Transformer:
             self.M.layer_norm_constraints.add(expr= numerator_squared_sum[t] == sum(numerator_squared[t,d_prime] for d_prime in model_dims))
             self.M.layer_norm_constraints.add(expr= variance[t] * (len(model_dims)) == numerator_squared_sum[t])
 
-            self.M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
-            self.M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
+            # self.M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
+            # self.M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
             
-            self.M.layer_norm_constraints.add(expr= variance[t] + self.epsilon == (denominator[t]*denominator_abs[t]) )
+            # self.M.layer_norm_constraints.add(expr= variance[t] + self.epsilon == (denominator[t]*denominator_abs[t]) )
+            self.M.layer_norm_constraints.add(expr= variance[t] + self.epsilon == (denominator_abs[t]*denominator_abs[t]) )
             
             # Constraints for each element in sequence
             for d in model_dims:  
@@ -826,8 +830,8 @@ class Transformer:
                 self.M.layer_norm_constraints.add(expr= numerator_squared[t,d] == numerator[t,d]**2)
                 
                 
-                self.M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
-                
+                # self.M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
+                self.M.layer_norm_constraints.add(expr= div[t,d] * denominator_abs[t] == numerator[t,d] )
                 
                 self.M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == gamma[d] * div[t,d])
                 self.M.layer_norm_constraints.add(expr=layer_norm_var[t, d] == numerator_scaled[t,d] + beta[d])
@@ -1189,14 +1193,14 @@ class Transformer:
                                 expr=MHA_Block.compatibility_scaled[h, n, p] 
                                 ==  scale * sum(MHA_Block.QK[h, n, p, k] for k in MHA_Block.head_dims)
                             ) 
-                            MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_max[h,n] >=  MHA_Block.compatibility_scaled[h,n,p])
+                            MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_scaled[h,n,p] <= MHA_Block.compatibility_max[h,n])
                             try:
                                 M_max_compat = scale * sum( max(MHA_Block.Q[h, n, k].ub * MHA_Block.K[h, p, k].ub, 
                                                 MHA_Block.Q[h, n, k].ub * MHA_Block.K[h, p, k].lb, 
                                                 MHA_Block.Q[h, n, k].lb * MHA_Block.K[h, p, k].ub, 
                                                 MHA_Block.Q[h, n, k].lb * MHA_Block.K[h, p, k].lb) for k in MHA_Block.k_dims)
                             except:
-                                M_max_compat = 100 #expect that 100 >> values calculated in TNN (NN values usually in range -1 to 1)
+                                M_max_compat = 100 * self.d_k #expect that 100 >> values calculated in TNN (NN values usually in range -1 to 1)
                                 
                             MHA_Block.attention_constraints.add(expr=  MHA_Block.compatibility_scaled[h,n,p]  >= MHA_Block.compatibility_max[h,n] - (M_max_compat * (1 - MHA_Block.compatibility_max_s[h,n,p])))
                             MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h,n,p] == MHA_Block.compatibility_scaled[h,n,p] - MHA_Block.compatibility_max[h,n])
@@ -1772,4 +1776,3 @@ class Transformer:
         if x.ub >= 0 and y.ub >= 0:
             # add cuts
             constraints.add( expr= w >= (x.ub * y) + (x * y.ub) - (x.ub * y.ub))
-
