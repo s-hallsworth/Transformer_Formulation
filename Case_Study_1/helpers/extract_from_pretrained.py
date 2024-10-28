@@ -6,7 +6,7 @@ import os
 from torch import nn
 import collections
 from torch.nn import ReLU
-from transformers.activations import SiLUActivation as SiLU
+from transformers.activations import SiLUActivation as SiLU # clone transformers from: https://github.com/s-hallsworth/transformers.git -- > pip install -e .
 from transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
 from transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
 from vit_TNN import *
@@ -501,8 +501,10 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
     """
     Read model parameters and store in dict with associated name. 
     """
-
-    src = torch.as_tensor(enc_input).float()
+    if not torch.is_tensor(enc_input):
+        src = torch.as_tensor(enc_input).float()
+    else:
+        src = enc_input
     input_shapes = collections.OrderedDict()
     output_shapes = collections.OrderedDict()
     dict_outputs = {}
@@ -593,9 +595,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
             count = count_layer_names.count(prefix+suffix+name) + 1
             new_layer_name = f"{prefix+suffix+name}_{count}"
             count_layer_names.append(prefix+suffix+name)
-            
-            layer_names.append(new_layer_name)
-            
+
             dict_transformer_params[(new_layer_name, 'gamma')] = W_parameters
             dict_transformer_params[(new_layer_name, 'beta')] = b_parameters
             

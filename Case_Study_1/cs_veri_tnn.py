@@ -286,7 +286,7 @@ gurobi_model.update()
 #gurobi_model.setParam('MIPFocus',1)
 PATH = r".\Experiments\Verification"
 experiment_name = "testing_veri"
-gurobi_model.setParam('LogFile', PATH+f'\\Logs\\{experiment_name}_6.log')
+gurobi_model.setParam('LogFile', PATH+f'\\Logs\\{experiment_name}_{file_name}.log')
 gurobi_model.setParam('TimeLimit', 43200) #12h
 gurobi_model.optimize()
     
