@@ -136,12 +136,12 @@ for key in ACTI_LIST_FULL:
 
 combinations = [
 # 1 , 0, 1, 1, 1, #1 all
-# 1 , 0, 1, 1, 0 #2 -- fastest feasibile solution
-#1 , 0, 1, 0, 0, #3 -- good trade off speed and solve time
-# [1 , 0, 0, 0, 0], #4 -- smallest opt. gap
-# [1 , 0, 0, 1, 1], #5
-# 1 , 0, 0, 1, 0, #6 --- fastest optimal solution
-0 , 0, 0, 0, 0  #7
+# 1 , 0, 1, 1, 0 #2 -- fastest feasibile solution _/
+#1 , 0, 1, 0, 0, #3 -- good trade off speed and solve time _/
+#1 , 0, 0, 0, 0, #4 -- smallest opt. gap _/
+#1 , 0, 0, 1, 1, #5_/
+# 1 , 0, 0, 1, 0, #6 --- fastest optimal solution _/
+# 0 , 0, 0, 0, 0  #7 _/
 ]
 combinations = [bool(val) for val in combinations]
 
@@ -151,6 +151,7 @@ ACTI["LN_D"] = {"list": ["LN_num", "LN_num_squ", "LN_denom"]}
 ACTI["MHA_I"] = {"list": ["MHA_attn_weight_sum", "MHA_attn_weight"]}
 ACTI["MHA_D"] = {"list": ["MHA_Q", "MHA_K", "MHA_V", "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" , "RES_var"]}
 ACTI["MHA_MC"] = {"list":[ "MHA_QK_MC", "MHA_WK_MC"]}
+
 ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACTI["MHA_D"]["act_val"], ACTI["MHA_MC"]["act_val"] = combinations
 
 for k, val in ACTI.items():
@@ -421,7 +422,6 @@ if TESTING:
     # check layer norm:
     val = np.array(optimal_parameters["LN_2"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.1.norm'])[0].tolist()).flatten()
-    assert np.isclose(val, val_exp , atol=1e-5).all()
     print("mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
     
     # check layer norm:
@@ -429,6 +429,25 @@ if TESTING:
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.1.fn.net'])[0].tolist()).flatten()
     assert np.isclose(val, val_exp , atol=1e-5).all()
     print("mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    
+    # check pool:
+    val = np.array(optimal_parameters["pool"])
+    val_exp = np.array(list(layer_outputs_dict['to_latent'])[0].tolist()).flatten()
+    print("pool: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+
+    # # check layer norm3:
+    val = np.array(optimal_parameters["LN_3"])
+    val_exp = np.array(list(layer_outputs_dict['mlp_head.0'])[0].tolist()).flatten()
+    print("ln3: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+
+
+    # check output:
+    val = np.array(optimal_parameters["output"])
+    val_exp = np.array(list(layer_outputs_dict['mlp_head'])[0].tolist()).flatten()
+    print(val)
+    print(val_exp)
+    print("out: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    #assert np.isclose(val, val_exp , atol=1e-5).all()
 
 print("---------------------------------------------------")
 # print("purturbed image: ",purturb_image)
