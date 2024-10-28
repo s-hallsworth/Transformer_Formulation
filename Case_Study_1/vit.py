@@ -124,11 +124,11 @@ heads=6
 path = r".\trained_transformer\verification"
 csv_file_path = path+"\\vit_results.csv"
 columns = ['name', 'dim', 'depth', 'heads', 'mlp_dim', 'avg_test_loss', 'test_accuracy']
-eps = 1e-6
+eps = 1e-6 
 
-for dim in [6]: #, 12, 18, 24]:
-    for depth in [1]: #, 2, 4]:
-        for mlp_dim in [12]: #, 24, 32, 64]:
+for dim in [6, 12, 18, 24]:
+    for depth in [1, 2, 4]:
+        for mlp_dim in [12, 24, 32, 64]:
             dim_head = int(dim/heads)
             model = ViT(image_size=image_size, patch_size=patch_size, num_classes=num_classes, channels=channels, dim=dim, dim_head=dim_head, depth=depth, heads=heads, mlp_dim=mlp_dim,eps=eps)
             optimizer = optim.Adam(model.parameters(), lr=0.003)
