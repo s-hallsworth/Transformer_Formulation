@@ -49,8 +49,9 @@ DOWNLOAD_PATH = '/data/mnist'
 BATCH_SIZE_TRAIN = 100
 BATCH_SIZE_TEST = 1000
 
-transform_mnist = torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
-                               torchvision.transforms.Normalize((0.1307,), (0.3081,))])
+transform_mnist = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
+                   
+                               #torchvision.transforms.Normalize((0.1307,), (0.3081,))])
 
 train_set = torchvision.datasets.MNIST(DOWNLOAD_PATH, train=True, download=True,
                                        transform=transform_mnist)
@@ -67,6 +68,7 @@ import matplotlib.pyplot as plt
 def show_batch(data_loader):
     batch = next(iter(data_loader))
     images, labels = batch
+    print(torch.max(images), torch.min(images))
     grid = torchvision.utils.make_grid(images, nrow=10)
     plt.figure(figsize=(12, 12))
     plt.imshow(grid.numpy().transpose((1, 2, 0)))
@@ -74,8 +76,8 @@ def show_batch(data_loader):
     plt.axis('off')
     plt.show()
 
-# Print images for validation
-# show_batch(train_loader)
+#Print images for validation
+show_batch(train_loader)
 
 # 
 # 
