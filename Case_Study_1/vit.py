@@ -76,8 +76,8 @@ def show_batch(data_loader):
     plt.axis('off')
     plt.show()
 
-#Print images for validation
-show_batch(train_loader)
+# #Print images for validation
+# show_batch(train_loader)
 
 # 
 # 
@@ -126,7 +126,7 @@ csv_file_path = path+"\\vit_results.csv"
 columns = ['name', 'dim', 'depth', 'heads', 'mlp_dim', 'avg_test_loss', 'test_accuracy']
 
 
-for dim in [6, 12]:
+for dim in [6, 12, 18, 24]:
     for depth in [1, 2, 4]:
         for mlp_dim in [12, 24, 32, 64]:
             dim_head = int(dim/heads)
