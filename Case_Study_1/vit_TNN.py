@@ -20,6 +20,13 @@ def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
 # classes
+class Log_softmax(nn.Module):
+    def __init__(self, dim=-1):
+        super().__init__()
+        self.dim = dim
+    def forward(self, x):
+        x_max = torch.max(x)
+        return x - x_max - torch.log(torch.sum(torch.exp(x - x_max), dim=self.dim)).unsqueeze(-1)
 
 class PreNorm(nn.Module):
     def __init__(self, dim, fn):
@@ -51,7 +58,7 @@ class Attention(nn.Module):
         self.heads = heads
         self.scale = dim_head ** -0.5
 
-        self.attend = nn.Softmax(dim = -1)
+        self.attend = Log_softmax(dim=-1) #nn.Softmax(dim = -1)
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
 
         self.to_out = nn.Sequential(
