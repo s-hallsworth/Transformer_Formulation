@@ -50,7 +50,6 @@ BATCH_SIZE_TRAIN = 100
 BATCH_SIZE_TEST = 1000
 
 transform_mnist = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
-                   
                                #torchvision.transforms.Normalize((0.1307,), (0.3081,))])
 
 train_set = torchvision.datasets.MNIST(DOWNLOAD_PATH, train=True, download=True,
