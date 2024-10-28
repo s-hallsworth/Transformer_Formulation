@@ -781,10 +781,6 @@ class Transformer:
             setattr( self.M, div_name, pyo.Var(time_dim, model_dims, within=pyo.Reals))
             div = getattr( self.M, div_name)
             
-            # denominator_name = 'denominator_'+ layer_norm_var_name
-            # setattr( self.M, denominator_name, pyo.Var(time_dim, within=pyo.Reals))
-            # denominator = getattr( self.M, denominator_name)
-            
             denominator_abs_name = 'denominator_abs_'+ layer_norm_var_name
             setattr( self.M, denominator_abs_name, pyo.Var(time_dim, within=pyo.NonNegativeReals, bounds=(0,None)))
             denominator_abs = getattr( self.M, denominator_abs_name)
@@ -818,19 +814,12 @@ class Transformer:
             self.M.layer_norm_constraints.add(expr= numerator_squared_sum[t] == sum(numerator_squared[t,d_prime] for d_prime in model_dims))
             self.M.layer_norm_constraints.add(expr= variance[t] * (len(model_dims)) == numerator_squared_sum[t])
 
-            # self.M.layer_norm_constraints.add(expr= denominator[t] <= denominator_abs[t]) 
-            # self.M.layer_norm_constraints.add(expr= denominator[t]*denominator[t] == denominator_abs[t] * denominator_abs[t]) 
-            
-            # self.M.layer_norm_constraints.add(expr= variance[t] + self.epsilon == (denominator[t]*denominator_abs[t]) )
             self.M.layer_norm_constraints.add(expr= variance[t] + self.epsilon == (denominator_abs[t]*denominator_abs[t]) )
             
             # Constraints for each element in sequence
             for d in model_dims:  
                 self.M.layer_norm_constraints.add(expr= numerator[t,d] == input_var[t, d] - ((1/ len(model_dims)) *sum_t[t]))
                 self.M.layer_norm_constraints.add(expr= numerator_squared[t,d] == numerator[t,d]**2)
-                
-                
-                # self.M.layer_norm_constraints.add(expr= div[t,d] * denominator[t] == numerator[t,d] )
                 self.M.layer_norm_constraints.add(expr= div[t,d] * denominator_abs[t] == numerator[t,d] )
                 
                 self.M.layer_norm_constraints.add(expr= numerator_scaled[t,d] == gamma[d] * div[t,d])
@@ -1241,9 +1230,7 @@ class Transformer:
                                                         )# pyo.exp() only seems to work for constant args and pow operator must be <= 2
                         else:     
                             MHA_Block.attention_constraints.add(expr= pyo.exp(MHA_Block.compatibility[h,n,p]) == MHA_Block.compatibility_exp[h, n, p] )
-                        
-                        
-                        
+
                     # max compatibility: slack sum to 1
                     if tnn_from == 'keras':
                         MHA_Block.attention_constraints.add(expr=  sum(MHA_Block.compatibility_max_s[h,n,p] for p in time_dim_enc) == 1)    
@@ -1296,11 +1283,12 @@ class Transformer:
                     
                     if self.bound_cut_activation["MHA_compat_exp"]: 
                         try: 
-                            MHA_Block.compatibility_exp[h,n,p].ub = math.exp(MHA_Block.compatibility[h,n,p].ub)
                             if tnn_from == 'keras':
-                                MHA_Block.compatibility_exp[h,n,p].lb = max(0, 1 + MHA_Block.compatibility[h,n,p].lb - M_max_compat)
+                                MHA_Block.compatibility_exp[h,n,p].ub = 1
+                                MHA_Block.compatibility_exp[h,n,p].lb = 0
                             else:
-                                MHA_Block.compatibility_exp[h,n,p].lb = max(0, 1 + MHA_Block.compatibility[h,n,p].lb)
+                                MHA_Block.compatibility_exp[h,n,p].ub = math.exp(MHA_Block.compatibility[h,n,p].ub)
+                                MHA_Block.compatibility_exp[h,n,p].lb = math.exp(MHA_Block.compatibility[h,n,p].lb)
                         except:
                             pass    
                     for k in MHA_Block.head_dims:  
@@ -1348,6 +1336,8 @@ class Transformer:
                         MHA_Block.compatibility_exp_sum[h, n].lb = sum( MHA_Block.compatibility_exp[h,n,p].lb for p in time_dim)       
                     except:
                         pass
+                    # if tnn_from=="keras":
+                    #     MHA_Block.compatibility_exp_sum[h, n].lb = 1  # exp( x-max(x)) --> at least one value in sum = 1
                     
                 if self.bound_cut_activation["MHA_softmax_env"]: 
                 #-- begin add softmax env --# 
