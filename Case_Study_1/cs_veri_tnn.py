@@ -45,7 +45,8 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 #Load MNIST data
 torch.manual_seed(42)
 DOWNLOAD_PATH = '/data/mnist'
-transform_mnist = torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
+transform_mnist = torchvision.transforms.Compose([ torchvision.transforms.Resize((4, 4)), ##
+                                                  torchvision.transforms.ToTensor(),
                                 torchvision.transforms.Normalize((0,), (1,))])
                                #torchvision.transforms.Normalize((0.1307,), (0.3081,))]) #transform to match training data scale
 mnist_testset = torchvision.datasets.MNIST(DOWNLOAD_PATH, train=False, download=True, transform=transform_mnist)
@@ -54,16 +55,17 @@ images, labels = next(iter(test_loader))
 
 # Set parameters
 problemNo = 0 # image to select from MNIST dataset ( test: 0 --> the number 7)
-epsilon = 0
+p_min = 0.01
+epsilon = 2*p_min
 inputimage = images[problemNo] # flattened image
 max_input = np.max(inputimage.numpy())
 min_input = np.min(inputimage.numpy())
 labels = [labels[problemNo].item(), 1] # [true label, adversary label]
 classification_labels = 10
 channels = 1
-image_size=28
+image_size=4 ##
 image_size_flat = image_size * image_size
-patch_size=4 
+patch_size=2 ##
 num_classes=10
 channels=1
 input = torch.as_tensor(inputimage).float().reshape(1, channels, image_size, image_size) #image_size * image_size image
@@ -86,19 +88,28 @@ model.eps = pyo.Param(initialize=epsilon)
 model.target_image = pyo.Param(model.image_dim, model.image_dim, initialize=tgt_dict)
 
 # Define variables
-model.purturb_image = pyo.Var(model.image_dim, model.image_dim, bounds=(0,1))
+model.purturb_image = pyo.Var(model.image_dim, model.image_dim)
 model.purturb = pyo.Var(model.image_dim, model.image_dim, bounds=(0, model.eps))
+model.s_purturb = pyo.Var(model.image_dim, model.image_dim,  within=pyo.Binary)
+
 
 # Add constraints to purturbed image:
 model.purturb_constraints = pyo.ConstraintList()
 for i in model.purturb_image.index_set():
-    model.purturb_constraints.add(expr= model.purturb_image[i] <= model.target_image[i] + model.eps) # # purturb image <= min(max purturb,1)
-    model.purturb_constraints.add(expr= model.purturb_image[i] >= model.target_image[i] - model.eps) # # purturb image >=  max(min purturb,0)
+    model.purturb_image[i].lb = max( model.target_image[i] - epsilon, min_input) # cap min value of pixels
+    model.purturb_image[i].ub = min( model.target_image[i] + epsilon, max_input) # cap max value of pixels
+    
+    # model.purturb_constraints.add(expr= model.purturb_image[i] <= model.target_image[i] + model.eps) # # purturb image <= min(max purturb,1)
+    # model.purturb_constraints.add(expr= model.purturb_image[i] >= model.target_image[i] - model.eps) # # purturb image >=  max(min purturb,0)
     
     #purturb >= to the abs different between x and x'
     model.purturb_constraints.add(expr= model.purturb[i] >= model.purturb_image[i] - model.target_image[i])
     model.purturb_constraints.add(expr= model.purturb[i] >= model.target_image[i] - model.purturb_image[i])
-
+    
+    # # if there is a purturb it must be at least p_min
+    model.purturb_constraints.add(expr= model.purturb[i] >= p_min * model.s_purturb[i])
+    model.purturb_constraints.add(expr= model.purturb[i] <= model.eps * model.s_purturb[i])
+    
 # total purturb at each pixel <= epsilon   
 model.purturb_constraints.add(expr= sum(model.purturb[i] for i in model.purturb.index_set()) <= model.eps) 
    
@@ -106,7 +117,7 @@ model.purturb_constraints.add(expr= sum(model.purturb[i] for i in model.purturb.
 # Load transformer
 from vit_TNN import *
 file_name = "vit_6_1_6_12"
-tnn_path = f".\\trained_transformer\\verification\\{file_name}.pt" 
+tnn_path = f".\\trained_transformer\\verification_16\\{file_name}.pt" 
 device = 'cpu'
 config_params = file_name.split('_')
 dim= int(config_params[1])
@@ -132,10 +143,10 @@ combinations = [
 #1, 1, 0, 0, 0
 # 1 , 0, 1, 1, 1, #1 all
 # 1 , 0, 1, 1, 0 #2 -- fastest feasibile solution _/
-#1 , 0, 1, 0, 0, #3 -- good trade off speed and solve time _/
+1 , 0, 1, 0, 0, #3 -- good trade off speed and solve time _/
 #1 , 0, 0, 0, 0, #4 -- smallest opt. gap _/
 #1 , 0, 0, 1, 1, #5_/
-1 , 0, 0, 1, 0, #6 --- fastest optimal solution _/
+#1 , 0, 0, 1, 0, #6 --- fastest optimal solution _/
 # 0 , 0, 0, 0, 0  #7 _/
 ]
 combinations = [bool(val) for val in combinations]
@@ -230,7 +241,7 @@ for l in range(depth):
     b_k = parameters[layer,'b_k']
     b_v = parameters[layer,'b_v']
     b_o = parameters[layer,'b_o']
-    transformer.add_attention( f"LN_1_{l}",f"attention_output_{l}", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from="keras")
+    transformer.add_attention( f"LN_1_{l}",f"attention_output_{l}", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from="pytorch")
 
     # Residual 
     transformer.add_residual_connection(res, f"attention_output_{l}", f"residual_1_{l}")
@@ -267,15 +278,15 @@ b_emb  = parameters['linear_3', 'b']
 out = transformer.embed_input( out, "output", model.out_labels_dim, W_emb, b_emb)
 
 #Set objective
-model.obj = pyo.Objective(
-    expr= out[0, model.labels.last()] - out[0, model.labels.first()] , sense=pyo.maximize
-)  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
-
-# # TESTING
 # model.obj = pyo.Objective(
-#     expr= sum(model.purturb_image[i] - model.target_image[i] for i in model.purturb_image.index_set()), sense=pyo.minimize
-# )  # -1: maximize, +1: minimize (default)
-# # -------
+#     expr= out[0, model.labels.last()] - out[0, model.labels.first()] , sense=pyo.maximize
+# )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
+
+# TESTING
+model.obj = pyo.Objective(
+    expr= sum(model.purturb_image[i] - model.target_image[i] for i in model.purturb_image.index_set()), sense=pyo.minimize
+)  # -1: maximize, +1: minimize (default)
+# -------
 
 # Convert & Solve 
 # # Convert to gurobipy
@@ -289,7 +300,7 @@ gurobi_model.update()
 
 ## Optimizes
 # gurobi_model.setParam('DualReductions',0)
-#gurobi_model.setParam('MIPFocus',1)
+# gurobi_model.setParam('MIPFocus',1)
 PATH = r".\Experiments\Verification"
 experiment_name = "testing_veri"
 gurobi_model.setParam('LogFile', PATH+f'\\Logs\\{experiment_name}_{file_name}.log')

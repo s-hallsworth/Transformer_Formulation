@@ -49,7 +49,7 @@ DOWNLOAD_PATH = '/data/mnist'
 BATCH_SIZE_TRAIN = 100
 BATCH_SIZE_TEST = 1000
 
-transform_mnist = torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
+transform_mnist = torchvision.transforms.Compose([ torchvision.transforms.Resize((4, 4)),torchvision.transforms.ToTensor(),
                                 torchvision.transforms.Normalize((0,), (1,))])
                                #torchvision.transforms.Normalize((0.1307,), (0.3081,))])
 
@@ -111,8 +111,8 @@ from vit_TNN import *
 import csv
 import os
 
-image_size=28
-patch_size=4 
+image_size=4
+patch_size=2 
 num_classes=10
 channels=1
 
@@ -121,7 +121,7 @@ channels=1
 # depth=2
 heads=6
 # mlp_dim=32
-path = r".\trained_transformer\verification"
+path = r".\trained_transformer\verification_16"
 csv_file_path = path+"\\vit_results.csv"
 columns = ['name', 'dim', 'depth', 'heads', 'mlp_dim', 'avg_test_loss', 'test_accuracy']
 eps = 1e-6
