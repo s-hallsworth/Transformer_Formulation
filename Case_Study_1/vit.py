@@ -30,6 +30,7 @@
 # # %%
 # !pip install torchvision
 
+from email.mime import image
 import torch
 from torch import nn
 from torch import nn, einsum
@@ -49,7 +50,9 @@ DOWNLOAD_PATH = '/data/mnist'
 BATCH_SIZE_TRAIN = 100
 BATCH_SIZE_TEST = 1000
 
-transform_mnist = torchvision.transforms.Compose([ torchvision.transforms.Resize((4, 4)),torchvision.transforms.ToTensor(),
+image_size=8
+patch_size=2 
+transform_mnist = torchvision.transforms.Compose([torchvision.transforms.Resize((image_size, image_size)), torchvision.transforms.ToTensor(),
                                 torchvision.transforms.Normalize((0,), (1,))])
                                #torchvision.transforms.Normalize((0.1307,), (0.3081,))])
 
@@ -111,8 +114,7 @@ from vit_TNN import *
 import csv
 import os
 
-image_size=4
-patch_size=2 
+
 num_classes=10
 channels=1
 
@@ -121,14 +123,14 @@ channels=1
 # depth=2
 heads=6
 # mlp_dim=32
-path = r".\trained_transformer\verification_16"
+path = r".\trained_transformer\verification"+f"_{image_size*image_size}"
 csv_file_path = path+"\\vit_results.csv"
 columns = ['name', 'dim', 'depth', 'heads', 'mlp_dim', 'avg_test_loss', 'test_accuracy']
 eps = 1e-6 
 
 for dim in [6, 12, 18, 24]:
     for depth in [1, 2, 4]:
-        for mlp_dim in [12, 24, 32, 64]:
+        for mlp_dim in [12]:#, 24, 32, 64]:
             dim_head = int(dim/heads)
             model = ViT(image_size=image_size, patch_size=patch_size, num_classes=num_classes, channels=channels, dim=dim, dim_head=dim_head, depth=depth, heads=heads, mlp_dim=mlp_dim,eps=eps)
             optimizer = optim.Adam(model.parameters(), lr=0.003)
