@@ -57,10 +57,39 @@ NAME = "verification"
 SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
 PATH =  ".\\Experiments\Verification\\"
+im_sz=[4]  # Define image pixels (and folder to select tnn models from)
 file_names = ["vit_6_1_6_12", "vit_6_2_6_12", "vit_6_4_6_12"] # changing depth
 #file_names = ["vit_12_1_6_12", "vit_12_2_6_12", "vit_12_4_6_12"] # changing embed dim 12
 #file_names = ["vit_18_1_6_12", "vit_18_2_6_12", "vit_18_4_6_12"] # changing embed dim 18
 #file_names = ["vit_24_1_6_12", "vit_24_2_6_12", "vit_24_4_6_12"] # changing embed dim 24
+
+# Define Transformer Constraint config:
+ACTI_LIST_FULL = [ # Define which constraints and cut config to use
+            "LN_var", "LN_mean", "LN_num", "LN_num_squ", "LN_denom", "LN_num_squ_sum",
+                "MHA_Q", "MHA_K", "MHA_V", "MHA_attn_weight_sum", "MHA_attn_weight",
+            "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_QK_MC", "MHA_WK_MC", "MHA_attn_score", "MHA_output", 
+            "RES_var", "MHA_softmax_env", "AVG_POOL_var", "embed_var"]
+activation_dict = {}
+for key in ACTI_LIST_FULL:
+    activation_dict[key] = False
+    
+combinations = [ # define configuartions
+    #1, 1, 0, 0, 0
+    # 1 , 0, 1, 1, 1, #1 all
+    [1 , 0, 1, 1, 0], #2 -- fastest feasibile solution _/
+    [1 , 0, 1, 0, 0], #3 -- good trade off speed and solve time _/
+    #1 , 0, 0, 0, 0, #4 -- smallest opt. gap _/
+    #1 , 0, 0, 1, 1, #5_/
+    [1 , 0, 0, 1, 0], #6 --- fastest optimal solution _/
+    # 0 , 0, 0, 0, 0  #7 _/
+]
+combinations = [[bool(val) for val in sublist] for sublist in combinations]
+ACTI = {}  
+ACTI["LN_I"] = {"list": ["LN_var"]}
+ACTI["LN_D"] = {"list": ["LN_num", "LN_num_squ", "LN_denom"]}
+ACTI["MHA_I"] = {"list": ["MHA_attn_weight_sum", "MHA_attn_weight"]}
+ACTI["MHA_D"] = {"list": ["MHA_Q", "MHA_K", "MHA_V", "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" , "RES_var"]}
+ACTI["MHA_MC"] = {"list":[ "MHA_QK_MC", "MHA_WK_MC"]}
 
 # Store TNN Architecture info (enc layer + other)
 tnn_config = {}
@@ -73,10 +102,10 @@ tnn_config["Num Dense"] = "2 + 3"
 tnn_config["Num ReLu"] = "1"
 tnn_config["Num Pool"] = " 0 + 1"
 
-# Load Data:
-im_sz=[4] ## Change input image pixel size
-
+## RUN EXPERIMENTS:
+# For varied pixel sized images
 for image_size in im_sz:
+    # Load Data Set
     torch.manual_seed(42)
     DOWNLOAD_PATH = '/data/mnist'
     transform_mnist = torchvision.transforms.Compose([ torchvision.transforms.Resize((image_size, image_size)), ##
@@ -97,34 +126,7 @@ for image_size in im_sz:
     
     model, input = verification_problem(inputimage, epsilon, channels, image_size, labels, classification_labels)
 
-    # Define Transformer Constraint config:
-    ACTI_LIST_FULL = [ # Define which constraints and cut config to use
-                "LN_var", "LN_mean", "LN_num", "LN_num_squ", "LN_denom", "LN_num_squ_sum",
-                 "MHA_Q", "MHA_K", "MHA_V", "MHA_attn_weight_sum", "MHA_attn_weight",
-                "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_QK_MC", "MHA_WK_MC", "MHA_attn_score", "MHA_output", 
-                "RES_var", "MHA_softmax_env", "AVG_POOL_var", "embed_var"]
-    activation_dict = {}
-    for key in ACTI_LIST_FULL:
-        activation_dict[key] = False
-        
-    combinations = [ # define configuartions
-        #1, 1, 0, 0, 0
-        # 1 , 0, 1, 1, 1, #1 all
-        [1 , 0, 1, 1, 0], #2 -- fastest feasibile solution _/
-        [1 , 0, 1, 0, 0], #3 -- good trade off speed and solve time _/
-        #1 , 0, 0, 0, 0, #4 -- smallest opt. gap _/
-        #1 , 0, 0, 1, 1, #5_/
-        [1 , 0, 0, 1, 0], #6 --- fastest optimal solution _/
-        # 0 , 0, 0, 0, 0  #7 _/
-    ]
-    combinations = [[bool(val) for val in sublist] for sublist in combinations]
-    ACTI = {}  
-    ACTI["LN_I"] = {"list": ["LN_var"]}
-    ACTI["LN_D"] = {"list": ["LN_num", "LN_num_squ", "LN_denom"]}
-    ACTI["MHA_I"] = {"list": ["MHA_attn_weight_sum", "MHA_attn_weight"]}
-    ACTI["MHA_D"] = {"list": ["MHA_Q", "MHA_K", "MHA_V", "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" , "RES_var"]}
-    ACTI["MHA_MC"] = {"list":[ "MHA_QK_MC", "MHA_WK_MC"]}
-
+    # For each trained TNN
     for file_name in file_names:
         # for each experiment repetition
         for r in range(REP):
