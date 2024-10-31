@@ -1,0 +1,68 @@
+
+Gurobi 11.0.2 (win64) logging started Thu Oct 31 23:44:11 2024
+
+Set parameter LogFile to value ".\Experiments\Verification_16\Logs\vit_6_1_6_12_i4_r3_c3.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 1125 rows, 2205 columns and 4166 nonzeros
+Model fingerprint: 0x9cff0aae
+Model has 658 quadratic constraints
+Model has 210 general constraints
+Variable types: 2205 continuous, 0 integer (0 binary)
+Coefficient statistics:
+  Matrix range     [1e-03, 6e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [4e-162, 4e+02]
+  RHS range        [1e-02, 2e+00]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 850 rows and 1249 columns
+Presolve time: 0.02s
+Presolved: 3058 rows, 957 columns, 8985 nonzeros
+Presolved model has 533 bilinear constraint(s)
+Presolved model has 145 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 945 continuous, 12 integer (12 binary)
+
+Root relaxation: objective -5.042496e+01, 1287 iterations, 0.04 seconds (0.05 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0  -50.42496    0  657          -  -50.42496      -     -    0s
+     0     0  -50.42496    0  649          -  -50.42496      -     -    0s
+     0     0  -50.42496    0  648          -  -50.42496      -     -    0s
+     0     0  -50.42496    0  645          -  -50.42496      -     -    0s
+     0     0  -50.42496    0  647          -  -50.42496      -     -    0s
+     0     0  -50.42496    0  638          -  -50.42496      -     -    0s
+     0     0  -50.42496    0  649          -  -50.42496      -     -    0s
+     0     0  -50.42496    0  649          -  -50.42496      -     -    0s
+     0     0  -50.42478    0  645          -  -50.42478      -     -    4s
+     0     2  -50.42478    0  645          -  -50.42478      -     -    5s
+  1082   676  -50.33888   34  647          -  -50.42445      -  77.6   10s
+  1890  1074   -3.82879   80    4          -  -50.26757      -  78.4   19s
+  1894  1077  -39.96431   54    4          -  -50.26757      -  78.3   20s
+  1898  1081   -9.31124   50    5          -  -50.26701      -  79.4   28s
+  1902  1084  -50.26701    6    5          -  -50.26701      -  79.2   34s
+  1905  1088  -50.26701   10    4          -  -50.26701      -  80.1   35s
+  1908  1090  -32.35507   50    4          -  -49.57118      -  80.0   42s
+  1912  1093  -47.57994   35    4          -  -47.57994      -  81.1   45s
+  1914  1095  -47.45388   38    4          -  -47.45388      -  81.1   50s
+  1921  1100  -44.63168   13    2          -  -44.63168      -  81.9   58s
+  1927  1106    2.41618   76    2          -   -9.93015      -  82.7   65s
+  1933  1111   -8.49508   48    2          -   -8.49508      -  83.6   73s
+  1939  1116   -3.29257   17    2          -   -3.29257      -  84.5   79s
+H 1941  1062                      11.8808636   -3.29257   128%  85.5   80s
+  1944  1064    9.82200   35    1   11.88086    9.82200  17.3%  85.3   86s
