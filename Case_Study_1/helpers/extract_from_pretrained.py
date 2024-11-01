@@ -534,7 +534,10 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
         elif isinstance(module, nn.ReLU):
             new_name = "relu"
         elif isinstance(module, nn.Linear):
-            new_name = "linear"
+            if "to_out" not in name:
+                new_name = "linear"
+            else:
+                new_name = "to_out"
         elif "pos_embedding" in name:
             new_name = "pos_embedding"
         if not new_name is None:
@@ -713,7 +716,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
                 dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
                 dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
-        # print(layer, layer_name, new_layer_name)
+        #print(layer, layer_name, new_layer_name)
     return layer_names, dict_transformer_params, model, dict_outputs
 
 
