@@ -1291,8 +1291,8 @@ class Transformer:
                     if self.bound_cut_activation["MHA_compat_exp"]: 
                         try: 
                             if tnn_from == 'keras':
-                                MHA_Block.compatibility_exp[h,n,p].ub = 1
-                                MHA_Block.compatibility_exp[h,n,p].lb = 0
+                                MHA_Block.compatibility_exp[h,n,p].ub = min(1, math.exp(MHA_Block.compatibility[h,n,p].ub))
+                                MHA_Block.compatibility_exp[h,n,p].lb = math.exp(MHA_Block.compatibility[h,n,p].lb)
                             else:
                                 MHA_Block.compatibility_exp[h,n,p].ub = math.exp(MHA_Block.compatibility[h,n,p].ub)
                                 MHA_Block.compatibility_exp[h,n,p].lb = math.exp(MHA_Block.compatibility[h,n,p].lb)
