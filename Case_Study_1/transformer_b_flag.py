@@ -854,7 +854,7 @@ class Transformer:
                 numerator_squared_sum[t].lb = 0
         return layer_norm_var
         
-    def add_attention(self, input_var_name:Union[pyo.Var,str], output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, cross_attn=False, encoder_output:Union[pyo.Var,str]=None, exp_approx=False, tnn_from='pytorch'):
+    def add_attention(self, input_var_name:Union[pyo.Var,str], output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, mask=False, cross_attn=False, encoder_output:Union[pyo.Var,str]=None, exp_approx=False, tnn_from='pytorch'):
         """
         Multihead attention between each element of embedded sequence
 
@@ -1246,10 +1246,20 @@ class Transformer:
                             MHA_Block.attention_weight[h, n, n2].ub = 1
                             MHA_Block.attention_weight[h, n, n2].lb = 0
                 
-                        # attention weights softmax(compatibility)   
-                        MHA_Block.attention_constraints.add(
-                            expr=MHA_Block.attention_weight[h, n, n2] * MHA_Block.compatibility_exp_sum[h, n]
-                            == MHA_Block.compatibility_exp[h, n, n2]) 
+                        # attention weights softmax(compatibility)  
+                        if mask:
+                            # apply attention masking
+                            if n2 > n:
+                                 MHA_Block.attention_constraints.add(
+                                    expr=MHA_Block.attention_weight[h, n, n2] == 0)
+                            else:
+                                MHA_Block.attention_constraints.add(
+                                    expr=MHA_Block.attention_weight[h, n, n2] * MHA_Block.compatibility_exp_sum[h, n]
+                                    == MHA_Block.compatibility_exp[h, n, n2]) 
+                        else: 
+                            MHA_Block.attention_constraints.add(
+                                expr=MHA_Block.attention_weight[h, n, n2] * MHA_Block.compatibility_exp_sum[h, n]
+                                == MHA_Block.compatibility_exp[h, n, n2]) 
                         
                     
                     
@@ -1750,16 +1760,23 @@ class Transformer:
             
         constraints = getattr( self.M, "mccormick_bb_constr_list")   
         
-        if x.lb >= 0 and y.lb >= 0: #(construction of mccormick relies on var - var.lb >=0)
-            # add cuts
-            constraints.add( expr= w >= (x.lb * y) + (x * y.lb) - (x.lb * y.lb))
-            
-        if x.ub >= 0 and y.lb >= 0:
-            constraints.add( expr= w <= (x.ub * y) + (x * y.lb) - (x.ub * y.lb))
+        # add cuts
+        constraints.add( expr= w >= (x.lb * y) + (x * y.lb) - (x.lb * y.lb))
+        constraints.add( expr= w <= (x.ub * y) + (x * y.lb) - (x.ub * y.lb))
+        constraints.add( expr= w <= (x * y.ub) + (x.lb * y) - (x.lb * y.ub))
+        constraints.add( expr= w >= (x.ub * y) + (x * y.ub) - (x.ub * y.ub))
+
         
-        if x.lb >= 0 and y.ub >= 0:
-            constraints.add( expr= w <= (x * y.ub) + (x.lb * y) - (x.lb * y.ub))
+        # if x.lb >= 0 and y.lb >= 0: 
+        #     # add cuts
+        #     constraints.add( expr= w >= (x.lb * y) + (x * y.lb) - (x.lb * y.lb))
             
-        if x.ub >= 0 and y.ub >= 0:
-            # add cuts
-            constraints.add( expr= w >= (x.ub * y) + (x * y.ub) - (x.ub * y.ub))
+        # if x.ub >= 0 and y.lb >= 0:
+        #     constraints.add( expr= w <= (x.ub * y) + (x * y.lb) - (x.ub * y.lb))
+        
+        # if x.lb >= 0 and y.ub >= 0:
+        #     constraints.add( expr= w <= (x * y.ub) + (x.lb * y) - (x.lb * y.ub))
+            
+        # if x.ub >= 0 and y.ub >= 0:
+        #     # add cuts
+        #     constraints.add( expr= w >= (x.ub * y) + (x * y.ub) - (x.ub * y.ub))

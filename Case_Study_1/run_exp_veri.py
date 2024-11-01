@@ -52,16 +52,18 @@ TESTING = False # fix TNN input for testing (faster solve)
 if TESTING: 
     REP = 1
 else:
-    REP = 3 # number of repetitions of each scenario
+    REP = 1 # number of repetitions of each scenario
+r_offset = 1
 NAME = "verification"
 SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
-PATH =  ".\\Experiments\Verification\\"
 im_sz=[4]  # Define image pixels (and folder to select tnn models from)
-file_names = ["vit_6_1_6_12", "vit_6_2_6_12", "vit_6_4_6_12"] # changing depth
-#file_names = ["vit_12_1_6_12", "vit_12_2_6_12", "vit_12_4_6_12"] # changing embed dim 12
-#file_names = ["vit_18_1_6_12", "vit_18_2_6_12", "vit_18_4_6_12"] # changing embed dim 18
-#file_names = ["vit_24_1_6_12", "vit_24_2_6_12", "vit_24_4_6_12"] # changing embed dim 24
+#file_names = ["vit_6_1_6_12", "vit_6_2_6_12", "vit_6_4_6_12"] # changing depth
+file_names = ["vit_6_2_6_12", "vit_6_4_6_12"] 
+#file_names = ["vit_12_1_6_12", "vit_18_1_6_12", "vit_24_1_6_12"] # changing embed dim 12, 18, 24
+#file_names = ["vit_12_1_6_12", "vit_12_2_6_12", "vit_12_4_6_12"] # changing embed dim 12, for each depth
+#file_names = ["vit_18_1_6_12", "vit_18_2_6_12", "vit_18_4_6_12"] # changing embed dim 18, for each depth
+#file_names = ["vit_24_1_6_12", "vit_24_2_6_12", "vit_24_4_6_12"] # changing embed dim 24, for each depth
 
 # Define Transformer Constraint config:
 ACTI_LIST_FULL = [ # Define which constraints and cut config to use
@@ -74,13 +76,14 @@ for key in ACTI_LIST_FULL:
     activation_dict[key] = False
     
 combinations = [ # define configuartions
-    #1, 1, 0, 0, 0
+    
     # 1 , 0, 1, 1, 1, #1 all
     [1 , 0, 1, 1, 0], #2 -- fastest feasibile solution _/
     [1 , 0, 1, 0, 0], #3 -- good trade off speed and solve time _/
     #1 , 0, 0, 0, 0, #4 -- smallest opt. gap _/
     #1 , 0, 0, 1, 1, #5_/
     [1 , 0, 0, 1, 0], #6 --- fastest optimal solution _/
+    #[1,  1, 1, 1, 0] #c4
     # 0 , 0, 0, 0, 0  #7 _/
 ]
 combinations = [[bool(val) for val in sublist] for sublist in combinations]
@@ -105,6 +108,13 @@ tnn_config["Num Pool"] = " 0 + 1"
 ## RUN EXPERIMENTS:
 # For varied pixel sized images
 for image_size in im_sz:
+    # Set output directory
+    PATH =  f".\\Experiments\\Verification_{image_size*image_size}"
+    if not os.path.exists(PATH):
+        os.makedirs(PATH)
+        os.makedirs(PATH+"\\Logs")
+    PATH += "\\"
+    
     # Load Data Set
     torch.manual_seed(42)
     DOWNLOAD_PATH = '/data/mnist'
@@ -132,7 +142,10 @@ for image_size in im_sz:
         for r in range(REP):
             # for each combination of constraints/bounds
             for c, combi in enumerate(combinations):
-                experiment_name = f"{file_name}_i{image_size}_r{r+1}_c{c+1}"
+                print("C = ", c+1)    
+                if c+1 == 1: ### REMOVE
+                    continue
+                experiment_name = f"{file_name}_i{image_size}_r{r+1+r_offset}_c{c+1}"
                 # activate constraints
                 ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACTI["MHA_D"]["act_val"], ACTI["MHA_MC"]["act_val"] = combi
 
@@ -164,7 +177,8 @@ for image_size in im_sz:
                 gurobi_model.update() # update gurobi model with FFN constraints
 
                 ## Optimizes
-                PATH = ".\\Experiments\\Verification\\"
+                gurobi_model.setParam('LogToConsole', 0)
+                gurobi_model.setParam('OutputFlag', 1)
                 gurobi_model.setParam('LogFile', PATH+f'Logs\\{experiment_name}.log')
                 gurobi_model.setParam('TimeLimit', 43200) #12h
                 gurobi_model.optimize()
@@ -197,4 +211,4 @@ for image_size in im_sz:
 
 
                 if not TESTING:
-                    save_gurobi_results(gurobi_model, PATH+experiment_name, experiment_name, r+1, tnn_config)
+                    save_gurobi_results(gurobi_model, PATH+experiment_name, experiment_name, r+1+r_offset, tnn_config)

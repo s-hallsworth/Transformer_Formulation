@@ -85,6 +85,11 @@ def verification_problem(inputimage, epsilon, channels, image_size, labels, clas
     )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
 
     return model, input
+
+def count_layer_name(layer_name, count_list):
+        count = count_list.count(layer_name) + 1
+        count_list.append(layer_name)
+        return count
    
 def verification_tnn(model, inputimage, image_size, patch_size, channels, file_name, tnn_path, activation_dict, device, eps=1e-6):
     # Load transformer
@@ -103,15 +108,19 @@ def verification_tnn(model, inputimage, image_size, patch_size, channels, file_n
     transformer = TNN.Transformer( config_list, model, activation_dict)
     layer_names, parameters, _, layer_outputs_dict = extract_from_pretrained.get_torchViT_learned_parameters(tnn_model, input, heads)
         
-    # Add Sequential 
-    layer = "linear_1"
+    # list to help create new variable names for each layer  
+    count_list = []
+
+    # Add Sequential 1 x28 x 18 mult 18 x patch size
     num_patch_dim = int(image_size_flat/(patch_size*patch_size))
     model.num_patch_dim = pyo.Set(initialize=range(num_patch_dim ))
     model.patch_dim = pyo.Set(initialize=range(patch_size*patch_size))
     model.embed_dim = pyo.Set(initialize=range(dim))
 
-    W_emb = parameters[layer,'W']
-    b_emb = parameters[layer,'b']
+    layer_name = "linear"
+    count = count_layer_name(layer_name, count_list)
+    W_emb = parameters[f"{layer_name}_{count}",'W']
+    b_emb = parameters[f"{layer_name}_{count}",'b']
     model.patch_input= pyo.Var(model.num_patch_dim, model.patch_dim)
 
     #--------
@@ -126,6 +135,7 @@ def verification_tnn(model, inputimage, image_size, patch_size, channels, file_n
                 for pj in range(patch_size):
                     pos_i = patch_index  
                     pos_j = pi * patch_size + pj 
+
                     model.rearrange_constraints.add(expr= model.patch_input[pos_i, pos_j] == model.purturb_image[i + pi, j + pj])
     out = transformer.embed_input( "patch_input" , "embed_input", model.embed_dim, W_emb, b_emb)
 
@@ -148,49 +158,64 @@ def verification_tnn(model, inputimage, image_size, patch_size, channels, file_n
     # Layer Norm
     gamma1 = parameters['layer_normalization_1', 'gamma']
     beta1  = parameters['layer_normalization_1', 'beta']
-    transformer.add_layer_norm( "pe", "LN_1", gamma1, beta1)
+    transformer.add_layer_norm( "pe", "LN_1_1", gamma1, beta1)
     res = "pe"
-        
+
     ffn_parameter_dict = {}
+
     for l in range(depth):
         # Layer Norm
-        gamma1 = parameters['layer_normalization_1', 'gamma']
-        beta1  = parameters['layer_normalization_1', 'beta']
+        layer_name = "layer_normalization"
+        count = count_layer_name(layer_name, count_list)
+        gamma1 = parameters[f'{layer_name}_{count}', 'gamma']
+        beta1  = parameters[f'{layer_name}_{count}', 'beta']
         if l < 1:
             res = "pe"
-        transformer.add_layer_norm( res, f"LN_1_{l}", gamma1, beta1)
-        
+
+        transformer.add_layer_norm( res, f"LN_{count}", gamma1, beta1)
+        prev = f"LN_{count}"
             
         # # Attention
-        layer = 'self_attention_1'
-        W_q = parameters[layer,'W_q']
-        W_k = parameters[layer,'W_k']
-        W_v = parameters[layer,'W_v']
-        W_o = parameters[layer,'W_o']
+        layer_name= 'self_attention'
+        count = count_layer_name(layer_name, count_list)
+        W_q = parameters[f"{layer_name}_{count}",'W_q']
+        W_k = parameters[f"{layer_name}_{count}",'W_k']
+        W_v = parameters[f"{layer_name}_{count}",'W_v']
+        W_o = parameters[f"{layer_name}_{count}",'W_o']
 
-        b_q = parameters[layer,'b_q']
-        b_k = parameters[layer,'b_k']
-        b_v = parameters[layer,'b_v']
-        b_o = parameters[layer,'b_o']
-        transformer.add_attention( f"LN_1_{l}",f"attention_output_{l}", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from="pytorch")
-
+        b_q = parameters[f"{layer_name}_{count}",'b_q']
+        b_k = parameters[f"{layer_name}_{count}",'b_k']
+        b_v = parameters[f"{layer_name}_{count}",'b_v']
+        b_o = parameters[f"{layer_name}_{count}",'b_o']
+        transformer.add_attention( prev, f"attention_output_{count}", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from="keras")
+        prev = f"attention_output_{count}"
+        
         # Residual 
-        transformer.add_residual_connection(res, f"attention_output_{l}", f"residual_1_{l}")
-        res = f"residual_1_{l}"
-            
+        layer_name= 'residual'
+        count = count_layer_name(layer_name, count_list)
+        transformer.add_residual_connection(res, prev, f"residual_{count}")
+        res = f"residual_{count}"
+        
         # Layer Norm2
-        gamma = parameters['layer_normalization_2', 'gamma']
-        beta  = parameters['layer_normalization_2', 'beta']
-        transformer.add_layer_norm( f"residual_1_{l}", f"LN_2_{l}", gamma, beta)
-
+        layer_name = "layer_normalization"
+        count = count_layer_name(layer_name, count_list)
+        gamma = parameters[f'{layer_name}_{count}', 'gamma']
+        beta  = parameters[f'{layer_name}_{count}', 'beta']
+        out = transformer.add_layer_norm( res, f"LN_{count}", gamma, beta)
+        prev = f"LN_{count}"
             
         # # # FFN
-        ffn_params =  transformer.get_fnn(f"LN_2_{l}", f"ffn_1_{l}", "ffn_1", (num_patch_dim + 1, dim), parameters)
-        ffn_parameter_dict[f"ffn_1_{l}"] = ffn_params # ffn_params: nn, input_nn, output_nn
-                
+        layer_name = "ffn"
+        count = count_layer_name(layer_name, count_list)
+        ffn_params =  transformer.get_fnn(out, f"{layer_name}_{count}", f"{layer_name}_{count}", (num_patch_dim + 1, dim), parameters)
+        ffn_parameter_dict[f"{layer_name}_{count}"] = ffn_params # ffn_params: nn, input_nn, output_nn
+        prev = f"{layer_name}_{count}"
+            
         # Residual 
-        out = transformer.add_residual_connection(res, f"ffn_1_{l}", f"residual_2_{l}")
-        res = f"residual_2_{l}"
+        layer_name= 'residual'
+        count = count_layer_name(layer_name, count_list)
+        out = transformer.add_residual_connection(res, prev, f"residual_{count}")
+        res = out
 
         
     # cls pool
@@ -200,15 +225,19 @@ def verification_tnn(model, inputimage, image_size, patch_size, channels, file_n
     model.pool_constr = pyo.Constraint(model.embed_dim, rule=pool_rule)
 
     # Norm
-    gamma = parameters['layer_normalization_3', 'gamma']
-    beta  = parameters['layer_normalization_3', 'beta']
-    out = transformer.add_layer_norm( model.pool, "LN_3", gamma, beta)
+    layer_name = "layer_normalization"
+    count = count_layer_name(layer_name, count_list)
+    gamma = parameters[f'{layer_name}_{count}', 'gamma']
+    beta  = parameters[f'{layer_name}_{count}', 'beta']
+    out = transformer.add_layer_norm( model.pool, f"LN_{count}", gamma, beta)
 
     # Linear
-    W_emb = parameters['linear_3', 'W']
-    b_emb  = parameters['linear_3', 'b']
+    layer_name = "linear"
+    count = count_layer_name(layer_name, count_list)
+    W_emb = parameters[f"{layer_name}_{count}",'W']
+    b_emb = parameters[f"{layer_name}_{count}",'b']
     out = transformer.embed_input( out, "output", model.out_labels_dim, W_emb, b_emb)
-    
+
     # output constraints
     model.out_constraints = pyo.ConstraintList()
     for i in model.out.index_set():

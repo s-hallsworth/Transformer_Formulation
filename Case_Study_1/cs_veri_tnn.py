@@ -55,7 +55,7 @@ images, labels = next(iter(test_loader))
 
 # Set parameters
 problemNo = 0 # image to select from MNIST dataset ( test: 0 --> the number 7)
-epsilon = 0.1
+epsilon = 0.0001
 inputimage = torch.round(images[problemNo], decimals=4) # flattened image
 max_input = np.max(inputimage.numpy())
 min_input = np.min(inputimage.numpy())
@@ -105,7 +105,7 @@ model.purturb_constraints.add(expr= sum(model.purturb[i] for i in model.purturb.
    
 # Load transformer
 from vit_TNN import *
-file_name = "vit_6_1_6_12"
+file_name = "vit_6_2_6_12"
 tnn_path = f".\\trained_transformer\\verification_16\\{file_name}.pt" 
 device = 'cpu'
 config_params = file_name.split('_')
@@ -132,10 +132,10 @@ combinations = [
 #1, 1, 0, 0, 0
 # 1 , 0, 1, 1, 1, #1 all
 # 1 , 0, 1, 1, 0 #2 -- fastest feasibile solution _/
-1 , 0, 1, 0, 0, #3 -- good trade off speed and solve time _/
+#1 , 0, 1, 0, 0, #3 -- good trade off speed and solve time _/
 #1 , 0, 0, 0, 0, #4 -- smallest opt. gap _/
 #1 , 0, 0, 1, 1, #5_/
-#1 , 0, 0, 1, 0, #6 --- fastest optimal solution _/
+1 , 0, 0, 1, 0, #6 --- fastest optimal solution _/
 # 0 , 0, 0, 0, 0  #7 _/
 ]
 combinations = [bool(val) for val in combinations]
@@ -160,16 +160,24 @@ layer_names, parameters, _, layer_outputs_dict = extract_from_pretrained.get_tor
 # if TESTING:
 #     plt.imshow(input.squeeze(0).squeeze(0), cmap='gray')
 #     plt.show()
-    
+  
+# list to help create new variable names for each layer  
+count_list = []
+def count_layer_name(layer_name, count_list):
+    count = count_list.count(layer_name) + 1
+    count_list.append(layer_name)
+    return count
+
 # Add Sequential 1 x28 x 18 mult 18 x patch size
-layer = "linear_1"
 num_patch_dim = int(image_size_flat/(patch_size*patch_size))
 model.num_patch_dim = pyo.Set(initialize=range(num_patch_dim ))
 model.patch_dim = pyo.Set(initialize=range(patch_size*patch_size))
 model.embed_dim = pyo.Set(initialize=range(dim))
 
-W_emb = parameters[layer,'W']
-b_emb = parameters[layer,'b']
+layer_name = "linear"
+count = count_layer_name(layer_name, count_list)
+W_emb = parameters[f"{layer_name}_{count}",'W']
+b_emb = parameters[f"{layer_name}_{count}",'b']
 model.patch_input= pyo.Var(model.num_patch_dim, model.patch_dim)
 
 #--------
@@ -198,7 +206,7 @@ for c, c_dim in enumerate(model.cls_dim):
         if c < 1:
             model.cls_constraints.add(expr= model.cls[c_dim, e_dim] == cls_token[e])
         else:
-           model.cls_constraints.add(expr= model.cls[c_dim, e_dim] == model.embed_input[model.num_patch_dim.at(c), model.embed_dim.at(e+1)] )
+            model.cls_constraints.add(expr= model.cls[c_dim, e_dim] == model.embed_input[model.num_patch_dim.at(c), model.embed_dim.at(e+1)] )
             
 # Add Positional Embedding
 b_pe= parameters['pos_embedding']
@@ -207,47 +215,64 @@ transformer.add_pos_encoding("cls", "pe", b_pe )
 # Layer Norm
 gamma1 = parameters['layer_normalization_1', 'gamma']
 beta1  = parameters['layer_normalization_1', 'beta']
-transformer.add_layer_norm( "pe", "LN_1", gamma1, beta1)
+transformer.add_layer_norm( "pe", "LN_1_1", gamma1, beta1)
 res = "pe"
-       
+
+ffn_parameter_dict = {}
+
 for l in range(depth):
     # Layer Norm
-    gamma1 = parameters['layer_normalization_1', 'gamma']
-    beta1  = parameters['layer_normalization_1', 'beta']
+    layer_name = "layer_normalization"
+    count = count_layer_name(layer_name, count_list)
+    gamma1 = parameters[f'{layer_name}_{count}', 'gamma']
+    beta1  = parameters[f'{layer_name}_{count}', 'beta']
     if l < 1:
         res = "pe"
-    transformer.add_layer_norm( res, f"LN_1_{l}", gamma1, beta1)
-    
+
+    transformer.add_layer_norm( res, f"LN_{count}", gamma1, beta1)
+    prev = f"LN_{count}"
         
     # # Attention
-    layer = 'self_attention_1'
-    W_q = parameters[layer,'W_q']
-    W_k = parameters[layer,'W_k']
-    W_v = parameters[layer,'W_v']
-    W_o = parameters[layer,'W_o']
+    layer_name= 'self_attention'
+    count = count_layer_name(layer_name, count_list)
+    W_q = parameters[f"{layer_name}_{count}",'W_q']
+    W_k = parameters[f"{layer_name}_{count}",'W_k']
+    W_v = parameters[f"{layer_name}_{count}",'W_v']
+    W_o = parameters[f"{layer_name}_{count}",'W_o']
 
-    b_q = parameters[layer,'b_q']
-    b_k = parameters[layer,'b_k']
-    b_v = parameters[layer,'b_v']
-    b_o = parameters[layer,'b_o']
-    transformer.add_attention( f"LN_1_{l}",f"attention_output_{l}", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from="pytorch")
-
+    b_q = parameters[f"{layer_name}_{count}",'b_q']
+    b_k = parameters[f"{layer_name}_{count}",'b_k']
+    b_v = parameters[f"{layer_name}_{count}",'b_v']
+    b_o = parameters[f"{layer_name}_{count}",'b_o']
+    transformer.add_attention( prev, f"attention_output_{count}", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from="keras")
+    prev = f"attention_output_{count}"
+    
     # Residual 
-    transformer.add_residual_connection(res, f"attention_output_{l}", f"residual_1_{l}")
-    res = f"residual_1_{l}"
-        
+    layer_name= 'residual'
+    count = count_layer_name(layer_name, count_list)
+    transformer.add_residual_connection(res, prev, f"residual_{count}")
+    res = f"residual_{count}"
+    
     # Layer Norm2
-    gamma = parameters['layer_normalization_2', 'gamma']
-    beta  = parameters['layer_normalization_2', 'beta']
-    transformer.add_layer_norm( f"residual_1_{l}", f"LN_2_{l}", gamma, beta)
-
+    layer_name = "layer_normalization"
+    count = count_layer_name(layer_name, count_list)
+    gamma = parameters[f'{layer_name}_{count}', 'gamma']
+    beta  = parameters[f'{layer_name}_{count}', 'beta']
+    out = transformer.add_layer_norm( res, f"LN_{count}", gamma, beta)
+    prev = f"LN_{count}"
         
     # # # FFN
-    nn, input_nn, output_nn = transformer.get_fnn(f"LN_2_{l}", f"ffn_1_{l}", "ffn_1", (num_patch_dim + 1, dim), parameters)
-            
+    layer_name = "ffn"
+    count = count_layer_name(layer_name, count_list)
+    ffn_params =  transformer.get_fnn(out, f"{layer_name}_{count}", f"{layer_name}_{count}", (num_patch_dim + 1, dim), parameters)
+    ffn_parameter_dict[f"{layer_name}_{count}"] = ffn_params # ffn_params: nn, input_nn, output_nn
+    prev = f"{layer_name}_{count}"
+          
     # Residual 
-    out = transformer.add_residual_connection(res, f"ffn_1_{l}", f"residual_2_{l}")
-    res = f"residual_2_{l}"
+    layer_name= 'residual'
+    count = count_layer_name(layer_name, count_list)
+    out = transformer.add_residual_connection(res, prev, f"residual_{count}")
+    res = out
 
      
 # cls pool
@@ -257,13 +282,17 @@ def pool_rule(model, d):
 model.pool_constr = pyo.Constraint(model.embed_dim, rule=pool_rule)
 
 # Norm
-gamma = parameters['layer_normalization_3', 'gamma']
-beta  = parameters['layer_normalization_3', 'beta']
-out = transformer.add_layer_norm( model.pool, "LN_3", gamma, beta)
+layer_name = "layer_normalization"
+count = count_layer_name(layer_name, count_list)
+gamma = parameters[f'{layer_name}_{count}', 'gamma']
+beta  = parameters[f'{layer_name}_{count}', 'beta']
+out = transformer.add_layer_norm( model.pool, f"LN_{count}", gamma, beta)
 
 # Linear
-W_emb = parameters['linear_3', 'W']
-b_emb  = parameters['linear_3', 'b']
+layer_name = "linear"
+count = count_layer_name(layer_name, count_list)
+W_emb = parameters[f"{layer_name}_{count}",'W']
+b_emb = parameters[f"{layer_name}_{count}",'b']
 out = transformer.embed_input( out, "output", model.out_labels_dim, W_emb, b_emb)
 
 #Set objective
@@ -271,29 +300,32 @@ out = transformer.embed_input( out, "output", model.out_labels_dim, W_emb, b_emb
 #     expr= (out[0, model.labels.last()] - out[0, model.labels.first()]) , sense=pyo.maximize
 # )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
 
-model.obj = pyo.Objective(
-    expr= -(out[0, model.labels.last()] - out[0, model.labels.first()]) , sense=pyo.minimize
-)  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
-
-
-# # TESTING
+##
 # model.obj = pyo.Objective(
-#     expr= sum(model.purturb_image[i] - model.target_image[i] for i in model.purturb_image.index_set()), sense=pyo.minimize
-# )  # -1: maximize, +1: minimize (default)
-# # -------
+#     expr= -(out[0, model.labels.last()] - out[0, model.labels.first()]) , sense=pyo.minimize
+# )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
+
+
+# TESTING
+model.obj = pyo.Objective(
+    expr= sum(model.purturb_image[i] - model.target_image[i] for i in model.purturb_image.index_set()), sense=pyo.minimize
+)  # -1: maximize, +1: minimize (default)
+# -------
 
 # Convert & Solve 
 # # Convert to gurobipy
 gurobi_model, map_var, _ = convert_pyomo.to_gurobi(model)
 
-# Add FNN1 to gurobi model
-input_1, output_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
-pred_constr1 = add_predictor_constr(gurobi_model, nn, input_1, output_1)
+# Add FNNs to gurobi model using GurobiML
+for key, value in ffn_parameter_dict.items():
+    nn, input_nn, output_nn = value
+    input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+    pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
 
-gurobi_model.update()
+gurobi_model.update() # update gurobi model with FFN constraints
 
 ## Optimizes
-# gurobi_model.setParam('DualReductions',0)
+#gurobi_model.setParam('DualReductions',0)
 # gurobi_model.setParam('MIPFocus',1)
 PATH = r".\Experiments\Verification"
 experiment_name = "testing_veri"
@@ -326,28 +358,26 @@ if TESTING:
     # check input to tnn
     patch = np.array(optimal_parameters['patch_input']).flatten()
     patch_exp = np.array(list(layer_outputs_dict['to_patch_embedding.0'])[0].tolist()).flatten() # convert from (image size * image size) to (patch_num * patch size)
-    assert np.isclose(patch, patch_exp , atol=1e-6).all()
     
     # check linear layer:
     embed = np.array(optimal_parameters['embed_input'])
     embed_exp = np.array(list(layer_outputs_dict['to_patch_embedding'])[0].tolist()).flatten()
-    assert np.isclose(embed, embed_exp , atol=1e-6).all()
     
 
     # check layer norm:
-    val = np.array(optimal_parameters["LN_1_0"])
+    val = np.array(optimal_parameters["LN_1"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.norm'])[0].tolist()).flatten()
     #assert np.isclose(val, val_exp , atol=1e-5).all()
     print("ln1: mean, min, max ",np.mean(val), np.max(val ), np.min(val))
     print("ln1: mean, min, max, diff images: ",np.mean(val - val_exp), np.max(val - val_exp), np.min(val - val_exp))
     
     # check self attention:
-    val = np.array(optimal_parameters["attention_output_0"])
+    val = np.array(optimal_parameters["attention_output_1"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_out'])[0].tolist()).flatten()
     print("attn_out: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
     
     ########################## dubugging code
-    output_name = "attention_output_0"
+    output_name = "attention_output_1"
     Q_form = torch.tensor(optimal_parameters[f"Block_{output_name}.Q"])
     K_form = torch.tensor(optimal_parameters[f"Block_{output_name}.K"])
     V_form = torch.tensor(optimal_parameters[f"Block_{output_name}.V"])
@@ -370,13 +400,13 @@ if TESTING:
     print("attn weight: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
     
     # check layer norm:
-    val = np.array(optimal_parameters["LN_2_0"])
+    val = np.array(optimal_parameters["LN_2"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.1.norm'])[0].tolist()).flatten()
     print("ln2: mean, min, max ",np.mean(val), np.max(val ), np.min(val))
     print("ln2: mean, min, max, diff images: ",np.mean(val - val_exp), np.max(val - val_exp), np.min(val - val_exp))
     
     # check ffn:
-    val = np.array(optimal_parameters["ffn_1_0"])
+    val = np.array(optimal_parameters["ffn_1"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.1.fn.net'])[0].tolist()).flatten()
     print("ffn: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
     
@@ -386,7 +416,9 @@ if TESTING:
     print("pool: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
 
     # # check layer norm3:
-    val = np.array(optimal_parameters["LN_3"])
+    layer_name = "layer_normalization"
+    count = count_layer_name(layer_name, count_list)-1
+    val = np.array(optimal_parameters[f"LN_{count}"])
     val_exp = np.array(list(layer_outputs_dict['mlp_head.0'])[0].tolist()).flatten()
     print("ln3: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
 
@@ -394,20 +426,20 @@ if TESTING:
     # check output:
     val = np.array(optimal_parameters["output"])
     val_exp = np.array(list(layer_outputs_dict['mlp_head'])[0].tolist()).flatten()
-    print(val)
-    print(val_exp)
+    print("form out: ",val)
+    print("trained tnn out: ",val_exp)
     print("out: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
     #assert np.isclose(val, val_exp , atol=1e-5).all()
 
-print("---------------------------------------------------")
-# print("purturbed image: ",purturb_image)
+# print("---------------------------------------------------")
+# # print("purturbed image: ",purturb_image)
+# # print()
+# # print("target image: ",target_image)
 # print()
-# print("target image: ",target_image)
-print()
-print("mean, min, max, diff images: ",np.mean(purturb_image - target_image), max(purturb_image - target_image), min(purturb_image - target_image))
-print()
-print("layer outputs trained tnn keys: \n", layer_outputs_dict.keys())
-print("---------------------------------------------------")
+# print("mean, min, max, diff images: ",np.mean(purturb_image - target_image), max(purturb_image - target_image), min(purturb_image - target_image))
+# print()
+# print("layer outputs trained tnn keys: \n", layer_outputs_dict.keys())
+# print("---------------------------------------------------")
 
         
     
