@@ -1,0 +1,651 @@
+
+Gurobi 11.0.2 (win64) logging started Fri Nov  1 02:01:58 2024
+
+Set parameter LogFile to value ".\Experiments\Verification\Logs\testing_veri_vit_6_2_6_12.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 2915 rows, 4527 columns and 10516 nonzeros
+Model fingerprint: 0x73cd9389
+Model has 1238 quadratic constraints
+Model has 420 general constraints
+Variable types: 4227 continuous, 300 integer (300 binary)
+Coefficient statistics:
+  Matrix range     [1e-05, 1e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e-05, 5e+02]
+  RHS range        [1e-04, 1e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 2200 rows and 2569 columns
+Presolve time: 0.03s
+Presolved: 5751 rows, 1959 columns, 16726 nonzeros
+Presolved model has 996 bilinear constraint(s)
+Presolved model has 233 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 1941 continuous, 18 integer (18 binary)
+
+Root relaxation: objective -1.000000e-04, 1970 iterations, 0.05 seconds (0.06 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0   -0.00010    0  836          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  843          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  819          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  821          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  820          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  820          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  821          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  733          -   -0.00010      -     -    5s
+H    0     0                      -0.0001000   -0.00010  0.01%     -    6s
+     0     2   -0.00010    0  733   -0.00010   -0.00010  0.01%     -    8s
+   118    27   -0.00010   11  669   -0.00010   -0.00010  0.01%   130   10s
+  2253   815   -0.00010   95  562   -0.00010   -0.00010  0.01%  53.1   15s
+H 2597   775                      -0.0001000   -0.00010  0.01%  53.0   15s
+  2600   777   -0.00010   61    0   -0.00010   -0.00010  0.01%  53.0   21s
+  3506   918   -0.00010   41  323   -0.00010   -0.00010  0.01%  54.6   25s
+  6088  1254 infeasible   64        -0.00010   -0.00010  0.01%  62.0   30s
+  9039  2207 infeasible   64        -0.00010   -0.00010  0.01%  65.8   36s
+ 11777  2889   -0.00010   52  299   -0.00010   -0.00010  0.01%  67.1   41s
+*12002   846             169      -0.0001000   -0.00010  0.00%  67.3   41s
+
+Explored 12714 nodes (864642 simplex iterations) in 41.38 seconds (43.88 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 3: -0.0001 -9.9988e-05 -9.99865e-05 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective -1.000000000002e-04, best bound -9.999999999999e-05, gap 0.0000%
+
+Gurobi 11.0.2 (win64) logging started Fri Nov  1 02:04:50 2024
+
+Set parameter LogFile to value ".\Experiments\Verification\Logs\testing_veri_vit_6_2_6_12.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 2915 rows, 4527 columns and 10516 nonzeros
+Model fingerprint: 0x73cd9389
+Model has 1238 quadratic constraints
+Model has 420 general constraints
+Variable types: 4227 continuous, 300 integer (300 binary)
+Coefficient statistics:
+  Matrix range     [1e-05, 1e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e-05, 5e+02]
+  RHS range        [1e-04, 1e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 2200 rows and 2569 columns
+Presolve time: 0.03s
+Presolved: 5751 rows, 1959 columns, 16726 nonzeros
+Presolved model has 996 bilinear constraint(s)
+Presolved model has 233 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 1941 continuous, 18 integer (18 binary)
+
+Root relaxation: objective -1.000000e-04, 1970 iterations, 0.05 seconds (0.06 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0   -0.00010    0  836          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  843          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  819          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  821          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  820          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  820          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  821          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  733          -   -0.00010      -     -    5s
+H    0     0                      -0.0001000   -0.00010  0.01%     -    5s
+     0     2   -0.00010    0  733   -0.00010   -0.00010  0.01%     -    8s
+   174     9     cutoff   14        -0.00010   -0.00010  0.01%   128   10s
+  2597   816   -0.00010   93    0   -0.00010   -0.00010  0.01%  53.0   15s
+H 2597   775                      -0.0001000   -0.00010  0.01%  53.0   15s
+  2600   777   -0.00010   61    0   -0.00010   -0.00010  0.01%  53.0   20s
+  3806   906   -0.00010   69  269   -0.00010   -0.00010  0.01%  56.7   25s
+  6779  1491 infeasible   58        -0.00010   -0.00010  0.01%  63.6   30s
+  9039  2207 infeasible   64        -0.00010   -0.00010  0.01%  65.8   35s
+ 11777  2889   -0.00010   52  299   -0.00010   -0.00010  0.01%  67.1   40s
+*12002   846             169      -0.0001000   -0.00010  0.00%  67.3   40s
+
+Explored 12714 nodes (864642 simplex iterations) in 40.65 seconds (43.88 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 3: -0.0001 -9.9988e-05 -9.99865e-05 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective -1.000000000002e-04, best bound -9.999999999999e-05, gap 0.0000%
+
+Gurobi 11.0.2 (win64) logging started Fri Nov  1 02:06:38 2024
+
+Set parameter LogFile to value ".\Experiments\Verification\Logs\testing_veri_vit_6_2_6_12.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 2915 rows, 4527 columns and 10516 nonzeros
+Model fingerprint: 0x73cd9389
+Model has 1238 quadratic constraints
+Model has 420 general constraints
+Variable types: 4227 continuous, 300 integer (300 binary)
+Coefficient statistics:
+  Matrix range     [1e-05, 1e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e-05, 5e+02]
+  RHS range        [1e-04, 1e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 2200 rows and 2569 columns
+Presolve time: 0.03s
+Presolved: 5751 rows, 1959 columns, 16726 nonzeros
+Presolved model has 996 bilinear constraint(s)
+Presolved model has 233 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 1941 continuous, 18 integer (18 binary)
+
+Root relaxation: objective -1.000000e-04, 1970 iterations, 0.05 seconds (0.06 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0   -0.00010    0  836          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  843          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  819          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  821          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  820          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  820          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  821          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  733          -   -0.00010      -     -    4s
+H    0     0                      -0.0001000   -0.00010  0.01%     -    5s
+     0     2   -0.00010    0  733   -0.00010   -0.00010  0.01%     -    8s
+
+Explored 1 nodes (4386 simplex iterations) in 8.08 seconds (7.19 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 1: -9.99865e-05 
+
+Solve interrupted
+Best objective -9.998649960408e-05, best bound -9.999999999999e-05, gap 0.0135%
+
+Gurobi 11.0.2 (win64) logging started Fri Nov  1 02:09:03 2024
+
+Set parameter LogFile to value ".\Experiments\Verification\Logs\testing_veri_vit_6_2_6_12.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 2915 rows, 4527 columns and 10516 nonzeros
+Model fingerprint: 0x73cd9389
+Model has 1238 quadratic constraints
+Model has 420 general constraints
+Variable types: 4227 continuous, 300 integer (300 binary)
+Coefficient statistics:
+  Matrix range     [1e-05, 1e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e-05, 5e+02]
+  RHS range        [1e-04, 1e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 2200 rows and 2569 columns
+Presolve time: 0.03s
+Presolved: 5751 rows, 1959 columns, 16726 nonzeros
+Presolved model has 996 bilinear constraint(s)
+Presolved model has 233 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 1941 continuous, 18 integer (18 binary)
+
+Root relaxation: objective -1.000000e-04, 1970 iterations, 0.05 seconds (0.06 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0   -0.00010    0  836          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  843          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  819          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  821          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  820          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  820          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  821          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  822          -   -0.00010      -     -    0s
+
+Cutting planes:
+  MIR: 5
+  Flow cover: 3
+
+Explored 1 nodes (3889 simplex iterations) in 2.11 seconds (1.21 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 0
+
+Solve interrupted
+Best objective -, best bound -9.999999999999e-05, gap -
+
+Gurobi 11.0.2 (win64) logging started Fri Nov  1 02:10:30 2024
+
+Set parameter LogFile to value ".\Experiments\Verification\Logs\testing_veri_vit_6_2_6_12.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 2915 rows, 4527 columns and 10516 nonzeros
+Model fingerprint: 0x737ff3d4
+Model has 1238 quadratic constraints
+Model has 420 general constraints
+Variable types: 4227 continuous, 300 integer (300 binary)
+Coefficient statistics:
+  Matrix range     [1e-05, 1e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e-05, 5e+02]
+  RHS range        [1e-04, 1e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 1769 rows and 1992 columns
+Presolve time: 0.03s
+Presolved: 6819 rows, 2536 columns, 19240 nonzeros
+Presolved model has 1113 bilinear constraint(s)
+Presolved model has 273 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 2309 continuous, 227 integer (227 binary)
+
+Root relaxation: objective -1.000000e-04, 2176 iterations, 0.05 seconds (0.06 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0   -0.00010    0  933          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  938          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  938          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  941          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  935          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  948          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  950          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  929          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  920          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  931          -   -0.00010      -     -    1s
+     0     0   -0.00010    0  790          -   -0.00010      -     -    3s
+     0     2   -0.00010    0  790          -   -0.00010      -     -    7s
+    11    12   -0.00010    4 1054          -   -0.00010      -  1895   10s
+    47    49   -0.00010    9 1039          -   -0.00010      -  1456   16s
+   113   273   -0.00010   18  955          -   -0.00010      -  1021   20s
+   309   403 infeasible   43               -   -0.00010      -   674   25s
+   635   453   -0.00010   16  999          -   -0.00010      -   601   30s
+  1017   322 infeasible   40               -   -0.00010      -   539   35s
+  1400   553   -0.00010   40  998          -   -0.00010      -   525   40s
+  1751   732 infeasible   62               -   -0.00010      -   523   45s
+  2133   734   -0.00010   55   12          -   -0.00010      -   522   52s
+  2145   742   -0.00010   78    5          -   -0.00010      -   519   55s
+  2149   746   -0.00010   22    1          -   -0.00010      -   527   62s
+  2163   756   -0.00010   59    5          -   -0.00010      -   523  108s
+  2166   759   -0.00010   50    0          -   -0.00010      -   528  112s
+  2167   759   -0.00010    9    3          -   -0.00010      -   528  116s
+  2171   762   -0.00010   39    1          -   -0.00010      -   527  142s
+H 2173   726                      -0.0001000   -0.00010  0.01%   532  143s
+  2176   728   -0.00010   55    0   -0.00010   -0.00010  0.01%   531  186s
+H 2178   694                      -0.0001000   -0.00010  0.01%   532  187s
+  2181   696   -0.00010   24    0   -0.00010   -0.00010  0.01%   531  229s
+  2182   697   -0.00010   38    0   -0.00010   -0.00010  0.01%   531  230s
+  2331   790   -0.00010   71   14   -0.00010   -0.00010  0.01%   521  235s
+  3827  3997   -0.00010  209    6   -0.00010   -0.00010  0.01%   344  240s
+ 18868 20438   -0.00010 2117    6   -0.00010   -0.00010  0.01%  71.0  245s
+*43248  3725             141      -0.0001000   -0.00010  0.00%  31.2  249s
+
+Explored 43794 nodes (1359692 simplex iterations) in 249.15 seconds (373.62 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 3: -0.0001 -9.9988e-05 -9.99872e-05 
+
+Optimal solution found (tolerance 1.00e-04)
+Warning: max constraint violation (2.1290e-06) exceeds tolerance
+Best objective -9.999999999843e-05, best bound -9.999999999821e-05, gap 0.0000%
+
+Gurobi 11.0.2 (win64) logging started Fri Nov  1 02:33:53 2024
+
+Set parameter LogFile to value ".\Experiments\Verification\Logs\testing_veri_vit_6_2_6_12.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 1955 rows, 3867 columns and 7516 nonzeros
+Model fingerprint: 0x3d678696
+Model has 1238 quadratic constraints
+Model has 420 general constraints
+Variable types: 3867 continuous, 0 integer (0 binary)
+Coefficient statistics:
+  Matrix range     [1e-05, 6e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e-226, 5e+02]
+  RHS range        [1e-04, 2e+00]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 1270 rows and 1771 columns
+Presolve time: 0.02s
+Presolved: 6468 rows, 2097 columns, 18205 nonzeros
+Presolved model has 1113 bilinear constraint(s)
+Presolved model has 295 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 2025 continuous, 72 integer (72 binary)
+
+Root relaxation: objective -1.000000e-04, 2001 iterations, 0.07 seconds (0.09 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0   -0.00010    0  858          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  879          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  877          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  878          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  879          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  881          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  880          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  882          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  884          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  884          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  883          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  889          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  891          -   -0.00010      -     -    1s
+     0     0   -0.00010    0  928          -   -0.00010      -     -    3s
+     0     2   -0.00010    0  927          -   -0.00010      -     -    3s
+     1     4   -0.00010    1  926          -   -0.00010      -   216   10s
+    19    24 infeasible    4               -   -0.00010      -  2773   15s
+    81   102   -0.00010    9  983          -   -0.00010      -  2042   23s
+   151   205 infeasible   14               -   -0.00010      -  1562   26s
+   336   400 infeasible   21               -   -0.00010      -  1123   31s
+   625   750   -0.00010   34  987          -   -0.00010      -   946   37s
+  1095  1092   -0.00010   50  989          -   -0.00010      -   781   42s
+  1565  1453   -0.00010   60  991          -   -0.00010      -   688   47s
+  2036  1515   -0.00010   13 1074          -   -0.00010      -   642   52s
+  2202  1517   -0.00010  448    2          -   -0.00010      -   696   56s
+  2203  1517   -0.00010   53    2          -   -0.00010      -   696   62s
+  2215  1525   -0.00010   86    2          -   -0.00010      -   692   65s
+  2217  1530   -0.00010   11 1030          -   -0.00010      -   703   77s
+  2231  1549   -0.00010   14 1041          -   -0.00010      -   726   80s
+  2295  1585   -0.00010   17 1026          -   -0.00010      -   783   85s
+  2363  1630   -0.00010   19 1041          -   -0.00010      -   810   90s
+  2438  1670 infeasible   25               -   -0.00010      -   816   98s
+  2563  1763   -0.00010   39 1064          -   -0.00010      -   829  105s
+  2832  1832   -0.00010   17 1048          -   -0.00010      -   835  114s
+  3106  1959   -0.00010   26 1023          -   -0.00010      -   878  130s
+  3641  1801   -0.00010   46 1039          -   -0.00010      -   907  153s
+  3683  2074   -0.00010   47 1022          -   -0.00010      -   914  178s
+  4398  2284   -0.00010   81 1039          -   -0.00010      -   938  202s
+  5394  2071   -0.00010   81 1028          -   -0.00010      -   898  225s
+  6199  1965 infeasible   99               -   -0.00010      -   888  248s
+  6944  1843   -0.00010  118 1022          -   -0.00010      -   890  260s
+
+Cutting planes:
+  Implied bound: 1
+  MIR: 1
+  Flow cover: 1
+  RLT: 166
+  BQP: 1
+
+Explored 7294 nodes (6525934 simplex iterations) in 260.39 seconds (314.55 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 0
+
+Solve interrupted
+Best objective -, best bound -9.999999999999e-05, gap -
+
+Gurobi 11.0.2 (win64) logging started Fri Nov  1 02:38:44 2024
+
+Set parameter LogFile to value ".\Experiments\Verification\Logs\testing_veri_vit_6_2_6_12.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 1955 rows, 3867 columns and 7516 nonzeros
+Model fingerprint: 0x3d678696
+Model has 1238 quadratic constraints
+Model has 420 general constraints
+Variable types: 3867 continuous, 0 integer (0 binary)
+Coefficient statistics:
+  Matrix range     [1e-05, 6e+00]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e-226, 5e+02]
+  RHS range        [1e-04, 2e+00]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 1270 rows and 1771 columns
+Presolve time: 0.02s
+Presolved: 6468 rows, 2097 columns, 18205 nonzeros
+Presolved model has 1113 bilinear constraint(s)
+Presolved model has 295 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 2025 continuous, 72 integer (72 binary)
+
+Root relaxation: objective -1.000000e-04, 2001 iterations, 0.07 seconds (0.09 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0   -0.00010    0  858          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  879          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  877          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  878          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  879          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  881          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  880          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  882          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  884          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  884          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  883          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  889          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  891          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  928          -   -0.00010      -     -    3s
+     0     2   -0.00010    0  927          -   -0.00010      -     -    3s
+     1     4   -0.00010    1  926          -   -0.00010      -   216   11s
+    19    24 infeasible    4               -   -0.00010      -  2773   15s
+    81   102   -0.00010    9  983          -   -0.00010      -  2042   23s
+   151   205 infeasible   14               -   -0.00010      -  1562   26s
+   336   400 infeasible   21               -   -0.00010      -  1123   31s
+   625   750   -0.00010   34  987          -   -0.00010      -   946   37s
+  1095  1092   -0.00010   50  989          -   -0.00010      -   781   42s
+  1565  1453   -0.00010   60  991          -   -0.00010      -   688   48s
+  2036  1515   -0.00010   13 1074          -   -0.00010      -   642   53s
+  2201  1516   -0.00010  161    2          -   -0.00010      -   697   55s
+  2203  1517   -0.00010   53    2          -   -0.00010      -   696   62s
+  2215  1525   -0.00010   86    2          -   -0.00010      -   692   65s
+  2217  1530   -0.00010   11 1030          -   -0.00010      -   703   78s
+  2223  1540   -0.00010   13 1046          -   -0.00010      -   713   80s
+  2267  1569   -0.00010   16 1039          -   -0.00010      -   763   85s
+  2340  1607   -0.00010   19 1048          -   -0.00010      -   808   90s
+  2438  1670 infeasible   25               -   -0.00010      -   816  102s
+  2563  1763   -0.00010   39 1064          -   -0.00010      -   829  109s
+  2832  1832   -0.00010   17 1048          -   -0.00010      -   835  120s
+  3106  1959   -0.00010   26 1023          -   -0.00010      -   878  139s
+  3641  1801   -0.00010   46 1039          -   -0.00010      -   907  162s
+  3683  2074   -0.00010   47 1022          -   -0.00010      -   914  187s
+  4398  2284   -0.00010   81 1039          -   -0.00010      -   938  215s
+  5394  2071   -0.00010   81 1028          -   -0.00010      -   898  238s
+  6199  1965 infeasible   99               -   -0.00010      -   888  261s
+  6944  1897   -0.00010  118 1022          -   -0.00010      -   890  285s
+  7664  2295   -0.00010   56 1024          -   -0.00010      -   897  309s
+  8530  2516 infeasible   78               -   -0.00010      -   889  335s
+  9439  2778   -0.00010   76 1015          -   -0.00010      -   883  361s
+ 10399  3012   -0.00010   58 1011          -   -0.00010      -   875  392s
+ 11359  3145   -0.00010   86 1011          -   -0.00010      -   874  422s
+ 12222  3296 infeasible   93               -   -0.00010      -   878  455s
+ 13185  3497   -0.00010   88 1010          -   -0.00010      -   876  494s
+ 14092  3578   -0.00010  106 1015          -   -0.00010      -   881  512s
+
+Cutting planes:
+  Implied bound: 1
+  MIR: 1
+  Flow cover: 1
+  RLT: 166
+  BQP: 1
+
+Explored 14587 nodes (12839670 simplex iterations) in 512.21 seconds (546.28 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 0
+
+Solve interrupted
+Best objective -, best bound -9.999999999999e-05, gap -
+
+Gurobi 11.0.2 (win64) logging started Fri Nov  1 02:47:47 2024
+
+Set parameter LogFile to value ".\Experiments\Verification\Logs\testing_veri_vit_6_2_6_12.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 2915 rows, 4527 columns and 10516 nonzeros
+Model fingerprint: 0xb4eb3e0b
+Model has 1238 quadratic constraints
+Model has 420 general constraints
+Variable types: 4227 continuous, 300 integer (300 binary)
+Coefficient statistics:
+  Matrix range     [1e-05, 1e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e-226, 5e+02]
+  RHS range        [1e-04, 1e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 1769 rows and 1992 columns
+Presolve time: 0.03s
+Presolved: 6819 rows, 2536 columns, 19240 nonzeros
+Presolved model has 1113 bilinear constraint(s)
+Presolved model has 273 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 2309 continuous, 227 integer (227 binary)
+
+Root relaxation: objective -1.000000e-04, 2176 iterations, 0.05 seconds (0.06 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0   -0.00010    0  944          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  960          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  957          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  964          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  958          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  946          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  945          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  944          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  944          -   -0.00010      -     -    0s
+     0     0   -0.00010    0  954          -   -0.00010      -     -    1s
+     0     0   -0.00010    0  802          -   -0.00010      -     -    3s
+     0     2   -0.00010    0  802          -   -0.00010      -     -    8s
+    13    20   -0.00010    4  860          -   -0.00010      -  2072   10s
+    84   170   -0.00010   14  852          -   -0.00010      -   939   15s
+   169   408   -0.00010   25  838          -   -0.00010      -   874   20s
+   407   674   -0.00010   50  844          -   -0.00010      -   739   26s
+   687   944   -0.00010   16  854          -   -0.00010      -   751   37s
+  1015  1270   -0.00010   40  875          -   -0.00010      -   787   44s
+  1405  1547   -0.00010   84  896          -   -0.00010      -   780   51s
+  1722  1821   -0.00010  115  875          -   -0.00010      -   827   59s
+  2130  1883   -0.00010   40  836          -   -0.00010      -   793   66s
+  2501  1885   -0.00010   37   28          -   -0.00010      -   770   74s
+  2502  1886   -0.00010   30    0          -   -0.00010      -   769   75s
+  2517  1897   -0.00010  133    3          -   -0.00010      -   775   83s
+  2529  1905   -0.00010  118    8          -   -0.00010      -   771  132s
+  2531  1908   -0.00010   79    0          -   -0.00010      -   775  139s
+  2532  1909   -0.00010  147    0          -   -0.00010      -   775  140s
+  2536  1911   -0.00010   77    2          -   -0.00010      -   774  198s
+H 2538  1818                      -0.0001000   -0.00010  0.01%   776  199s
+  2541  1820   -0.00010   67    0   -0.00010   -0.00010  0.01%   775  254s
+* 2544  1731              49      -0.0001000   -0.00010  0.00%   776  254s
+
+Explored 2545 nodes (1981204 simplex iterations) in 254.50 seconds (394.99 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 2: -0.0001 -9.9989e-05 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective -9.999999999999e-05, best bound -9.999999999999e-05, gap 0.0000%

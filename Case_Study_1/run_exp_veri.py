@@ -140,9 +140,6 @@ for image_size in im_sz:
     for file_name in file_names:
         # for each experiment repetition
         for r in range(REP):
-            # for each combination of constraints/bounds
-            for c, combi in enumerate(combinations):
-                print("C = ", c+1)    
                 if c+1 == 1: ### REMOVE
                     continue
                 experiment_name = f"{file_name}_i{image_size}_r{r+1+r_offset}_c{c+1}"
