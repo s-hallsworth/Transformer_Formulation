@@ -1,0 +1,78 @@
+
+Gurobi 11.0.2 (win64) logging started Sat Nov  2 15:03:35 2024
+
+Set parameter LogFile to value ".\Experiments\Verification_16\Logs\vit_18_1_6_12_i4_r2_c3.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 2841 rows, 6291 columns and 16526 nonzeros
+Model fingerprint: 0x3f76e411
+Model has 1642 quadratic constraints
+Model has 210 general constraints
+Variable types: 6141 continuous, 150 integer (150 binary)
+Coefficient statistics:
+  Matrix range     [9e-05, 3e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [9e-302, 1e+03]
+  RHS range        [2e-04, 3e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 1946 rows and 3949 columns
+Presolve time: 0.06s
+Presolved: 6626 rows, 2343 columns, 23591 nonzeros
+Presolved model has 1295 bilinear constraint(s)
+Presolved model has 149 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 2223 continuous, 120 integer (120 binary)
+
+Root relaxation: objective -7.019252e+01, 3190 iterations, 0.24 seconds (0.32 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0  -70.19252    0 1369          -  -70.19252      -     -    0s
+     0     0  -70.19252    0 1359          -  -70.19252      -     -    1s
+     0     0  -70.19252    0 1357          -  -70.19252      -     -    1s
+     0     0  -70.19252    0 1355          -  -70.19252      -     -    1s
+     0     0  -70.19252    0 1350          -  -70.19252      -     -    1s
+     0     0  -70.19252    0 1342          -  -70.19252      -     -    1s
+     0     0  -70.19252    0 1350          -  -70.19252      -     -    2s
+     0     0  -70.19252    0 1349          -  -70.19252      -     -    2s
+     0     0  -70.19252    0 1349          -  -70.19252      -     -    2s
+     0     0  -70.17454    0 1391          -  -70.17454      -     -    8s
+     0     2  -70.17454    0 1391          -  -70.17454      -     -    9s
+    35    14 infeasible    9               -  -70.16398      -   544   11s
+    63    34  -70.13443   12 1294          -  -70.16047      -   390   19s
+    89    57  -70.13443   15 1304          -  -70.16047      -   291   20s
+   945   867  -70.14285   40 1312          -  -70.16047      -   184   25s
+  1322  1180  -70.14207   66 1282          -  -70.16047      -   232   32s
+  1548  1182  -70.15545   37   31          -  -70.16047      -   244   35s
+  1549  1182  -70.11074   22   45          -  -70.11074      -   244   43s
+  1554  1186  -70.01367   36    4          -  -70.01367      -   243   45s
+  1575  1201  -69.97470   18   23          -  -69.97470      -   251   53s
+  1577  1203  -69.97470   74    2          -  -69.97470      -   251   55s
+  1595  1216  -69.90990   46    7          -  -69.90990      -   256   63s
+  1596  1217  -69.90990   37    3          -  -69.90990      -   256   66s
+  1607  1224  -69.88739   22    4          -  -69.88739      -   254   83s
+  1610  1228  -69.88739   31   31          -  -69.88739      -   259   85s
+  1611  1228  -69.80087   66   20          -  -69.80087      -   259   90s
+  1631  1243  -69.60444   32   19          -  -69.60444      -   261   97s
+  1646  1253  -69.47186   24   10          -  -69.47186      -   258  100s
+  1651  1258  -69.47120   20   12          -  -69.47120      -   263  105s
+  1667  1269  -69.42472   71    5          -  -69.42472      -   261  128s
+  1670  1273  -69.42472   27   31          -  -69.42472      -   265  130s
+  1694  1290  -69.02388   24   31          -  -69.02388      -   265  135s
+  1717  1307  -68.74336   17   31          -  -68.74336      -   265  140s
+  1744  1326  -68.53518   44   31          -  -68.53518      -   266  145s
+  1766  1342  -68.38178   15   31          -  -68.38178      -   266  150s

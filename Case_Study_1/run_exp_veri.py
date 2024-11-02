@@ -59,7 +59,7 @@ SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
 im_sz=[4]  # Define image pixels (and folder to select tnn models from)
 #file_names = ["vit_6_1_6_12", "vit_6_2_6_12", "vit_6_4_6_12"] # changing depth
-file_names = ["vit_6_2_6_12", "vit_6_4_6_12"] 
+file_names = ["vit_18_1_6_12"]
 #file_names = ["vit_12_1_6_12", "vit_18_1_6_12", "vit_24_1_6_12"] # changing embed dim 12, 18, 24
 #file_names = ["vit_12_1_6_12", "vit_12_2_6_12", "vit_12_4_6_12"] # changing embed dim 12, for each depth
 #file_names = ["vit_18_1_6_12", "vit_18_2_6_12", "vit_18_4_6_12"] # changing embed dim 18, for each depth
@@ -140,6 +140,8 @@ for image_size in im_sz:
     for file_name in file_names:
         # for each experiment repetition
         for r in range(REP):
+            for c, combi in enumerate(combinations):
+                print("C = ", c+1)    
                 if c+1 == 1: ### REMOVE
                     continue
                 experiment_name = f"{file_name}_i{image_size}_r{r+1+r_offset}_c{c+1}"

@@ -1,0 +1,39 @@
+Metric,Value
+Name,.\Experiments\Verification_16\vit_6_4_6_12_i4_r2_c3
+Exp,vit_6_4_6_12_i4_r2_c3
+Rep,2
+Num Enc,1
+Num Dec, 0
+Num Res,2
+Num LN,2 + 1
+Num AVGP,0
+Num Dense,2 + 3
+Num ReLu,1
+Num Pool, 0 + 1
+Activated Bounds/Cuts,"{'LN_var': True, 'LN_mean': False, 'LN_num': False, 'LN_num_squ': False, 'LN_denom': False, 'LN_num_squ_sum': False, 'MHA_Q': True, 'MHA_K': True, 'MHA_V': True, 'MHA_attn_weight_sum': False, 'MHA_attn_weight': False, 'MHA_compat': True, 'MHA_compat_exp': True, 'MHA_compat_exp_sum': True, 'MHA_QK_MC': False, 'MHA_WK_MC': False, 'MHA_attn_score': True, 'MHA_output': True, 'RES_var': True, 'MHA_softmax_env': False, 'AVG_POOL_var': False, 'embed_var': False}"
+TNN Out Expected,"[-2.19537163 -2.16725039  0.22557765  5.0049386   0.11668395 -1.29853845
+ -9.21781254  9.08480549 -3.08466625  3.93620086]"
+TNN Out,
+Enc Seq Len,1
+TNN Model Dims,6
+TNN Head Dims,1
+TNN Head Size,6
+TNN Input Dim,16
+Framework,gurobipy
+Solver,gurobi
+Time Limit (seconds),43200.0
+Num Threads,0
+Num Vars,8541
+Num Constraints,5565
+Num Cont Vars,7941
+Num Int Vars,0
+Num Bin Vars,600
+Run Time (s),5.073999881744385
+Run Time (wu),3.2798464825447056
+Num Iters,15705.0
+Num Nodes Expl,1.0
+Num Solns,0
+Opt Gap,inf
+Obj Value,
+RNR Obj Value,-54.61570281091845
+RNR Iters,0
