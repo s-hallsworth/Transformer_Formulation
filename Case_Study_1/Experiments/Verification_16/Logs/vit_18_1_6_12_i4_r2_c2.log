@@ -1,0 +1,79 @@
+
+Gurobi 11.0.2 (win64) logging started Sat Nov  2 03:03:33 2024
+
+Set parameter LogFile to value ".\Experiments\Verification_16\Logs\vit_18_1_6_12_i4_r2_c2.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 2871 rows, 6291 columns and 16676 nonzeros
+Model fingerprint: 0x5fed7dfb
+Model has 1642 quadratic constraints
+Model has 210 general constraints
+Variable types: 6141 continuous, 150 integer (150 binary)
+Coefficient statistics:
+  Matrix range     [9e-05, 3e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [2e-04, 1e+01]
+  RHS range        [2e-04, 3e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 1930 rows and 3941 columns
+Presolve time: 0.06s
+Presolved: 6640 rows, 2351 columns, 24462 nonzeros
+Presolved model has 1287 bilinear constraint(s)
+Presolved model has 149 nonlinear constraint(s)
+
+Solving non-convex MINLP
+
+Variable types: 2231 continuous, 120 integer (120 binary)
+
+Root relaxation: objective -7.019216e+01, 5542 iterations, 0.68 seconds (1.01 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0  -70.19216    0 1347          -  -70.19216      -     -    0s
+     0     0  -70.19164    0 1366          -  -70.19164      -     -    1s
+     0     0  -70.19164    0 1364          -  -70.19164      -     -    1s
+     0     0  -70.17021    0 1362          -  -70.17021      -     -    2s
+     0     0  -70.17020    0 1364          -  -70.17020      -     -    2s
+     0     0  -70.15869    0 1400          -  -70.15869      -     -    2s
+     0     0  -70.15590    0 1392          -  -70.15590      -     -    2s
+     0     0  -70.14851    0 1372          -  -70.14851      -     -    2s
+     0     0  -70.14818    0 1366          -  -70.14818      -     -    3s
+     0     0  -70.13203    0 1363          -  -70.13203      -     -    3s
+     0     0  -70.13072    0 1358          -  -70.13072      -     -    3s
+     0     0  -70.12225    0 1346          -  -70.12225      -     -    3s
+     0     0  -70.12143    0 1340          -  -70.12143      -     -    3s
+     0     0  -70.11551    0 1349          -  -70.11551      -     -    3s
+     0     0  -70.11450    0 1348          -  -70.11450      -     -    3s
+     0     0  -70.10906    0 1349          -  -70.10906      -     -    3s
+     0     0  -70.10818    0 1355          -  -70.10818      -     -    3s
+     0     0  -70.10749    0 1354          -  -70.10749      -     -    3s
+     0     0  -70.10740    0 1354          -  -70.10740      -     -    3s
+     0     0  -70.10656    0 1353          -  -70.10656      -     -    3s
+     0     0  -70.10625    0 1353          -  -70.10625      -     -    3s
+     0     0  -70.10612    0 1346          -  -70.10612      -     -    3s
+     0     0  -70.10611    0 1344          -  -70.10611      -     -    3s
+     0     0  -70.10564    0 1351          -  -70.10564      -     -    4s
+     0     0  -70.03731    0 1388          -  -70.03731      -     -    8s
+     0     2  -70.03725    0 1388          -  -70.03725      -     -    9s
+     1     2  -70.03666    1 1386          -  -70.03719      -   185   10s
+    35    16  -70.00732   12 1322          -  -70.01237      -   428   19s
+    50    32  -70.00732   13 1321          -  -70.01096      -   354   20s
+   100    85  -70.00547   16 1334          -  -70.00692      -   673   25s
+   275   211  -70.00547   26 1331          -  -70.00692      -   551   31s
+   387   345  -70.00547   35 1326          -  -70.00692      -   613   36s
+   507   406  -69.96826   39 1330          -  -70.00692      -   640   42s
+   598   453  -69.96826   53 1330          -  -70.00657      -   702   46s
+   675   495  -69.98363   21 1318          -  -70.00657      -   830   52s
+   733   552  -69.98363   29 1335          -  -70.00657      -   964   56s
+   804   781  -69.98363   32 1328          -  -70.00657      -  1064   61s
+  1127   925  -69.95122   75 1308          -  -70.00657      -   912   65s
+  1351  1161  -69.90023   84 1314          -  -70.00657      -   916   70s
+  1682  1163  -69.98363   38   47          -  -70.00657      -   879   80s
+  1702  1178  -69.85728   31   24          -  -69.85728      -   876   85s
