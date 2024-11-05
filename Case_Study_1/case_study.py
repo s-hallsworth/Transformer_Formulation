@@ -13,7 +13,7 @@ from helpers import extract_from_pretrained
 from transformers.src.transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
 from transformers.src.transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
 # cloned transformers from: https://github.com/s-hallsworth/transformers.git
-
+# pip install -e .
 
 """
     Case Study Explanation here

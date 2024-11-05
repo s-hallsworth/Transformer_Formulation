@@ -3,7 +3,7 @@ Name,.\Experiments\Verification_16\vit_18_1_6_12_i4_r2_c2
 Exp,vit_18_1_6_12_i4_r2_c2
 Rep,2
 Num Enc,1
-Num Dec, 0
+Num Dec,0
 Num Res,2
 Num LN,2 + 1
 Num AVGP,0
@@ -21,19 +21,19 @@ TNN Head Size,6
 TNN Input Dim,16
 Framework,gurobipy
 Solver,gurobi
-Time Limit (seconds),43200.0
+Time Limit (seconds),43200
 Num Threads,0
 Num Vars,6291
 Num Constraints,2871
 Num Cont Vars,6141
 Num Int Vars,0
 Num Bin Vars,150
-Run Time (s),43200.06200003624
-Run Time (wu),81109.34458549884
-Num Iters,852027925.0
-Num Nodes Expl,15548357.0
+Run Time (s),43200.062
+Run Time (wu),81109.34459
+Num Iters,852027925
+Num Nodes Expl,15548357
 Num Solns,2
-Opt Gap,0.01613465289189457
+Opt Gap,0.016134653
 Obj Value,
-RNR Obj Value,15.982098165872124
+RNR Obj Value,15.98209817
 RNR Iters,0
