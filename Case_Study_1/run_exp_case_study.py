@@ -29,12 +29,12 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0'
 # Set Up
 TESTING = False # fix TNN input for testing (faster solve)
 combine_files = not TESTING
-TL = 60 # time limit
+TL = 240 # time limit
 REP = 1 # number of repetitions of each scenario
 NAME = "reactor_cs"
 SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
-exp_name = "Reactor"
+exp_name = "Reactor_"
 config_file = ".\\data\\reactor_config_huggingface.json" 
 model_path = ".\\trained_transformer\\case_study\\model_TimeSeriesTransformer_final.pth"
 PATH =  f".\\Experiments\\{exp_name}"+"\\"
@@ -136,8 +136,8 @@ opt_model.x[opt_model.dec_space.first(), "P"].lb = 62
 # x bounds
 for s in opt_model.dec_space:
     for d, dim in enumerate(opt_model.dims):
-        opt_model.x[s,dim].ub = 1.05 * opt_model.states_max[dim]
-        opt_model.x[s,dim].lb = 0.95 * opt_model.states_min[dim] 
+        opt_model.x[s,dim].ub = 1.5 * opt_model.states_max[dim]
+        opt_model.x[s,dim].lb = 0.5 * opt_model.states_min[dim] 
 
 # x encoder constraints
 opt_model.x_enc_constraints = pyo.ConstraintList()
@@ -194,8 +194,8 @@ MHA_ALL = ACTI["MHA_I"]["list"]  + ACTI["MHA_D"]["list"] + ACTI["MHA_MC"]["list"
 
 combinations = [
     #[1 , 0, 1, 1, 1], #1
-    [1 , 0, 1, 1, 0], #2 -- fastest feasible soln
-    [1 , 0, 1, 0, 0], #3 -- good trade off fast feasible and solve time
+    #[1 , 0, 1, 1, 0], #2 -- fastest feasible soln
+    #[1 , 0, 1, 0, 0], #3 -- good trade off fast feasible and solve time
     #[1 , 0, 0, 0, 0], #4 -- smallest opt gap
     #[1 , 0, 0, 1, 1], #5
     [1 , 0, 0, 1, 0], #6 -- fastest convergance

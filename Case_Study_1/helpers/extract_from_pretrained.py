@@ -449,7 +449,11 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
     """
     Read model parameters and store in dict with associated name. 
     """
+    from transformers.src.transformers.activations import SiLUActivation
+    from transformers.src.transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
+    from transformers.src.transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
 
+    
     src = torch.as_tensor(enc_input).float()
     tgt = torch.as_tensor(dec_input).float()
     enc_prefix = "enc"
@@ -485,13 +489,13 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
             if isinstance(module, ReLU):
                 activations_dict[enc_prefix] = "relu"
                 activations_dict[dec_prefix] = "relu"
-            elif isinstance(module, SiLU):
+            elif isinstance(module, SiLU) or isinstance(module,SiLUActivation):
                 activations_dict[enc_prefix] = "silu"
                 activations_dict[dec_prefix] = "silu"
             else:
                 activations_dict[enc_prefix] = "UNKNOWN"
                 activations_dict[dec_prefix] = "UNKNOWN"
-                raise ValueError("Error parsing transformer model. Unrecognised activation function used in decoder")
+                raise ValueError(f"Error parsing transformer model. Unrecognised activation function used in decoder. {name}:{module}  type({type(module)})")
             
     # Register hooks to all layers
     hook_names = ["linear", "encoder", "decoder", "layer", "attention", "scaler", "embedding","proj","regression"]
