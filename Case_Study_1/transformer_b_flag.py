@@ -1163,7 +1163,7 @@ class Transformer:
                         #compatibility sqrt(Q * K) across all pairs of elements
                         for k in MHA_Block.head_dims:
                             if mask and p > n:
-                                MHA_Block.attention_constraints.add(expr=MHA_Block.QK[h, n, p, k] ==-100 * self.d_k)
+                                continue
                             else:
                                 MHA_Block.attention_constraints.add(expr=MHA_Block.QK[h, n, p, k] == ( MHA_Block.Q[h, n, k]) * MHA_Block.K[ h, p, k])
                             
@@ -1179,7 +1179,7 @@ class Transformer:
                                 f(x) = exp_x / sum(exp_x)
                             """
                             if mask and p > n:
-                                 MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h,n,p] ==-100 * self.d_k) # set masked value to -inf
+                                continue
                             else:
                                 MHA_Block.attention_constraints.add(
                                     expr=MHA_Block.compatibility_scaled[h, n, p] 
@@ -1187,10 +1187,15 @@ class Transformer:
                                 ) 
                                 MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_scaled[h,n,p] <= MHA_Block.compatibility_max[h,n])
                                 try:
-                                    M_max_compat = scale * sum( max(MHA_Block.Q[h, n, k].ub * MHA_Block.K[h, p, k].ub, 
-                                                    MHA_Block.Q[h, n, k].ub * MHA_Block.K[h, p, k].lb, 
-                                                    MHA_Block.Q[h, n, k].lb * MHA_Block.K[h, p, k].ub, 
-                                                    MHA_Block.Q[h, n, k].lb * MHA_Block.K[h, p, k].lb) for k in MHA_Block.k_dims)
+                                    
+                                    max_compat = 0
+                                    for k in MHA_Block.k_dims:
+                                        compat_uu = MHA_Block.Q[h, n, k].ub * MHA_Block.K[h, p, k].ub
+                                        compat_ul = MHA_Block.Q[h, n, k].ub * MHA_Block.K[h, p, k].lb
+                                        compat_lu = MHA_Block.Q[h, n, k].lb * MHA_Block.K[h, p, k].ub
+                                        compat_ll = MHA_Block.Q[h, n,k].lb  * MHA_Block.K[h, p, k].lb
+                                        max_compat += max([compat_uu, compat_uu, compat_lu, compat_ll]) # sum max for each k       
+                                    M_max_compat = scale * max_compat 
                                 except:
                                     M_max_compat = 100 * self.d_k #expect that 100 >> values calculated in TNN (NN values usually in range -1 to 1)
                                     
@@ -1199,7 +1204,8 @@ class Transformer:
                         
                         elif tnn_from == 'pytorch':
                             if mask and p > n:
-                                MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h,n,p] ==-100 * self.d_k) # set masked value to -inf
+                                continue
+                                #MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h,n,p] ==-100 * self.d_k) # set masked value to -inf
                             else:
                                 MHA_Block.attention_constraints.add(
                                     expr=MHA_Block.compatibility[h, n, p] 
@@ -1209,34 +1215,39 @@ class Transformer:
                             raise ValueError(f'Error: tnn_from = {tnn_from}. Only tansformers trained using keras, pytorch or hugging face supported')
                         
                         if exp_approx: # usepower series approx exp()
-                            
-                            # power series approx for EXP
-                            MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]**2 == MHA_Block.compatibility_2[h, n, p] )#problem for gurobi
-                            MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_2[h, n, p] == MHA_Block.compatibility_3[h, n, p] )
-                            MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_3[h, n, p] == MHA_Block.compatibility_4[h, n, p] )
-                            MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_4[h, n, p] == MHA_Block.compatibility_5[h, n, p] )
-                            MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_5[h, n, p] == MHA_Block.compatibility_6[h, n, p] )
-                            # MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_6[h, n, p] == MHA_Block.compatibility_7[h, n, p] )
-                            # MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_7[h, n, p] == MHA_Block.compatibility_8[h, n, p] )
-                            # MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_8[h, n, p] == MHA_Block.compatibility_9[h, n, p] )
-                            # MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_9[h, n, p] == MHA_Block.compatibility_10[h, n, p] )
-                            # MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_10[h, n, p] == MHA_Block.compatibility_11[h, n, p] )
-                            
-                            MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_exp[h, n, p] == 1
-                                                        + MHA_Block.compatibility[h, n, p]
-                                                        + (0.5*MHA_Block.compatibility_2[h, n, p] ) 
-                                                        + (0.166666667*MHA_Block.compatibility_3[h, n, p]) 
-                                                        + (0.0416666667*MHA_Block.compatibility_4[h, n, p]) 
-                                                        + (0.00833333333*MHA_Block.compatibility_5[h, n, p]) 
-                                                        + (0.00138888889*MHA_Block.compatibility_6[h, n, p]) 
-                                                        # + (0.000198412698*MHA_Block.compatibility_7[h, n, p]) 
-                                                        # + (0.0000248015873*MHA_Block.compatibility_8[h, n, p]) 
-                                                        # + (0.00000275573192*MHA_Block.compatibility_9[h, n, p]) 
-                                                        # + (0.000000275573192*MHA_Block.compatibility_10[h, n, p])
-                                                        # + (0.0000000250521084*MHA_Block.compatibility_11[h, n, p])
-                                                        )# pyo.exp() only seems to work for constant args and pow operator must be <= 2
+                            if mask and p > n:
+                                MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_exp[h, n, p] == 0)
+                            else:
+                                # power series approx for EXP
+                                MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]**2 == MHA_Block.compatibility_2[h, n, p] )#problem for gurobi
+                                MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_2[h, n, p] == MHA_Block.compatibility_3[h, n, p] )
+                                MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_3[h, n, p] == MHA_Block.compatibility_4[h, n, p] )
+                                MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_4[h, n, p] == MHA_Block.compatibility_5[h, n, p] )
+                                MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_5[h, n, p] == MHA_Block.compatibility_6[h, n, p] )
+                                # MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_6[h, n, p] == MHA_Block.compatibility_7[h, n, p] )
+                                # MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_7[h, n, p] == MHA_Block.compatibility_8[h, n, p] )
+                                # MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_8[h, n, p] == MHA_Block.compatibility_9[h, n, p] )
+                                # MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_9[h, n, p] == MHA_Block.compatibility_10[h, n, p] )
+                                # MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h, n, p]*MHA_Block.compatibility_10[h, n, p] == MHA_Block.compatibility_11[h, n, p] )
+                                
+                                MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_exp[h, n, p] == 1
+                                                            + MHA_Block.compatibility[h, n, p]
+                                                            + (0.5*MHA_Block.compatibility_2[h, n, p] ) 
+                                                            + (0.166666667*MHA_Block.compatibility_3[h, n, p]) 
+                                                            + (0.0416666667*MHA_Block.compatibility_4[h, n, p]) 
+                                                            + (0.00833333333*MHA_Block.compatibility_5[h, n, p]) 
+                                                            + (0.00138888889*MHA_Block.compatibility_6[h, n, p]) 
+                                                            # + (0.000198412698*MHA_Block.compatibility_7[h, n, p]) 
+                                                            # + (0.0000248015873*MHA_Block.compatibility_8[h, n, p]) 
+                                                            # + (0.00000275573192*MHA_Block.compatibility_9[h, n, p]) 
+                                                            # + (0.000000275573192*MHA_Block.compatibility_10[h, n, p])
+                                                            # + (0.0000000250521084*MHA_Block.compatibility_11[h, n, p])
+                                                            )# pyo.exp() only seems to work for constant args and pow operator must be <= 2
                         else:     
-                            MHA_Block.attention_constraints.add(expr= pyo.exp(MHA_Block.compatibility[h,n,p]) == MHA_Block.compatibility_exp[h, n, p] )
+                            if mask and p > n:
+                                MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_exp[h, n, p] == 0)
+                            else:
+                                MHA_Block.attention_constraints.add(expr= pyo.exp(MHA_Block.compatibility[h,n,p]) == MHA_Block.compatibility_exp[h, n, p] )
 
                     # max compatibility: slack sum to 1
                     if tnn_from == 'keras':
@@ -1266,59 +1277,45 @@ class Transformer:
             for n in time_dim:
                 for p in time_dim_enc:
                     if self.bound_cut_activation["MHA_compat"]:
-                    
-                        if mask and p > n :
-                            MHA_Block.compatibility[h,n,p].ub =-100 * self.d_k
-                            MHA_Block.compatibility[h,n,p].lb =-100 * self.d_k
+                        if tnn_from == 'keras':   
+                                
+                            MHA_Block.compatibility[h,n,p].ub = 0 
                             for k in MHA_Block.head_dims: 
-                                MHA_Block.QK[h,n,p,k].ub =-100 * self.d_k
-                                MHA_Block.QK[h,n,p,k].lb =-100 * self.d_k
+                                
+                                if MHA_Block.Q[h, n, k].lb is not None and MHA_Block.Q[h, n, k].ub is not None and MHA_Block.K[h, p, k].lb is not None and MHA_Block.K[h, p, k].ub is not None:
+                                    MHA_Block.QK[h,n,p,k].ub = (max(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb,
+                                                                                            MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
+                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
+                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) )
+                                    MHA_Block.QK[h,n,p,k].lb =  (min(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb, 
+                                                                                            MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
+                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
+                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) ) 
+                            if MHA_Block.QK[h, n, p,MHA_Block.head_dims.first()].lb is not None:
+                                MHA_Block.compatibility[h,n,p].lb = sum(MHA_Block.QK[h,n,p,k].lb for k in MHA_Block.head_dims)       
+                            else:
+                                min_compat = -100 * self.d_k
+                                MHA_Block.compatibility[h,n,p].lb = min_compat
+                                                                                            
                         else:
-                            try:
-                                if tnn_from == 'keras':
-                                    MHA_Block.compatibility[h,n,p].ub = 0
-                                    MHA_Block.compatibility[h,n,p].lb = - scale * (sum(max(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb,
-                                                                                            MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
-                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
-                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) for k in MHA_Block.head_dims) )
-                                else:
-                                    max_compat = scale * (sum(max(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb,
-                                                                                            MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
-                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
-                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) for k in MHA_Block.head_dims) )
-                                    min_compat = scale * (sum(min(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb, 
-                                                                                            MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
-                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
-                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) for k in MHA_Block.head_dims) )
-                                    MHA_Block.compatibility[h,n,p].ub = max_compat
-                                    MHA_Block.compatibility[h,n,p].lb = min_compat
-                            except:
-                                pass       
- 
-                            for k in MHA_Block.head_dims:  
-                                if tnn_from == 'keras':  
-                                    MHA_Block.QK[h,n,p,k].ub =  0
-                                    if MHA_Block.Q[h, n, k].lb is not None and MHA_Block.Q[h, n, k].ub is not None and MHA_Block.K[h, p, k].lb is not None and MHA_Block.K[h, p, k].ub is not None:
-
-                                        MHA_Block.QK[h,n,p,k].lb =  (min(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb, 
-                                                                                                MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
-                                                                                                MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
-                                                                                                MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) )- (max(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb,
+                            for k in MHA_Block.head_dims: 
+                                if MHA_Block.Q[h, n, k].lb is not None and MHA_Block.Q[h, n, k].ub is not None and MHA_Block.K[h, p, k].lb is not None and MHA_Block.K[h, p, k].ub is not None:
+                                    MHA_Block.QK[h,n,p,k].ub = (max(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb,
                                                                                                 MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
                                                                                                 MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
                                                                                                 MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) )
-                                                                                                
-                                else:
-                                    if MHA_Block.Q[h, n, k].lb is not None and MHA_Block.Q[h, n, k].ub is not None and MHA_Block.K[h, p, k].lb is not None and MHA_Block.K[h, p, k].ub is not None:
-                                        MHA_Block.QK[h,n,p,k].ub = (max(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb,
-                                                                                                    MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
-                                                                                                    MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
-                                                                                                    MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) )
-                                        MHA_Block.QK[h,n,p,k].lb =  (min(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb, 
-                                                                                                    MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
-                                                                                                    MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
-                                                                                                    MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) )         
-                         
+                                    MHA_Block.QK[h,n,p,k].lb =  (min(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb, 
+                                                                                                MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
+                                                                                                MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
+                                                                                                MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) )  
+                            if MHA_Block.Q[h, n, MHA_Block.head_dims.first()].lb is not None:
+                                MHA_Block.compatibility[h,n,p].ub = sum(MHA_Block.QK[h,n,p,k].ub for k in MHA_Block.head_dims)  
+                                MHA_Block.compatibility[h,n,p].lb = sum(MHA_Block.QK[h,n,p,k].lb for k in MHA_Block.head_dims)       
+                            else:
+                                max_compat = 100 * self.d_k
+                                min_compat = -100 * self.d_k
+                                MHA_Block.compatibility[h,n,p].ub = max_compat
+                                MHA_Block.compatibility[h,n,p].lb = min_compat       
 
                     if self.bound_cut_activation["MHA_compat_exp"]: 
                         try: 
@@ -1333,53 +1330,44 @@ class Transformer:
                     for k in MHA_Block.head_dims:  
                         if self.bound_cut_activation["MHA_QK_MC"]: 
                             if not mask and p < n :
-                                try:
+                                if MHA_Block.Q[h, n, k].lb is not None and MHA_Block.Q[h, n, k].ub is not None and MHA_Block.K[h, p, k].lb is not None and MHA_Block.K[h, p, k].ub is not None:
                                     self.__McCormick_bb(MHA_Block.QK[h, n, p, k], MHA_Block.Q[h, n, k], MHA_Block.K[ h, p, k]) # add McCromick Envelope
-                                except:
-                                    pass 
+   
                         if self.bound_cut_activation["MHA_WK_MC"]: 
-                            try:
+                            if MHA_Block.attention_weight[h, n, p].lb is not None and MHA_Block.attention_weight[h, n, p].ub is not None and MHA_Block.V[h, p, k].lb is not None and MHA_Block.V[h, p, k].ub is not None:
                                 self.__McCormick_bb(MHA_Block.attWK[h, n, k, p], MHA_Block.attention_weight[h, n, p], MHA_Block.V[h, p, k]) # add McCromick Envelope
-                            except:
-                                pass 
+
                             
-                            
-                for k in MHA_Block.head_dims:
                     if self.bound_cut_activation["MHA_attn_score"]: 
-                        try:
-                            MHA_Block.attention_score[h, n, k].ub = (sum(max(MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].lb,
-                                                                            MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].ub, 
-                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].lb, 
-                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].ub) 
-                                                                    for n2 in time_dim_enc) )
-                            MHA_Block.attention_score[h, n, k].lb = (sum(min(MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].lb, 
-                                                                            MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].ub, 
-                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].lb, 
-                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].ub) 
-                                                                    for n2 in time_dim_enc) )
-                            for n2 in time_dim_enc:
-                                MHA_Block.attWK[h, n, k, p] .ub = (max(MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].lb,
-                                                                            MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].ub, 
-                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].lb, 
-                                                                            MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].ub) 
+                        for k in MHA_Block.head_dims: 
+                            if MHA_Block.attention_weight[h, n, p].lb is not None and MHA_Block.attention_weight[h, n, p].ub is not None and MHA_Block.V[h, p, k].lb is not None and MHA_Block.V[h, p, k].ub is not None:
+                                MHA_Block.attWK[h, n, k, p] .ub = (max(MHA_Block.attention_weight[h, n, p].lb * MHA_Block.V[h, p, k].lb,
+                                                                            MHA_Block.attention_weight[h, n, p].lb * MHA_Block.V[h, p, k].ub, 
+                                                                            MHA_Block.attention_weight[h, n, p].ub * MHA_Block.V[h, p, k].lb, 
+                                                                            MHA_Block.attention_weight[h, n, p].ub * MHA_Block.V[h, p, k].ub) 
                                                                     )
-                                MHA_Block.attWK[h, n, k, p] .lb = (min(MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].lb, 
-                                                                                MHA_Block.attention_weight[h, n, n2].lb * MHA_Block.V[h, n2, k].ub, 
-                                                                                MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].lb, 
-                                                                                MHA_Block.attention_weight[h, n, n2].ub * MHA_Block.V[h, n2, k].ub) 
-                                                                        )
-                        except:
-                            pass 
-                        
+                                MHA_Block.attWK[h, n, k, p] .lb = (min(MHA_Block.attention_weight[h, n,p].lb * MHA_Block.V[h, p, k].lb, 
+                                                                                MHA_Block.attention_weight[h, n, p].lb * MHA_Block.V[h, p, k].ub, 
+                                                                                MHA_Block.attention_weight[h, n, p].ub * MHA_Block.V[h, p, k].lb, 
+                                                                                MHA_Block.attention_weight[h, n, p].ub * MHA_Block.V[h, p, k].ub) 
+                                                                        )  
+
+                        if MHA_Block.attWK[h, n, MHA_Block.head_dims.first(), p].lb is not None:
+                            MHA_Block.attention_score[h, n, k].ub = sum(MHA_Block.attWK[h,n,k,p].ub for k in MHA_Block.head_dims)  
+                            MHA_Block.attention_score[h, n, k].lb = sum(MHA_Block.attWK[h,n,k,p].lb for k in MHA_Block.head_dims)       
+                           
                  
                 if self.bound_cut_activation["MHA_compat_exp_sum"]:   
                     try: 
+                        if tnn_from=="keras":
+                            MHA_Block.compatibility_exp_sum[h, n].lb = max(1,sum( MHA_Block.compatibility_exp[h,n,n2].lb for n2 in time_dim))   # exp( x-max(x)) --> at least one value in sum = 1
+                        else:
+                            MHA_Block.compatibility_exp_sum[h, n].lb = sum( MHA_Block.compatibility_exp[h,n,n2].lb for n2 in time_dim)   
+                            
                         MHA_Block.compatibility_exp_sum[h, n].ub = sum( MHA_Block.compatibility_exp[h,n,n2].ub for n2 in time_dim) 
-                        MHA_Block.compatibility_exp_sum[h, n].lb = sum( MHA_Block.compatibility_exp[h,n,n2].lb for n2 in time_dim)   
                     except:
-                        pass
-                    # if tnn_from=="keras":
-                    #     MHA_Block.compatibility_exp_sum[h, n].lb = 1  # exp( x-max(x)) --> at least one value in sum = 1
+                        if tnn_from=="keras":
+                            MHA_Block.compatibility_exp_sum[h, n].lb = 1
                     
                 if self.bound_cut_activation["MHA_softmax_env"]: 
                 #-- begin add softmax env --# 

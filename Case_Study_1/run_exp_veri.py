@@ -53,13 +53,13 @@ if TESTING:
     REP = 1
 else:
     REP = 1 # number of repetitions of each scenario
-r_offset = 2
+r_offset = 0
 NAME = "verification"
 SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
 im_sz=[4]  # Define image pixels (and folder to select tnn models from)
 #file_names = ["vit_6_1_6_12", "vit_6_2_6_12", "vit_6_4_6_12"] # changing depth
-file_names = ["vit_6_1_6_12", "vit_6_2_6_12"]
+file_names = ["vit_6_1_6_12", "vit_12_1_6_12", "vit_6_2_6_12", "vit_12_2_6_12" ]
 #file_names = ["vit_12_1_6_12", "vit_18_1_6_12", "vit_24_1_6_12"] # changing embed dim 12, 18, 24
 #file_names = ["vit_12_1_6_12", "vit_12_2_6_12", "vit_12_4_6_12"] # changing embed dim 12, for each depth
 #file_names = ["vit_18_1_6_12", "vit_18_2_6_12", "vit_18_4_6_12"] # changing embed dim 18, for each depth
@@ -76,13 +76,13 @@ for key in ACTI_LIST_FULL:
     activation_dict[key] = False
     
 combinations = [ # define configuartions
-    
-    # 1 , 0, 1, 1, 1, #1 all
-    [1 , 0, 1, 1, 0], #2 -- fastest feasibile solution _/
-    [1 , 0, 1, 0, 0], #3 -- good trade off speed and solve time _/
+    [1 , 0, 1, 1, 0], #2 -- fastest feasibile solution _/  No Mc
+    [1 , 0, 1, 0, 0], #3 -- good trade off speed and solve time _/ I only
     #1 , 0, 0, 0, 0, #4 -- smallest opt. gap _/
     #1 , 0, 0, 1, 1, #5_/
-    [1 , 0, 0, 1, 0], #6 --- fastest optimal solution _/
+    [1 , 0, 0, 1, 0], #6 --- fastest optimal solution _/ LNprop
+    
+    [1 , 0, 1, 1, 1], #c4' 1 all
     #[1,  1, 1, 1, 1] #c4
     # 0 , 0, 0, 0, 0  #7 _/
 ]
@@ -105,11 +105,20 @@ tnn_config["Num Dense"] = "2 + 3"
 tnn_config["Num ReLu"] = "1"
 tnn_config["Num Pool"] = " 0 + 1"
 
+# Define Optimisation Problem:
+problemNo = 0 # image to select from MNIST dataset ( test: 0 --> the number 7)
+epsilon = 0.0001 ##
+channels = 1
+patch_size=2 
+classification_labels = 10
+adv_label = 1
+    
+
 ## RUN EXPERIMENTS:
 # For varied pixel sized images
 for image_size in im_sz:
     # Set output directory
-    PATH =  f".\\Experiments\\Verification_{image_size*image_size}"
+    PATH =  f".\\Experiments\\Verification_{image_size*image_size}_eps{epsilon}"
     if not os.path.exists(PATH):
         os.makedirs(PATH)
         os.makedirs(PATH+"\\Logs")
@@ -124,16 +133,9 @@ for image_size in im_sz:
     mnist_testset = torchvision.datasets.MNIST(DOWNLOAD_PATH, train=False, download=True, transform=transform_mnist)
     test_loader = torch.utils.data.DataLoader(mnist_testset, batch_size=1, shuffle=False)
     images, labels = next(iter(test_loader))
-
-    # Define Optimisation Problem:
-    problemNo = 0 # image to select from MNIST dataset ( test: 0 --> the number 7)
-    epsilon = 0.01 ##
-    inputimage = torch.round(images[problemNo], decimals=4) # flattened image
-    labels = [labels[problemNo].item(), 1] # [true label, adversary label]
-    channels = 1
-    patch_size=2 
-    classification_labels = 10
     
+    inputimage = images[problemNo] # flattened image
+    labels = [labels[problemNo].item(), adv_label] # [true label, adversary label]
     model, input = verification_problem(inputimage, epsilon, channels, image_size, labels, classification_labels)
 
     # For each trained TNN
@@ -142,7 +144,7 @@ for image_size in im_sz:
         for r in range(REP):
             for c, combi in enumerate(combinations):
                 print("C = ", c+1)    
-                if c+1 != 3: ### REMOVE
+                if c+1 != 4: ### REMOVE
                     continue
                 experiment_name = f"{file_name}_i{image_size}_r{r+1+r_offset}_c{c+1}"
                 # activate constraints
@@ -197,6 +199,8 @@ for image_size in im_sz:
                             optimal_parameters[v.varName] = v.x
                     
                     # save results
+                    tnn_config["max purturb"] = np.max(np.array(optimal_parameters["purturb"]))
+                    tnn_config["min purturb"] = np.min(np.array(optimal_parameters["purturb"]))
                     tnn_config["TNN Out"] = np.array(optimal_parameters["output"])  
                 else:
                     tnn_config["TNN Out"] = None

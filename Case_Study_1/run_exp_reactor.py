@@ -81,7 +81,7 @@ tnn_config["Num Attn"] = 6
 
 ## RUN EXPERIMENTS:
 # Set output directory
-PATH =  f".\\Experiments\\Reactor_"
+PATH =  f".\\Experiments\\Reactor__"
 if not os.path.exists(PATH):
     os.makedirs(PATH)
     os.makedirs(PATH+"\\Logs")

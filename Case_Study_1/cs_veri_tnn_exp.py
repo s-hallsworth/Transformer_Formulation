@@ -80,9 +80,14 @@ def verification_problem(inputimage, epsilon, channels, image_size, labels, clas
     model.purturb_constraints.add(expr= sum(model.purturb[i] for i in model.purturb.index_set()) <= model.eps) 
     
     # Set objective:
+    # model.obj = pyo.Objective(
+    #     expr= -(model.out[0, model.labels.last()] - model.out[0, model.labels.first()]) , sense=pyo.minimize
+    # )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
+    
     model.obj = pyo.Objective(
-        expr= -(model.out[0, model.labels.last()] - model.out[0, model.labels.first()]) , sense=pyo.minimize
+        expr= (model.out[0, model.labels.last()] - model.out[0, model.labels.first()]) , sense=pyo.maximize
     )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
+
 
     return model, input
 

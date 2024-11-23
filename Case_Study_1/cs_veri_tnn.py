@@ -130,12 +130,12 @@ for key in ACTI_LIST_FULL:
 
 combinations = [
 #1, 1, 0, 0, 0
-# 1 , 0, 1, 1, 1, #1 all
-# 1 , 0, 1, 1, 0 #2 -- fastest feasibile solution _/
+1 , 0, 1, 1, 1, #1 all
+#1 , 0, 1, 1, 0 #2 -- fastest feasibile solution _/
 #1 , 0, 1, 0, 0, #3 -- good trade off speed and solve time _/
 #1 , 0, 0, 0, 0, #4 -- smallest opt. gap _/
 #1 , 0, 0, 1, 1, #5_/
-1 , 0, 0, 1, 0, #6 --- fastest optimal solution _/
+#1 , 0, 0, 1, 0, #6 --- fastest optimal solution _/
 # 0 , 0, 0, 0, 0  #7 _/
 ]
 combinations = [bool(val) for val in combinations]
@@ -144,7 +144,8 @@ ACTI = {}
 ACTI["LN_I"] = {"list": ["LN_var"]}
 ACTI["LN_D"] = {"list": ["LN_num", "LN_num_squ", "LN_denom"]}
 ACTI["MHA_I"] = {"list": ["MHA_attn_weight_sum", "MHA_attn_weight"]}
-ACTI["MHA_D"] = {"list": ["MHA_Q", "MHA_K", "MHA_V", "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" , "RES_var"]}
+#ACTI["MHA_D"] = {"list": ["MHA_Q", "MHA_K", "MHA_V", "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" , "RES_var"]}
+ACTI["MHA_D"] = {"list": ["MHA_Q", "MHA_K", "MHA_V", "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" , "RES_var"]} # ]}# 
 ACTI["MHA_MC"] = {"list":[ "MHA_QK_MC", "MHA_WK_MC"]}
 
 ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACTI["MHA_D"]["act_val"], ACTI["MHA_MC"]["act_val"] = combinations
@@ -295,7 +296,7 @@ W_emb = parameters[f"{layer_name}_{count}",'W']
 b_emb = parameters[f"{layer_name}_{count}",'b']
 out = transformer.embed_input( out, "output", model.out_labels_dim, W_emb, b_emb)
 
-#Set objective
+# #Set objective
 # model.obj = pyo.Objective(
 #     expr= (out[0, model.labels.last()] - out[0, model.labels.first()]) , sense=pyo.maximize
 # )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
@@ -306,7 +307,7 @@ out = transformer.embed_input( out, "output", model.out_labels_dim, W_emb, b_emb
 # )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
 
 
-# TESTING
+# # TESTING
 model.obj = pyo.Objective(
     expr= sum(model.purturb_image[i] - model.target_image[i] for i in model.purturb_image.index_set()), sense=pyo.minimize
 )  # -1: maximize, +1: minimize (default)
@@ -325,7 +326,7 @@ for key, value in ffn_parameter_dict.items():
 gurobi_model.update() # update gurobi model with FFN constraints
 
 ## Optimizes
-#gurobi_model.setParam('DualReductions',0)
+# gurobi_model.setParam('DualReductions',0)
 # gurobi_model.setParam('MIPFocus',1)
 PATH = r".\Experiments\Verification"
 experiment_name = "testing_veri"
