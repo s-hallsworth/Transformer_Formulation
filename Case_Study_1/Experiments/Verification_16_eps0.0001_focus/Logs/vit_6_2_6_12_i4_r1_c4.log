@@ -1,0 +1,47 @@
+
+Gurobi 11.0.2 (win64) logging started Sat Nov 23 21:19:29 2024
+
+Set parameter LogFile to value ".\Experiments\Verification_16_eps0.0001_focus\Logs\vit_6_2_6_12_i4_r1_c4.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 4665 rows, 4537 columns and 15276 nonzeros
+Model fingerprint: 0x01c09e71
+Model has 1238 quadratic constraints
+Model has 420 general constraints
+Variable types: 4237 continuous, 300 integer (300 binary)
+Coefficient statistics:
+  Matrix range     [1e-05, 1e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e-226, 5e+02]
+  RHS range        [1e-04, 5e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve removed 2596 rows and 1996 columns
+Presolve time: 0.04s
+Presolved: 7742 rows, 2542 columns, 22660 nonzeros
+Presolved model has 1113 bilinear constraint(s)
+Presolved model has 273 nonlinear constraint(s)
+
+Solving non-convex MINLP
+
+Variable types: 2315 continuous, 227 integer (227 binary)
+
+Root relaxation: objective 4.100558e+01, 3247 iterations, 0.18 seconds (0.24 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0   41.00558    0  829          -   41.00558      -     -    0s
+     0     0   41.00558    0  832          -   41.00558      -     -    0s
+     0     0   41.00558    0  790          -   41.00558      -     -    0s
+     0     0   41.00558    0  806          -   41.00558      -     -    1s
+     0     0   41.00558    0  802          -   41.00558      -     -    1s
+     0     0   41.00558    0  787          -   41.00558      -     -    1s
+     0     0   41.00558    0  792          -   41.00558      -     -    1s
+     0     0   41.00558    0  789          -   41.00558      -     -    2s
+     0     0   41.00558    0  785          -   41.00558      -     -    2s

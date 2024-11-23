@@ -118,7 +118,7 @@ adv_label = 1
 # For varied pixel sized images
 for image_size in im_sz:
     # Set output directory
-    PATH =  f".\\Experiments\\Verification_{image_size*image_size}_eps{epsilon}"
+    PATH =  f".\\Experiments\\Verification_{image_size*image_size}_eps{epsilon}_focus"
     if not os.path.exists(PATH):
         os.makedirs(PATH)
         os.makedirs(PATH+"\\Logs")
@@ -178,6 +178,7 @@ for image_size in im_sz:
                 gurobi_model.update() # update gurobi model with FFN constraints
 
                 ## Optimizes
+                gurobi_model.setParam('MIPFocus',1)
                 gurobi_model.setParam('LogToConsole', 0)
                 gurobi_model.setParam('OutputFlag', 1)
                 gurobi_model.setParam('LogFile', PATH+f'Logs\\{experiment_name}.log')
