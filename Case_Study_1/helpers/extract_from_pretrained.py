@@ -5,10 +5,7 @@ import torch
 import os
 from torch import nn
 import collections
-from torch.nn import ReLU
-from transformers.activations import SiLUActivation as SiLU # clone transformers from: https://github.com/s-hallsworth/transformers.git -- > pip install -e .
-from transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
-from transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
+from torch.nn import ReLU, SiLU
 from vit_TNN import *
 
 def get_weights(model_path, save_json=True, file_name="model_weights.json"):
@@ -187,7 +184,7 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     model_weights = {}
     model_bias = {}
     for name, param in model.named_parameters():
-        
+
         if "weight" in name:
             new_name = name.split('weight')[0]
             if not new_name[-1].isalnum():
@@ -724,6 +721,11 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
     """
     Read model parameters and store in dict with associated name. 
     """
+    
+    from transformers.src.transformers.activations import SiLUActivation
+    from transformers.src.transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
+    from transformers.src.transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
+
 
     src = torch.as_tensor(enc_input).float()
     tgt = torch.as_tensor(dec_input).float()
@@ -737,14 +739,13 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
     
     # Get layer input shapes
     def hook_fn(module, input, output, name, layer):
-
         if len(list(input)) > 0:
             if not isinstance(input[0], torch.Size):
                 input_shapes[name]  = input[0].shape
             else:
                 input_shapes[name]  = list(input[0])
             
-        if len(list(output)) > 0 and isinstance(output, torch.Tensor):
+        if (len(list(output)) > 0 and isinstance(output, torch.Tensor)) or "parameter_projection" in name:
             if not isinstance(output[0], torch.Size):
                 output_shapes[name]  = output[0].shape
             else:
@@ -760,7 +761,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
             if isinstance(module, ReLU):
                 activations_dict[enc_prefix] = "relu"
                 activations_dict[dec_prefix] = "relu"
-            elif isinstance(module, SiLU):
+            elif isinstance(module, SiLU) or isinstance(module,SiLUActivation):
                 activations_dict[enc_prefix] = "silu"
                 activations_dict[dec_prefix] = "silu"
             else:

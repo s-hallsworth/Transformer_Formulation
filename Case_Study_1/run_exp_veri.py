@@ -42,7 +42,7 @@ from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' 
 
 """
-    Solve toy problem with varying setups:
+    Solve verification problem with varying setups:
         - change active constraints, tnn file (automated)
         - change framework + solver (manual)
 """
@@ -125,7 +125,7 @@ for image_size in im_sz:
     test_loader = torch.utils.data.DataLoader(mnist_testset, batch_size=1, shuffle=False)
     images, labels = next(iter(test_loader))
 
-    # Define Toy Problem:
+    # Define Optimisation Problem:
     problemNo = 0 # image to select from MNIST dataset ( test: 0 --> the number 7)
     epsilon = 0.01 ##
     inputimage = torch.round(images[problemNo], decimals=4) # flattened image
