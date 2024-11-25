@@ -62,3 +62,17 @@ H 2559   513                     -15.7107271  -15.63676  0.47%  80.8   16s
  30485  4268     cutoff  103       -15.71073  -15.70879  0.01%  50.5   70s
  36170  6668  -15.71070  100  392  -15.71073  -15.70891  0.01%  46.8   77s
  39031  7787  -15.71025   85  427  -15.71073  -15.70906  0.01%  45.5   80s
+ 44290  9829  -15.70974   77  457  -15.71073  -15.70914  0.01%  43.1   88s
+ 47028 10756  -15.71027   82  430  -15.71073  -15.70916  0.01%  42.1   93s
+
+Cutting planes:
+  Implied bound: 4
+  RLT: 5
+
+Explored 49835 nodes (2056654 simplex iterations) in 93.97 seconds (93.47 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 1: -15.7107 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective -1.571072708001e+01, best bound -1.570918706841e+01, gap 0.0098%
