@@ -1290,13 +1290,7 @@ class Transformer:
                                     MHA_Block.QK[h,n,p,k].lb =  (min(MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].lb, 
                                                                                             MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
                                                                                             MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
-                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) ) 
-                            if MHA_Block.QK[h, n, p,MHA_Block.head_dims.first()].lb is not None:
-                                MHA_Block.compatibility[h,n,p].lb = sum(MHA_Block.QK[h,n,p,k].lb for k in MHA_Block.head_dims)       
-                            else:
-                                min_compat = -100 * self.d_k
-                                MHA_Block.compatibility[h,n,p].lb = min_compat
-                                                                                            
+                                                                                            MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) )                                                                 
                         else:
                             for k in MHA_Block.head_dims: 
                                 if MHA_Block.Q[h, n, k].lb is not None and MHA_Block.Q[h, n, k].ub is not None and MHA_Block.K[h, p, k].lb is not None and MHA_Block.K[h, p, k].ub is not None:
@@ -1355,7 +1349,14 @@ class Transformer:
                         if MHA_Block.attWK[h, n, MHA_Block.head_dims.first(), p].lb is not None:
                             MHA_Block.attention_score[h, n, k].ub = sum(MHA_Block.attWK[h,n,k,p].ub for k in MHA_Block.head_dims)  
                             MHA_Block.attention_score[h, n, k].lb = sum(MHA_Block.attWK[h,n,k,p].lb for k in MHA_Block.head_dims)       
-                           
+                
+                if tnn_from == 'keras':
+                    if MHA_Block.QK[h, n, p,MHA_Block.head_dims.first()].lb is not None:
+                        max_compat = max( sum(MHA_Block.QK[h,n,n2,k].ub for k in MHA_Block.head_dims) for n2 in time_dim_enc)
+                        MHA_Block.compatibility[h,n,p].lb = sum(MHA_Block.QK[h,n,p,k].lb for k in MHA_Block.head_dims) - max_compat    
+                    else:
+                        min_compat = -100 * self.d_k
+                        MHA_Block.compatibility[h,n,p].lb = min_compat            
                  
                 if self.bound_cut_activation["MHA_compat_exp_sum"]:   
                     try: 
