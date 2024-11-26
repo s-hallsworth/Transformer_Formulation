@@ -13,8 +13,6 @@ Num Pool, 0 + 1
 Activated Bounds/Cuts,"{'LN_var': True, 'LN_mean': False, 'LN_num': False, 'LN_num_squ': False, 'LN_denom': False, 'LN_num_squ_sum': False, 'MHA_Q': True, 'MHA_K': True, 'MHA_V': True, 'MHA_attn_weight_sum': True, 'MHA_attn_weight': True, 'MHA_compat': True, 'MHA_compat_exp': True, 'MHA_compat_exp_sum': True, 'MHA_QK_MC': True, 'MHA_WK_MC': True, 'MHA_attn_score': True, 'MHA_output': True, 'RES_var': True, 'MHA_softmax_env': False, 'AVG_POOL_var': False, 'embed_var': False}"
 TNN Out Expected,"[-2.5744195  -0.56604606 -2.50451016  2.90947843  0.11418685 -0.04966092
  -6.36599493  8.96021748 -2.27574587  3.58937407]"
-max purturb,9.877456178503834e-05
-min purturb,0.0
 TNN Out,
 Enc Seq Len,1
 TNN Model Dims,12
@@ -30,12 +28,12 @@ Num Constraints,7383
 Num Cont Vars,7291
 Num Int Vars,0
 Num Bin Vars,300
-Run Time (s),37.70299983024597
-Run Time (wu),41.80829285588143
-Num Iters,80535.0
-Num Nodes Expl,13.0
+Run Time (s),3.116000175476074
+Run Time (wu),3.762047784259509
+Num Iters,11667.0
+Num Nodes Expl,1.0
 Num Solns,0
 Opt Gap,inf
 Obj Value,
-RNR Obj Value,74.5608318744515
+RNR Obj Value,74.56083208294932
 RNR Iters,0

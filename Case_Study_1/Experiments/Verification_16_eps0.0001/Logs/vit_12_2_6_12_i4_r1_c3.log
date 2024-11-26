@@ -122,3 +122,21 @@ Root relaxation: objective 7.456084e+01, 5247 iterations, 0.79 seconds (0.64 wor
  23685 17102   74.55877  258 1658          -   74.56082      -  2497 10595s
  24882 17697   74.55876  299 1642          -   74.56082      -  2479 10932s
  25687 17958   74.56082  168 1547          -   74.56082      -  2490 11265s
+ 26084 18378   74.56082  190 1591          -   74.56082      -  2511 11620s
+ 26754 19217   74.56082  216 1619          -   74.56082      -  2539 11806s
+ 27883 19372   74.56082  255 1588          -   74.56082      -  2526 11863s
+
+Cutting planes:
+  Learned: 4
+  Implied bound: 15
+  MIR: 1
+  Flow cover: 3
+  RLT: 587
+
+Explored 28084 nodes (71293189 simplex iterations) in 11863.97 seconds (8095.24 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 0
+
+Solve interrupted
+Best objective -, best bound 7.456082056686e+01, gap -

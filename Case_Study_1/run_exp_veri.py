@@ -62,7 +62,7 @@ im_sz=[4]  # Define image pixels (and folder to select tnn models from)
 #file_names = ["vit_6_1_6_12", "vit_12_1_6_12", "vit_6_2_6_12", "vit_12_2_6_12" ]
 #file_names = ["vit_12_1_6_12", "vit_18_1_6_12", "vit_24_1_6_12"] # changing embed dim 12, 18, 24
 #file_names = ["vit_6_1_6_12", "vit_12_1_6_12", "vit_12_2_6_12", "vit_6_2_6_12"] # changing embed dim 12, for each depth
-file_names = ["vit_12_2_6_12"] #, "vit_18_2_6_12", "vit_18_4_6_12"] # changing embed dim 18, for each depth
+file_names = ["vit_6_2_6_12","vit_12_1_6_12", "vit_12_2_6_12"] #, "vit_18_2_6_12", "vit_18_4_6_12"] # changing embed dim 18, for each depth
 #file_names = ["vit_24_1_6_12", "vit_24_2_6_12", "vit_24_4_6_12"] # changing embed dim 24, for each depth
 
 # Define Transformer Constraint config:
@@ -118,7 +118,7 @@ adv_label = 1
 # For varied pixel sized images
 for image_size in im_sz:
     # Set output directory
-    PATH =  f".\\Experiments\\Verification_{image_size*image_size}_eps{epsilon}"
+    PATH =  f".\\Experiments\\Verification_{image_size*image_size}_eps{epsilon}_focus2"
     if not os.path.exists(PATH):
         os.makedirs(PATH)
         os.makedirs(PATH+"\\Logs")
@@ -144,7 +144,7 @@ for image_size in im_sz:
         for r in range(REP):
             for c, combi in enumerate(combinations):
                 print("C = ", c+1)    
-                if c+1 != 3 and c+1 != 4: ### REMOVE
+                if c+1 != 3: ### REMOVE
                     continue
                 experiment_name = f"{file_name}_i{image_size}_r{r+1+r_offset}_c{c+1}"
                 # activate constraints
