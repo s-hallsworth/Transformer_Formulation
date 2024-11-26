@@ -62,10 +62,10 @@ im_sz=[4]  # Define image pixels (and folder to select tnn models from)
 #file_names = ["vit_6_1_6_12", "vit_12_1_6_12", "vit_6_2_6_12", "vit_12_2_6_12" ]
 #file_names = ["vit_12_1_6_12", "vit_18_1_6_12", "vit_24_1_6_12"] # changing embed dim 12, 18, 24
 #file_names = ["vit_6_1_6_12", "vit_12_1_6_12", "vit_12_2_6_12", "vit_6_2_6_12"] # changing embed dim 12, for each depth
-file_names = ["vit_6_2_6_12","vit_12_1_6_12", "vit_12_2_6_12"] #, "vit_18_2_6_12", "vit_18_4_6_12"] # changing embed dim 18, for each depth
+file_names = [ "vit_12_1_6_12", "vit_12_2_6_12", "vit_6_2_6_12"] #, "vit_18_2_6_12", "vit_18_4_6_12"] # changing embed dim 18, for each depth
 #file_names = ["vit_24_1_6_12", "vit_24_2_6_12", "vit_24_4_6_12"] # changing embed dim 24, for each depth
 
-# Define Transformer Constraint config:
+# Define Transformer Constraint confi
 ACTI_LIST_FULL = [ # Define which constraints and cut config to use
             "LN_var", "LN_mean", "LN_num", "LN_num_squ", "LN_denom", "LN_num_squ_sum",
                 "MHA_Q", "MHA_K", "MHA_V", "MHA_attn_weight_sum", "MHA_attn_weight",
@@ -178,11 +178,11 @@ for image_size in im_sz:
                 gurobi_model.update() # update gurobi model with FFN constraints
 
                 ## Optimizes
-                #gurobi_model.setParam('MIPFocus',1)
+                gurobi_model.setParam('MIPFocus',1)
                 gurobi_model.setParam('LogToConsole', 0)
                 gurobi_model.setParam('OutputFlag', 1)
                 gurobi_model.setParam('LogFile', PATH+f'Logs\\{experiment_name}.log')
-                gurobi_model.setParam('TimeLimit', 43200) #12h
+                gurobi_model.setParam('TimeLimit', 16200) #4.5h
                 gurobi_model.optimize()
 
 
