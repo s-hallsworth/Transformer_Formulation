@@ -9,7 +9,7 @@ import torch
 import transformer_b as TNN
 from helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_pytorch_intermediate_values
 
-from trained_transformer.Tmodel import TransformerModel
+from training_scripts.Tmodel import TransformerModel
 # from amplpy import AMPL
 
 """

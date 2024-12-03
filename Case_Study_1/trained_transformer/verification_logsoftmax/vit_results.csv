@@ -1,2 +1,0 @@
-name,dim,depth,heads,mlp_dim,avg_test_loss,test_accuracy
-vit_6_1_6_12,6,1,6,12,0.5498,82.64%

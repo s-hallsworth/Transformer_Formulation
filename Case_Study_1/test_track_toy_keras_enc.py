@@ -18,7 +18,7 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
 import transformer_b_flag_cuts as TNN
-from trained_transformer.Tmodel import TransformerModel
+from training_scripts.Tmodel import TransformerModel
 import helpers.extract_from_pretrained as extract_from_pretrained
 
 """

@@ -19,7 +19,7 @@ import transformer_b_flag as TNN
 from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
 from helpers.print_stats import solve_pyomo, solve_gurobipy
 import helpers.convert_pyomo as convert_pyomo
-from trained_transformer.Tmodel import TransformerModel
+from training_scripts.Tmodel import TransformerModel
 import helpers.extract_from_pretrained as extract_from_pretrained
 import transformers, sys
 sys.modules['transformers.src.transformers'] = transformers
