@@ -1,6 +1,6 @@
 import json
 import numpy as np
-import keras
+from tensorflow import keras
 import torch
 import os
 from torch import nn
@@ -762,12 +762,13 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
                 activations_dict[enc_prefix] = "relu"
                 activations_dict[dec_prefix] = "relu"
             elif isinstance(module, SiLU) or isinstance(module,SiLUActivation):
+            elif isinstance(module, SiLU) or isinstance(module,SiLUActivation):
                 activations_dict[enc_prefix] = "silu"
                 activations_dict[dec_prefix] = "silu"
             else:
                 activations_dict[enc_prefix] = "UNKNOWN"
                 activations_dict[dec_prefix] = "UNKNOWN"
-                raise ValueError("Error parsing transformer model. Unrecognised activation function used in decoder")
+                raise ValueError(f"Error parsing transformer model. Unrecognised activation function used in decoder. {name}:{module}  type({type(module)})")
             
     # Register hooks to all layers
     hook_names = ["linear", "encoder", "decoder", "layer", "attention", "scaler", "embedding","proj","regression"]

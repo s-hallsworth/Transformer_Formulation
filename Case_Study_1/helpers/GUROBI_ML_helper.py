@@ -31,6 +31,8 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
             
             # print(weights.shape, bias.shape)
             # print(layer_name, val['activation'])
+            # print(weights.shape, bias.shape)
+            # print(layer_name, val['activation'])
             
             # Determine activation function
             if val['activation'] =='relu':

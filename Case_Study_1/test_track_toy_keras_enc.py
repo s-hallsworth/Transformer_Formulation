@@ -478,7 +478,7 @@ class TestTransformer(unittest.TestCase):
     #     self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=3)) # compare value with transformer output
     #     print("- FFN1 formulation == FFN1 model")
         
-    def test_FFN2(self):
+    def test_layers(self):
         print("======= FFN2 =======")
         
         # Define Test Case Params
@@ -521,7 +521,7 @@ class TestTransformer(unittest.TestCase):
         
         
         # Define tranformer and execute 
-        transformer = TNN.Transformer(config_file, m)  
+        transformer = TNN.Transformer(config_file, m, set_bound_cut=bound_cut)  
         transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
         transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
         transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
@@ -550,8 +550,8 @@ class TestTransformer(unittest.TestCase):
             index = t_index + 1 # 1 indexing
             
             if t > m.time_history.last(): # since overlap is 1
-                out_index += 1
-                print(out_index, t )
+                out_index += 2
+                print(t, indices[0].at(out_index), indices[1].first(), indices[1].last())
                 m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.x1[t])
                 m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.x2[t])
         
@@ -574,6 +574,9 @@ class TestTransformer(unittest.TestCase):
         ## Optimizes
         # gurobi_model.setParam('DualReductions',0)
         #gurobi_model.setParam('MIPFocus',1)
+        PATH = r".\Experiments"
+        gurobi_model.setParam('LogFile', PATH+f'\\toy_no_enhancement.log')
+        gurobi_model.setParam('TimeLimit', 21600)
         gurobi_model.optimize()
 
         if gurobi_model.status == GRB.OPTIMAL:
@@ -597,48 +600,58 @@ class TestTransformer(unittest.TestCase):
         x2 = np.array(optimal_parameters['x2'])
         loc1 = np.array([v for k,v in model.loc1.items()])
         loc2 = np.array([v for k,v in model.loc2.items()])
-        # v1= np.array(optimal_parameters['v1'])
-        # v2= np.array(optimal_parameters['v2'])
-        # T= np.array(optimal_parameters['T'])
-
-
-        print(x1)
-        print(x2)
-        print()
-        # print(v1)
-        # print(v2)
+        FFN_out = np.array(layer_outputs_dict["dense_4"])[0].transpose(1,0)
               
-        plt.figure(1, figsize=(6, 4))
-        plt.plot(time, input[0,:,:], label= ["1", "2"])
-        plt.plot(time, loc2, 'o', label = f'x2 data')
-        plt.plot(time, x2, '--x', label = f'x2 predicted')
-        plt.plot(time, loc1, 'o', label = f'x1 data')
-        plt.plot(time, x1, '--x', label = f'x1 predicted')
-        plt.title(f'Example')
+        plt.figure(1, figsize=(8, 4))
+        plt.plot(time[2], FFN_out[1][1],'s', color='tab:cyan',label= "y TNN pred.")
+        plt.plot(time[2], FFN_out[0][1],'s', color='tab:gray',label= "x TNN pred.")
+        
+        plt.plot(time, loc2, 'o', color='tab:blue', label = f'y targets')
+        plt.plot(time, loc1, 'o', color='m', label = f'x targets')
+        
+        opt_x1 = [0.0, 0.00555569, 0.01111138]
+        opt_x2 = [0.0, 0.05100613, 0.09444281]
+        plt.plot(time, opt_x1, color='tab:green', label= "y expected opt. trajectory")
+        plt.plot(time, opt_x2, color='tab:orange', label= "x expected opt. trajectory")
+        
+        plt.plot(time, x2, '--x', color='r', label = f'y opt. trajectory')
+        plt.plot(time, x1, '--x', color='b', label = f'x opt. trajectory')
+        
+        plt.title(f'Optimal Trajectory Toy with fixed inputs')
         plt.legend()
         plt.show()
 
         plt.figure(2, figsize=(6, 4))
         plt.plot(loc1, loc2, 'o', label = f'target trajectory')
-        plt.plot(x1, x2, '--x', label = f'cannon ball trajectory')
+        plt.plot(opt_x1, opt_x2, label= "expected opt. trajectory")
+        plt.plot(x1, x2, '--x', label = f'opt. trajectory')
         plt.title(f'Trajectory of cannon ball')
         plt.legend()
         plt.show()
-                 
-        #Check outputs
+        
+        ## Check output
+        actual = np.array(list(optimal_parameters['input_embed']))
+        expected = input[0,0:seq_len,:].flatten()
+        
+        self.assertIsNone(np.testing.assert_array_equal(actual.shape, expected.shape)) # compare shape with transformer
+        self.assertIsNone(np.testing.assert_array_almost_equal(actual, expected, decimal=7)) # compare value with transformer output
+        print("- input formulation == input model")   
+        
+        #Check outputs FFN 2
         ffn_2_output = np.array([optimal_parameters["ffn_2"]]).squeeze(0)
         FFN_out = np.array(layer_outputs_dict["dense_4"])[0].flatten()
         
+        print("Output: ", ffn_2_output)
+        print("expected:", FFN_out)
         print( np.array([optimal_parameters["ffn_2"]]))
         print( np.array([optimal_parameters["x1"]])[0][-pred_len - 1:])
         print( np.array([optimal_parameters["x2"]])[0][-pred_len - 1:])
         
         self.assertIsNone(np.testing.assert_array_equal(ffn_2_output.shape,  FFN_out.shape)) # compare shape with transformer
-        self.assertIsNone(np.testing.assert_array_almost_equal(ffn_2_output,  FFN_out, decimal=2)) # compare value with transformer output
-        print("- FFN2 output formulation == FFN2 output model")   
+        self.assertIsNone(np.testing.assert_array_almost_equal(ffn_2_output,  FFN_out, decimal=3)) # compare value with transformer output
+        print("- FFN2 formulation == FFN2 trained model")   
         
-        print("Output: ", ffn_2_output)
-        print("expected:", FFN_out)
+        
 # -------- Helper functions ---------------------------------------------------------------------------------- 
 
 
@@ -714,60 +727,30 @@ if __name__ == '__main__':
     v_l2 = 1.5
     dt = time[-1] - time[0]
     
-
-    # src = np.array([np.random.rand(1)*time[0:-1] , (2*np.random.rand(1) * time[0:-1]) - (0.5 * 9.81* time[0:-1] * time[0:-1])])# random sample input [x1_targte, x2_target]
-    # src = src.transpose(1,0)
-
     # define sets
     model.time = pyo.Set(initialize=time)
     model.time_history = pyo.Set(initialize=time_history)
-    # print(time, time[0:-1])
     
     # define parameters
     def target_location_rule(M, t):
-        return v_l1 * t #+ (np.random.rand(1)/30)
+        return v_l1 * t
     model.loc1 = pyo.Param(model.time, rule=target_location_rule) 
 
     def target_location2_rule(M, t):
-        return (v_l2*t) - (0.5 * g * (t**2)) + (np.random.rand(1)/30)
+        np.random.seed(int(v_l2*t*100))
+        print(np.random.uniform(-1,1)/30)
+        return (v_l2*t) - (0.5 * g * (t**2)) + ( np.random.uniform(-1,1)/30 )
     model.loc2 = pyo.Param(model.time, rule=target_location2_rule) 
 
-    bounds_target = (-3,3)
+    
     # define variables
+    bounds_target = (-3,3)
     model.x1 = pyo.Var(model.time, bounds = bounds_target ) # distance path
-    #model.v1 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
-
     model.x2 = pyo.Var(model.time, bounds = bounds_target) # height path
-    #model.v2 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
-
-    #model.T = pyo.Var(within=model.time)# time when cannon ball hits target
 
     # define initial conditions
     model.x1_constr = pyo.Constraint(expr= model.x1[0] == 0) 
     model.x2_constr = pyo.Constraint(expr= model.x2[0] == 0) 
-    
-
-    # model.v1_constr = pyo.Constraint(expr = model.v1 == (model.x1[model.time.last()] - model.x1[model.time.first()])/dt) 
-
-    # def v2_rule(M, t):
-    #     return M.x2[t] == (M.v2 * t) - (0.5*g * (t**2))
-    # model.v2_constr = pyo.Constraint(model.time, rule=v2_rule)
-
-
-    # ##------ Fix model solution ------##
-    input_x1 =   v_l1 * time  
-    input_x2 =  (v_l2*time) - (0.5 * g * (time*time))
-    
-    model.fixed_loc_constraints = pyo.ConstraintList()
-    for i,t in enumerate(model.time_history):
-        model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
-        model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
-
-    # Set objective
-    model.obj = pyo.Objective(
-        expr= sum((model.x1[t] - model.loc1[t])**2 + (model.x2[t] - model.loc2[t])**2 for t in model.time), sense=pyo.minimize
-    )  # -1: maximize, +1: minimize (default)
-
     
             
     # load trained transformer
@@ -775,6 +758,10 @@ if __name__ == '__main__':
     layer_names, parameters ,_ = extract_from_pretrained.get_learned_parameters(model_path)
     
     # get intermediate results dictionary for optimal input values
+    # input_x1 =   v_l1 * time  
+    # input_x2 =  (v_l2*time) - (0.5 * g * (time*time))
+    input_x1 = [0.0, 0.00555569, 0.01111138] # from solution track_toy.py
+    input_x2 = [0.0, 0.05100613, 0.09444281]
     input = np.array([[ [x1,x2] for x1,x2 in zip(input_x1, input_x2)]], dtype=np.float32)
     layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path, input[:, 0:tt, :])
 
@@ -789,8 +776,39 @@ if __name__ == '__main__':
     parameters['ffn_1']  = {'input_shape': ffn_1_params['input_shape']}
     parameters['ffn_1'] |= {'dense_1': ffn_1_params['dense_1']}
     parameters['ffn_1'] |= {'dense_2': ffn_1_params['dense_2']}
-    for i,v in layer_outputs_dict.items():
-        print(i)
+
+
+
+    # ##------ Fix model solution ------##
+    FFN_out = np.array(layer_outputs_dict["dense_4"])[0].transpose(1,0)
+    #print("FFN out",FFN_out.shape, FFN_out, FFN_out[0], FFN_out[1])
+    
+    model.fixed_loc_constraints = pyo.ConstraintList()
+    # for i,t in enumerate(model.time):
+    #     if t <= model.time_history.last():
+    #         model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
+    #         model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
+    #     else:
+    #         print(i, FFN_out[0][i-1], FFN_out[1][i-1])
+    #         model.fixed_loc_constraints.add(expr= FFN_out[0][i-1] == model.x1[t])
+    #         model.fixed_loc_constraints.add(expr= FFN_out[1][i-1]  == model.x2[t])
+
+    # Set objective
+    model.obj = pyo.Objective(
+        expr= sum((model.x1[t] - model.loc1[t])**2 + (model.x2[t] - model.loc2[t])**2 for t in model.time), sense=pyo.minimize
+    )  # -1: maximize, +1: minimize (default)
+
+
+    # select which bounds and cuts to activate:
+    ACTI_LIST_FULL = [
+            "LN_var", "LN_mean", "LN_num", "LN_num_squ", "LN_denom", "LN_num_squ_sum",
+             "MHA_Q", "MHA_K", "MHA_V", "MHA_attn_weight_sum", "MHA_attn_weight",
+            "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_QK_MC", "MHA_WK_MC", "MHA_attn_score", "MHA_output", 
+            "RES_var", "MHA_softmax_env", "AVG_POOL_var", "embed_var"]
+
+    bound_cut = {}
+    for key in ACTI_LIST_FULL:
+        bound_cut[key] = False
         
     # unit test
     unittest.main() 

@@ -8,16 +8,16 @@ import unittest
 import os
 from omlt import OmltBlock
 import torch
-from helpers.print_stats import solve_pyomo, solve_gurobipy
-import helpers.convert_pyomo as convert_pyomo
 from gurobipy import Model, GRB
 from gurobi_ml import add_predictor_constr
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
 import transformer_b_flag_cuts as TNN
+from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
+from helpers.print_stats import solve_pyomo, solve_gurobipy
+import helpers.convert_pyomo as convert_pyomo
 from training_scripts.Tmodel import TransformerModel
 import helpers.extract_from_pretrained as extract_from_pretrained
 
@@ -26,7 +26,6 @@ Test each module of transformer for optimal control toy tnn 1
 """
 # ------- Transformer Test Class ------------------------------------------------------------------------------------
 class TestTransformer(unittest.TestCase):    
-    ## commented out to debug last test
     
     
     # def test_instantiation_input(self): #, model, pyomo_input_name ,input):

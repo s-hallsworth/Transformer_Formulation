@@ -1,0 +1,145 @@
+
+Gurobi 11.0.2 (win64) logging started Wed Oct  2 22:44:29 2024
+
+Set parameter LogFile to value ".\Experiments\Track_k_e_2_reruns\Logs\Track_k_e_2_reruns_r2_c6.log"
+Set parameter TimeLimit to value 3600
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 248 rows, 462 columns and 920 nonzeros
+Model fingerprint: 0xc6f14063
+Model has 6 quadratic objective terms
+Model has 68 quadratic constraints
+Model has 116 general constraints
+Variable types: 458 continuous, 4 integer (4 binary)
+Coefficient statistics:
+  Matrix range     [9e-06, 1e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 2e-01]
+  QObjective range [2e+00, 2e+00]
+  Bounds range     [8e-05, 9e+01]
+  RHS range        [8e-05, 1e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve added 36 rows and 0 columns
+Presolve removed 0 rows and 73 columns
+Presolve time: 0.01s
+Presolved: 525 rows, 398 columns, 1459 nonzeros
+Presolved model has 50 SOS constraint(s)
+Presolved model has 4 quadratic objective terms
+Presolved model has 57 bilinear constraint(s)
+Presolved model has 4 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 284 continuous, 114 integer (114 binary)
+
+Root relaxation: objective 2.058065e-04, 417 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0    0.00021    0   44          -    0.00021      -     -    0s
+     0     0    0.00021    0   74          -    0.00021      -     -    0s
+     0     0    0.00021    0   90          -    0.00021      -     -    0s
+     0     0    0.00021    0   93          -    0.00021      -     -    0s
+     0     0    0.00021    0   91          -    0.00021      -     -    0s
+     0     0    0.00021    0   96          -    0.00021      -     -    0s
+
+Cutting planes:
+  Cover: 2
+  Implied bound: 11
+  Clique: 4
+  MIR: 37
+  Flow cover: 12
+  RLT: 19
+  Relax-and-lift: 1
+
+Explored 1 nodes (1231 simplex iterations) in 0.11 seconds (0.03 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 0
+
+Solve interrupted
+Best objective -, best bound 2.058065039990e-04, gap -
+
+Gurobi 11.0.2 (win64) logging started Wed Oct  2 22:45:41 2024
+
+Set parameter LogFile to value ".\Experiments\Track_k_e_2_reruns\Logs\Track_k_e_2_reruns_r2_c6.log"
+Set parameter TimeLimit to value 3600
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 248 rows, 462 columns and 920 nonzeros
+Model fingerprint: 0xc6f14063
+Model has 6 quadratic objective terms
+Model has 68 quadratic constraints
+Model has 116 general constraints
+Variable types: 458 continuous, 4 integer (4 binary)
+Coefficient statistics:
+  Matrix range     [9e-06, 1e+02]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e-02, 2e-01]
+  QObjective range [2e+00, 2e+00]
+  Bounds range     [8e-05, 9e+01]
+  RHS range        [8e-05, 1e+02]
+  QRHS range       [1e-06, 1e-06]
+Presolve added 36 rows and 0 columns
+Presolve removed 0 rows and 73 columns
+Presolve time: 0.01s
+Presolved: 525 rows, 398 columns, 1459 nonzeros
+Presolved model has 50 SOS constraint(s)
+Presolved model has 4 quadratic objective terms
+Presolved model has 57 bilinear constraint(s)
+Presolved model has 4 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 284 continuous, 114 integer (114 binary)
+
+Root relaxation: objective 2.058065e-04, 417 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0    0.00021    0   44          -    0.00021      -     -    0s
+     0     0    0.00021    0   74          -    0.00021      -     -    0s
+     0     0    0.00021    0   90          -    0.00021      -     -    0s
+     0     0    0.00021    0   93          -    0.00021      -     -    0s
+     0     0    0.00021    0   91          -    0.00021      -     -    0s
+     0     0    0.00021    0   96          -    0.00021      -     -    0s
+     0     0    0.00021    0   95          -    0.00021      -     -    0s
+     0     2    0.00021    0   95          -    0.00021      -     -    0s
+
+Cutting planes:
+  Gomory: 1
+  Cover: 17
+  Implied bound: 14
+  Clique: 4
+  MIR: 41
+  Flow cover: 19
+  RLT: 19
+  Relax-and-lift: 1
+
+Explored 7 nodes (1548 simplex iterations) in 0.14 seconds (0.06 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 0
+
+Solve interrupted
+Best objective -, best bound 2.058065039990e-04, gap -
