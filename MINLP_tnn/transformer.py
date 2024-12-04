@@ -409,6 +409,9 @@ class Transformer:
             parameters (dict): transformer model's learned parameters
             enc_bounds ((float,float), optional): upper, lower bound on encoder input (choose a logical value based on training data)
             dec_bounds ((float,float), optional): upper, lower bound on decoder input (choose a logical value based on training data)
+            
+        Returns:
+            tuple: Encoder input name, decoder input name, transformer output name, ffn parameters dictionary
         """
         ffn_parameter_dict = {}
         
@@ -480,11 +483,15 @@ class Transformer:
     def __build_layers_parse(self, layer_names, parameters, enc_dec_count, enc_bounds, dec_bounds):
         """
         Create encoder-decoder TNN model based on parsed layers list
+        
         Args:
             layer_names (list): names of layers in transformer model
             parameters (dict): transformer model's learned parameters
             enc_bounds ((float,float), optional): upper, lower bound on encoder input (choose a logical value based on training data)
             dec_bounds ((float,float), optional): upper, lower bound on decoder input (choose a logical value based on training data)
+            
+        Returns:
+            tuple: Encoder input name, decoder input name, transformer output name, ffn parameters dictionary
         """
         ffn_parameter_dict = {}
         
@@ -761,6 +768,7 @@ class Transformer:
                     setattr(self.M, embed_var_name+"_b_emb", pyo.Param(embed_dim_2 , initialize=b_emb_dict))
                     b_emb= getattr(self.M, embed_var_name+"_b_emb")  
                 
+                    # Add bias
                     for d,s in zip(embed_dim_2, indices[1]) :
                         for t in indices[0]:
                             self.M.embed_constraints.add(embed_var[t, d] 
@@ -833,23 +841,39 @@ class Transformer:
             raise ValueError('Input value must be indexed')
         return embed_var
         
-    def add_layer_norm(self, input_var_name:Union[pyo.Var,str], layer_norm_var_name, gamma= None, beta = None, eps=None):  # non-linear
+    def add_layer_norm(self, input_var_name:Union[pyo.Var,str], LN_var_name, gamma= None, beta = None, eps=None):  # non-linear
         """
-        Normalization over the sequennce of input
+        Adds layer normalisation layer.
+        
+        This method normalizes the input variable over the sequence dimensions by calculating the mean 
+        and variance, then applying scaling (`gamma`) and shifting (`beta`) parameters.
+        
+        Args:
+            input_var_name (Union[pyo.Var, str]): Name or instance of the input variable to be normalized.
+            LN_var_name (str): Name for the output variable of the layer normalization operation.
+            gamma (list, optional): Learnt scaling factors for each model dimension. Defaults to None (set to 1).
+            beta (list, optional):  Learnt shifting factors for each model dimension. Defaults to None (set to 0).
+            eps (float, optional): Small positive value to avoid division by zero during variance normalization. Defaults to the `self.epsilon` value.
+            
+        Returns:
+            pyo.Var: The Pyomo variable representing the output of the layer normalization operation.
+
         """
+        # Create list for layers constraints
         if not hasattr( self.M, "layer_norm_constraints"):
             self.M.layer_norm_constraints = pyo.ConstraintList()
             
+        # Update epsilon value if needed
         if not eps is None:
             self.epsilon = eps
         
-        # get input
+        # Get input
         if not isinstance(input_var_name, pyo.Var):
             input_var = getattr(self.M, input_var_name)
         else:
             input_var = input_var_name
         
-        # determine indices of input
+        # Determine indices of input
         if input_var.is_indexed():
             set_var = input_var.index_set()
             indices = []
@@ -863,10 +887,10 @@ class Transformer:
                 
         
         # Initialize variables
-        if not hasattr( self.M, layer_norm_var_name):
+        if not hasattr( self.M, LN_var_name):
             # define layer norm output var
-            setattr( self.M, layer_norm_var_name, pyo.Var(time_dim, model_dims, within=pyo.Reals))
-            layer_norm_var = getattr( self.M, layer_norm_var_name)
+            setattr( self.M, LN_var_name, pyo.Var(time_dim, model_dims, within=pyo.Reals))
+            layer_norm_var = getattr( self.M, LN_var_name)
             
             # define gamma, beta params
             if not gamma is None and not beta is None:
@@ -878,41 +902,41 @@ class Transformer:
                 dict_beta  = {(v): 0 for v in self.M.model_dims}
                 
             # define new gamma and beta params
-            setattr( self.M, f"gamma_{layer_norm_var_name}", pyo.Param( self.M.model_dims, initialize = dict_gamma))
-            setattr( self.M, f"beta_{layer_norm_var_name}", pyo.Param( self.M.model_dims, initialize = dict_beta))
-            gamma = getattr( self.M, f"gamma_{layer_norm_var_name}")
-            beta  = getattr( self.M, f"beta_{layer_norm_var_name}")
+            setattr( self.M, f"gamma_{LN_var_name}", pyo.Param( self.M.model_dims, initialize = dict_gamma))
+            setattr( self.M, f"beta_{LN_var_name}", pyo.Param( self.M.model_dims, initialize = dict_beta))
+            gamma = getattr( self.M, f"gamma_{LN_var_name}")
+            beta  = getattr( self.M, f"beta_{LN_var_name}")
   
             # define calculation variables
-            sum_name = 'sum_'+ layer_norm_var_name
+            sum_name = 'sum_'+ LN_var_name
             setattr( self.M, sum_name, pyo.Var(time_dim, within=pyo.Reals))
             sum_t = getattr( self.M, sum_name)
             
-            variance_name = 'variance_'+ layer_norm_var_name
+            variance_name = 'variance_'+ LN_var_name
             setattr( self.M, variance_name, pyo.Var(time_dim, within=pyo.Reals))
             variance = getattr( self.M, variance_name)
             
-            div_name = 'div_'+ layer_norm_var_name
+            div_name = 'div_'+ LN_var_name
             setattr( self.M, div_name, pyo.Var(time_dim, model_dims, within=pyo.Reals))
             div = getattr( self.M, div_name)
             
-            denominator_abs_name = 'denominator_abs_'+ layer_norm_var_name
+            denominator_abs_name = 'denominator_abs_'+ LN_var_name
             setattr( self.M, denominator_abs_name, pyo.Var(time_dim, within=pyo.NonNegativeReals, bounds=(0,None)))
             denominator_abs = getattr( self.M, denominator_abs_name)
             
-            numerator_name = 'numerator_'+ layer_norm_var_name
+            numerator_name = 'numerator_'+ LN_var_name
             setattr( self.M, numerator_name, pyo.Var(time_dim, model_dims, within=pyo.Reals))
             numerator = getattr( self.M, numerator_name)
 
-            numerator_scaled_name = 'numerator_scaled_'+ layer_norm_var_name
+            numerator_scaled_name = 'numerator_scaled_'+ LN_var_name
             setattr( self.M, numerator_scaled_name, pyo.Var(time_dim, model_dims, within=pyo.Reals))
             numerator_scaled = getattr( self.M, numerator_scaled_name)
             
-            numerator_squared_name = 'numerator_squared_'+ layer_norm_var_name
+            numerator_squared_name = 'numerator_squared_'+ LN_var_name
             setattr( self.M, numerator_squared_name, pyo.Var(time_dim, model_dims, within=pyo.Reals, bounds=(0,None)))
             numerator_squared = getattr( self.M, numerator_squared_name)
               
-            numerator_squared_sum_name = 'numerator_squared_sum_'+ layer_norm_var_name
+            numerator_squared_sum_name = 'numerator_squared_sum_'+ LN_var_name
             setattr( self.M, numerator_squared_sum_name, pyo.Var(time_dim, within=pyo.Reals, bounds=(0,None)))
             numerator_squared_sum = getattr( self.M, numerator_squared_sum_name)
               
@@ -967,7 +991,35 @@ class Transformer:
         
     def add_attention(self, input_var_name:Union[pyo.Var,str], output_var_name, W_q, W_k, W_v, W_o, b_q = None, b_k = None, b_v = None, b_o = None, mask=False, cross_attn=False, encoder_output:Union[pyo.Var,str]=None, exp_approx=False, norm_softmax=False):
         """
-        Multihead attention between each element of embedded sequence
+        Adds multi-head attention layer
+        
+        This method computes the attention weights and output for an MHA layer based on the provided query (Q),
+        key (K), and value (V) weight matrices and optional biases. It supports both self-attention and 
+        cross-attention mechanisms and can optionally approximate the softmax operation using a power series 
+        expansion. It also includes the optimal max-normalised softmax calculation which does not alter the computed 
+        softmax values but can be used to reduce the domain of the exp(compatibility var) to [0,1] and the 
+        sum of exp(compatibility var) to [1, N] where N is the number of elements in the sequence.
+
+        Args:
+            input_var_name (Union[pyo.Var, str]): Name or instance of the input variable for attention computation.
+            output_var_name (str): Name of the output variable for the attention layer.
+            W_q (np.ndarray): Query weight matrix of shape `(model_dims, heads, head_dims)`.
+            W_k (np.ndarray): Key weight matrix of shape `(model_dims, heads, head_dims)`.
+            W_v (np.ndarray): Value weight matrix of shape `(model_dims, heads, head_dims)`.
+            W_o (np.ndarray): Output weight matrix of shape `(model_dims, heads, head_dims)`.
+            b_q (np.ndarray, optional): Query bias vector of shape `(heads, head_dims)`. Defaults to None.
+            b_k (np.ndarray, optional): Key bias vector of shape `(heads, head_dims)`. Defaults to None.
+            b_v (np.ndarray, optional): Value bias vector of shape `(heads, head_dims)`. Defaults to None.
+            b_o (np.ndarray, optional): Output bias vector of shape `(model_dims,)`. Defaults to None.
+            mask (bool, optional): Whether to apply a mask to the attention weights. Defaults to False.
+            cross_attn (bool, optional): Whether this is a cross-attention layer (e.g., decoder attending to encoder output). Defaults to False.
+            encoder_output (Union[pyo.Var, str], optional): Name or instance of the encoder output variable 
+                for cross-attention. Required if `cross_attn=True`. Defaults to None.
+            exp_approx (bool, optional): Whether to approximate the softmax operation using a power series expansion. Defaults to False.
+            norm_softmax (bool, optional): Whether to normalize the compatibility scores using the softmax operation. Defaults to False.
+
+        Returns:
+            pyo.Var: The Pyomo variable representing the output of the MHA layer.
 
         """
         
@@ -1008,25 +1060,30 @@ class Transformer:
                 for set in str(set_var).split("*"):
                     indices.append( getattr( self.M, set) )
                 model_dims_enc  = indices[1] # Weights k,v dim based on enc dim but Weight q dim based on decoder
-                time_dim_enc = indices[0] # K and V first dim
+                time_dim_enc = indices[0]    # K and V first dim
             else:
                 raise ValueError(f'{encoder_output} must be indexed (time, model_dim)')
             
-            d_heads = len(model_dims)/self.d_H 
-            d_heads_kv = len(model_dims_enc)/self.d_H
+            d_heads = len(model_dims)/self.d_H        # decoder head size
+            d_heads_kv = len(model_dims_enc)/self.d_H # encoder head size
+            
             assert( d_heads == d_heads_kv and d_heads==self.d_k) #check head size is as expected and head size of enc == head size dec
             
             
         # define variables and parameters of this layer
         if not hasattr( self.M, output_var_name):
+            # Create output variable
             setattr( self.M, output_var_name, pyo.Var(time_dim, model_dims , within=pyo.Reals))
             attention_output = getattr( self.M, output_var_name)
             
+            # Create multi-head attention layer as a pyo.Block
             setattr( self.M, "Block_"+output_var_name, pyo.Block())
             MHA_Block  = getattr( self.M, "Block_"+output_var_name)
             
+            # Create constraint list for attention block
             MHA_Block.attention_constraints = pyo.ConstraintList()
 
+            # If needed create constraint lists for softmax outer approximators
             if self.bound_cut_activation["MHA_softmax_env"]: 
                 MHA_Block.constr_convex = pyo.ConstraintList()
                 MHA_Block.constr_concave = pyo.ConstraintList()
@@ -1037,10 +1094,11 @@ class Transformer:
         else:
             raise ValueError('Attempting to overwrite variable')
 
-        # define sets, vars
+        # Define sets
         MHA_Block.heads = pyo.RangeSet(1, self.d_H)          # number of heads
         MHA_Block.head_dims = pyo.RangeSet(1, d_heads)       # head size Q
         
+        # Define parameters
         W_q_dict = {
             (D, H, K): W_q[d][h][k]
             for d,D in enumerate(model_dims )
@@ -1130,7 +1188,7 @@ class Transformer:
             
         MHA_Block.b_o = pyo.Param(model_dims , initialize=b_o_dict, mutable=False)
             
-
+        # Define variables
         MHA_Block.Q = pyo.Var(MHA_Block.heads, time_dim, MHA_Block.head_dims, within=pyo.Reals) 
         MHA_Block.K = pyo.Var(MHA_Block.heads, time_dim_enc, MHA_Block.head_dims, within=pyo.Reals)
         MHA_Block.V = pyo.Var(MHA_Block.heads, time_dim_enc, MHA_Block.head_dims, within=pyo.Reals) 
@@ -1208,7 +1266,8 @@ class Transformer:
         )  # softmax ( (Q * K)/sqrt(d_k) ) * V
         MHA_Block.attWK = pyo.Var(MHA_Block.heads, time_dim, MHA_Block.head_dims, time_dim_enc , within=pyo.Reals)
         
-        for h in MHA_Block.heads:
+        # Add multihead attention constaints
+        for h in MHA_Block.heads: # for each head
             # Check if multihead attention or self attention
             if cross_attn and not encoder_output is None:
                 input = encoder_output_var # calculate K and V from output of encoder
@@ -1216,8 +1275,8 @@ class Transformer:
                 input = input_var # calculate K and V from input variable
 
             # Define K and V
-            for n in time_dim_enc:
-                    for k in MHA_Block.head_dims:
+            for n in time_dim_enc: # for each sequence element
+                    for k in MHA_Block.head_dims: # for each dimension of a given head
 
                         # constraints for Key
                         MHA_Block.attention_constraints.add(
@@ -1278,11 +1337,8 @@ class Transformer:
                             else:
                                 MHA_Block.attention_constraints.add(expr=MHA_Block.QK[h, n, p, k] == ( MHA_Block.Q[h, n, k]) * MHA_Block.K[ h, p, k])
                             
-                                
 
-                        
-                        
-                        # max compatibility
+                        # Max normalised compatibility
                         if norm_softmax:
                             """ exp(compatibility)
                             from Keras Softmax: 
@@ -1313,6 +1369,7 @@ class Transformer:
                                 MHA_Block.attention_constraints.add(expr=  MHA_Block.compatibility_scaled[h,n,p]  >= MHA_Block.compatibility_max[h,n] - (M_max_compat * (1 - MHA_Block.compatibility_max_s[h,n,p])))
                                 MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h,n,p] == MHA_Block.compatibility_scaled[h,n,p] - MHA_Block.compatibility_max[h,n])
                         
+                        # Compatibility
                         else:
                             if mask and p > n:
                                 continue
@@ -1351,7 +1408,7 @@ class Transformer:
                                                             # + (0.000000275573192*MHA_Block.compatibility_10[h, n, p])
                                                             # + (0.0000000250521084*MHA_Block.compatibility_11[h, n, p])
                                                             )# pyo.exp() only seems to work for constant args and pow operator must be <= 2
-                        else:     
+                        else:  # use exponential function  
                             if mask and p > n:
                                 MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility_exp[h, n, p] == 0)
                             else:
@@ -1379,8 +1436,7 @@ class Transformer:
                         MHA_Block.attention_constraints.add(
                             expr=MHA_Block.attention_weight[h, n, n2] * MHA_Block.compatibility_exp_sum[h, n]
                             == MHA_Block.compatibility_exp[h, n, n2]) 
-
-                                         
+                           
             #Add bounds            
             for n in time_dim:
                 for p in time_dim_enc:
@@ -1479,7 +1535,7 @@ class Transformer:
                             MHA_Block.compatibility_exp_sum[h, n].lb = 1
                     
                 if self.bound_cut_activation["MHA_softmax_env"]: 
-                #-- begin add softmax env --# 
+                #-- begin add softmax outer approximators --# 
                     try: 
                         for p in time_dim_enc:    
                             # f(x) >= f_cv(x): attention weight >= convex envelope
@@ -1694,19 +1750,34 @@ class Transformer:
         return attention_output
     
     def add_residual_connection(self, input_1_name:Union[pyo.Var,str], input_2_name:Union[pyo.Var,str], output_var_name):
-        # get input 1
+        """
+        Adds a residual connection between two input variables and creates a new variable representing their sum.
+
+        This method adds constraints to ensure the residual variable is the element-wise sum of two input variables
+        across the sequence and feature dimensions. Additionally, it propagates upper and lower bounds for the residual variable
+        if bounds are defined for the inputs.
+
+        Args:
+            input_1_name (Union[pyo.Var, str]): The first input variable or its name as a string.
+            input_2_name (Union[pyo.Var, str]): The second input variable or its name as a string.
+            output_var_name (str): The name of the output variable representing the residual connection.
+
+        Returns:
+            pyo.Var: The Pyomo variable representing the residual connection.
+        """
+        # Get input 1
         if not isinstance(input_1_name, pyo.Var):
             input_1 = getattr(self.M, input_1_name)
         else:
             input_1 = input_1_name
             
-        # get input 2
+        # Get input 2
         if not isinstance(input_2_name, pyo.Var):
             input_2 = getattr(self.M, input_2_name)
         else:
             input_2 = input_2_name
         
-        # get indices
+        # Get indices
         if input_1.is_indexed():
             set_var = input_1.index_set()
             indices = []
@@ -1718,11 +1789,11 @@ class Transformer:
         else:
             raise ValueError('Input value must be indexed (time, model_dim)')
         
-        # create constraint list
+        # Create constraint list
         if not hasattr( self.M, "residual_constraints"):
             self.M.residual_constraints = pyo.ConstraintList()
         
-        # add new variable
+        # Add new variable
         if not hasattr( self.M, output_var_name):
             setattr( self.M, output_var_name, pyo.Var(time_dim, model_dims , within=pyo.Reals))
             residual_var = getattr( self.M, output_var_name)
@@ -1755,16 +1826,16 @@ class Transformer:
         
         return indices_len, indices_attr
     
-    def add_FFN_2D(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters, bounds = None, formulation=ReluBigMFormulation):
+    def add_FFN_2D(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters, bounds = (-2, 2), formulation=ReluBigMFormulation):
         """ Add FFN using OMLT """
         
-        # get input var
+        # Get input var
         if not isinstance(input_var_name, pyo.Var):
             input_var = getattr(self.M, input_var_name)
         else:
             input_var = input_var_name
 
-        # add new variable
+        # Add new variable
         if not hasattr( self.M, output_var_name + "_NN_Block"):
             NN_name = output_var_name + "_NN_Block"
             setattr( self.M, NN_name, OmltBlock())
@@ -1777,17 +1848,19 @@ class Transformer:
             ffn_constraints = getattr( self.M, output_var_name+"_constraints")
         else:
             raise ValueError('Attempting to overwrite variable')
-        
-        ###### GET BOUNDS
+
+        # Get input indices
         input_indices_len, input_indices_attr = self.__get_indices( input_var)
-        if bounds == None:
-             bounds = (-2, 2)
-        input_bounds={} #0: (-4,4), 1: (-4,4), 2: (-4,4), 3:(-4,4), 4:(-4,4), 5: (-4,4), 6: (-4,4), 7: (-4,4), 8: (-4,4), 9: (-4,4)} ### fix input bounds
         
+        # Create dict of input bounds
+        input_bounds={}
         for dim in input_indices_attr[1]:
             input_bounds[dim] = bounds
         
+        # Get Network Definition of FFN
         net_relu = helpers.OMLT_helper.weights_to_NetDef(output_var_name, nn_name, input_shape, model_parameters, input_bounds)
+        
+        # Build FFN of type "formlation"
         NN_block.build_formulation(formulation(net_relu))
         
         # Set input constraints
@@ -1815,19 +1888,19 @@ class Transformer:
     
     def get_fnn(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters):
         """ Helper to add GurobiML feed forward Neural Network"""
-        # get input var
+        # Get input var
         if not isinstance(input_var_name, pyo.Var):
             input_var = getattr(self.M, input_var_name)
         else:
             input_var = input_var_name
             
-        # determine indices of input
+        # Determine indices of input
         if input_var.is_indexed():
             set_var = input_var.index_set()
         else:
             raise ValueError('Input value must be indexed (time, model_dim)')
         
-        # add new variable
+        # Add new variable
         if not hasattr( self.M, output_var_name + "_NN_Block"):
             
             setattr( self.M, output_var_name, pyo.Var(set_var, within=pyo.Reals))
@@ -1838,19 +1911,20 @@ class Transformer:
         else:
             raise ValueError('Attempting to overwrite variable')
         
+        # Get Netowrk Definition of FFN (needed to create GurobiML FFN)
         nn= GUROBI_ML_helper.weights_to_NetDef(output_var_name, nn_name, input_shape, model_parameters)
        
         return nn, input_var, output_var
             
         
     def add_avg_pool(self, input_var_name:Union[pyo.Var,str], output_var_name):
-        # get input
+        # Get input
         if not isinstance(input_var_name, pyo.Var):
             input_var = getattr(self.M, input_var_name)
         else:
             input_var = input_var_name
         
-        # determine indices of input
+        # Determine indices of input
         if input_var.is_indexed():
             set_var = input_var.index_set()
             indices = []
@@ -1862,7 +1936,7 @@ class Transformer:
         else:
             raise ValueError('Input value must be indexed (time, model_dim)')
 
-        # add new variable
+        # Add new variable
         if not hasattr( self.M, output_var_name):
             setattr( self.M, "avg_pool_constr_"+output_var_name, pyo.ConstraintList())
             constraints = getattr( self.M, "avg_pool_constr_"+output_var_name) 
@@ -1872,7 +1946,7 @@ class Transformer:
         else:
             raise ValueError('Attempting to overwrite variable')
 
-
+        # Compute average over feature dimension
         for d in model_dims : 
             constraints.add(expr= output_var[d] * self.N == sum(input_var[t,d] for t in time_dim))
             
@@ -1884,15 +1958,16 @@ class Transformer:
                 continue
             
         return output_var
+    
     def __McCormick_bb(self, w, x, y):
         """ Add McMcormick envelope for bilinear variable w = x * y"""
         
+        # Create constraint list for layer
         if not hasattr( self.M, "mccormick_bb_constr_list"):
             setattr( self.M, "mccormick_bb_constr_list", pyo.ConstraintList())
-            
         constraints = getattr( self.M, "mccormick_bb_constr_list")   
         
-        # add cuts
+        # Add cut constraints
         constraints.add( expr= w >= (x.lb * y) + (x * y.lb) - (x.lb * y.lb))
         constraints.add( expr= w <= (x.ub * y) + (x * y.lb) - (x.ub * y.lb))
         constraints.add( expr= w <= (x * y.ub) + (x.lb * y) - (x.lb * y.ub))
