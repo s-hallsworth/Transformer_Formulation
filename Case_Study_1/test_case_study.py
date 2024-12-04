@@ -196,7 +196,7 @@ class TestTransformer(unittest.TestCase):
     #     b_v = parameters[layer,'b_v']
     #     b_o = parameters[layer,'b_o']
          
-    #     transformer.add_attention( "enc_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from='pytorch')
+    #     transformer.add_attention( "enc_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, norm_softmax=False)
         
     #     # add res+norm2
     #     layer = "enc__layer_normalization_2"
@@ -234,7 +234,7 @@ class TestTransformer(unittest.TestCase):
     #     b_k = parameters[layer,'b_k']
     #     b_v = parameters[layer,'b_v']
     #     b_o = parameters[layer,'b_o']
-    #     transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from='pytorch')
+    #     transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, norm_softmax=False)
         
     #     #add res+norm4
     #     layer = "enc__layer_normalization_4"
@@ -460,7 +460,7 @@ class TestTransformer(unittest.TestCase):
         b_v = parameters[layer,'b_v']
         b_o = parameters[layer,'b_o']
          
-        transformer.add_attention( "enc_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from='pytorch')
+        transformer.add_attention( "enc_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, norm_softmax=False)
         
         # add res+norm2
         layer = "enc__layer_normalization_2"
@@ -495,7 +495,7 @@ class TestTransformer(unittest.TestCase):
         b_k = parameters[layer,'b_k']
         b_v = parameters[layer,'b_v']
         b_o = parameters[layer,'b_o']
-        transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from='pytorch')
+        transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, norm_softmax=False)
         
         #add res+norm2
         layer = "enc__layer_normalization_4"

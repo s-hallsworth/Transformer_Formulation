@@ -42,44 +42,51 @@ def activate_envelope_att(model):
 class Transformer:
     """ A Time Series Transformer based on Vaswani et al's "Attention is All You Need" paper."""
     def __init__(self, config_file:Union[list,str], opt_model, set_bound_cut=None):
-        
+        # Define optimisation model
         self.M = opt_model
-        # # time set
-        # time_input = getattr( self.M, time_var_name)
-        
-         # get hyper params
+
+        # Define hyper parameters either from json file or list
         if isinstance(config_file, str):
             with open(config_file, "r") as file:
                 config = json.load(file)
 
-            self.N = config['hyper_params']['N'] # enc sequence length
+            self.N = config['hyper_params']['N']             # enc sequence length
             self.d_model = config['hyper_params']['d_model'] # embedding dimensions of model
-            self.d_k = config['hyper_params']['d_k']
-            self.d_H = config['hyper_params']['d_H']
-            self.input_dim = config['hyper_params']['input_dim']
-            self.epsilon = config['hyper_params']['epsilon']
+            self.d_k = config['hyper_params']['d_k']         # head size
+            self.d_H = config['hyper_params']['d_H']         # number of heads
+            self.input_dim = config['hyper_params']['input_dim'] # dimension of input
+            self.epsilon = config['hyper_params']['epsilon']     # epsilon used for layer norm
             
             file.close()
         else:
-            self.N = config_file[0] # enc sequence length
+            self.N = config_file[0]        # enc sequence length
             self.d_model = config_file[1]  # embedding dimensions of model
-            self.d_k = config_file[2]
-            self.d_H = config_file[3]
-            self.input_dim = config_file[4]
-            self.epsilon = config_file[5]
+            self.d_k = config_file[2]      # head size
+            self.d_H = config_file[3]      # number of heads
+            self.input_dim = config_file[4] # dimension of input
+            self.epsilon = config_file[5]   # epsilon used for layer norm
 
-        #Dict of bounds and cuts to activate
+        #Define active bounds and cuts
         list_act= [ "embed_var",
         "LN_var", "LN_mean", "LN_num", "LN_num_squ", "LN_denom", "LN_num_squ_sum",
         "MHA_softmax_env", "MHA_Q", "MHA_K", "MHA_V", "MHA_attn_weight_sum", "MHA_attn_weight",
         "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_QK_MC", "MHA_WK_MC", "MHA_attn_score","MHA_output", 
-        "RES_var", "AVG_POOL_var"] #names of bounds and cuts to activate
+        "RES_var", "AVG_POOL_var"] #Names of all potential bounds and cuts
         
         self.bound_cut_activation = {}
-        if set_bound_cut is None:
-            for item in list_act:
+        if set_bound_cut is None: # If no bounds and cuts defined set the following defaults
+            # set all false
+            for item in list_act: 
+                self.bound_cut_activation[item] = False
+              
+            # set defaults to true  
+            default_act = ["embed_var", "LN_var", "MHA_attn_weight_sum", "MHA_attn_weight", "MHA_Q", "MHA_K", "MHA_V", 
+                        "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" , "RES_var", 
+                        "MHA_QK_MC", "MHA_WK_MC"]  # All configuration from report
+            for item in default_act: 
                 self.bound_cut_activation[item] = True
-            self.bound_cut_activation["MHA_softmax_env"] = False ## add this as dynamic cut in callback
+                
+            #self.bound_cut_activation["MHA_softmax_env"] = False ## TO DO: add this as dynamic cut in callback
         else:
             self.bound_cut_activation = set_bound_cut 
             
@@ -347,75 +354,6 @@ class Transformer:
         
         #return: encoder input name, decoder input name, transformer output name, ffn parameters dictionary
         return [["enc_input","dec_input"], dec_input_name , ffn_parameter_dict]
-        # ffn_parameter_dict = {}
-        
-        # # define sets for input params
-        # enc_dim_1 = self.N 
-        # dec_dim_1 = self.N 
-        # self.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
-        # self.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
-        # self.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) # - 2
-        # self.M.input_dims = pyo.Set(initialize= list(range(self.input_dim)))
-        # enc_flag = False
-        # dec_flag = False
-        
-        # for l, layer in enumerate(layer_names):
-        #     print("layer iteration", layer, enc_flag, dec_flag)
-            
-            
-        #     if l == 0: #input layer
-        #         self.M.enc_input= pyo.Var(self.M.enc_time_dims,  self.M.input_dims, bounds=enc_bounds)
-        #         enc_input_name = "enc_input"
-                
-        #         self.M.dec_input = pyo.Var(self.M.enc_time_dims,  self.M.input_dims, bounds=dec_bounds)
-        #         dec_input_name = "dec_input"
-                   
-        #     if "enc" in layer:
-        #         if not enc_flag:
-        #             enc_flag = True
-        #             # add enocder layers
-        #             for enc_layer in range(enc_dec_count[0]):
-        #                 enc_input_name, ffn_parameter_dict = self.__add_encoder_layer(parameters, layer, enc_input_name, enc_layer, ffn_parameter_dict) 
-                        
-        #             # normalize output of final layer    
-        #             enc_input_name = self.__add_layer_norm(parameters, "enc_layer_normalization_1", enc_input_name)
-                
-        #     elif "dec" in layer:
-        #         if not dec_flag:
-        #             dec_flag = True
-                    
-        #             # add decoder layers
-        #             for dec_layer in range(enc_dec_count[1]):
-        #                 dec_input_name, ffn_parameter_dict  = self.__add_decoder_layer(parameters, layer, dec_input_name, dec_layer, ffn_parameter_dict, enc_input_name)
-                        
-        #             # normalize output of final layer    
-        #             dec_input_name = self.__add_layer_norm(parameters, "dec_layer_normalization_1", dec_input_name)
-                     
-        #     elif "layer_norm" in layer:
-        #         if dec_flag: #if after decoder, only apply on decoder
-        #             dec_input_name = self.__add_layer_norm(parameters, layer, dec_input_name)
-        #         else: 
-        #             enc_input_name = self.__add_layer_norm(parameters, layer, enc_input_name)
-        #             dec_input_name = self.__add_layer_norm(parameters, layer, dec_input_name)
-                
-        #     elif "linear" in layer:
-        #         if dec_flag: #if after decoder, only apply on decoder 
-        #             embed_dim = self.M.input_dims # if last layer is linear, embed output dim = TNN input dim
-        #             dec_input_name = self.__add_linear( parameters, layer, dec_input_name, embed_dim)
-        #         else:
-        #             embed_dim = self.M.model_dims # embed from current dim to self.M.model_dims
-        #             enc_input_name = self.__add_linear( parameters, layer, enc_input_name, embed_dim)
-        #             dec_input_name = self.__add_linear( parameters, layer, dec_input_name, embed_dim)
-            
-        #     elif "ffn" in layer:
-        #         if dec_flag: #if after decoder, only apply on decoder
-        #             dec_input_name,ffn_parameter_dict = self.__add_ffn(parameters,ffn_parameter_dict, layer, dec_input_name)
-        #         else:
-        #             enc_input_name,ffn_parameter_dict = self.__add_ffn(parameters,ffn_parameter_dict, layer, enc_input_name)
-        #             dec_input_name,ffn_parameter_dict = self.__add_ffn(parameters,ffn_parameter_dict, layer, dec_input_name)
-        
-        # #return: encoder input name, decoder input name, transformer output name, ffn parameters dictionary
-        # return [["enc_input","dec_input"], dec_input_name , ffn_parameter_dict] 
     
     def __build_layers_parse(self, layer_names, parameters, enc_dec_count, enc_bounds, dec_bounds):
         """
@@ -663,10 +601,6 @@ class Transformer:
                 
                           
             else: # w_emb has a value
-                # Create weight variable
-                # print(len(indices[0]), len(indices[1]))
-                # print(len(indices[1]), len(embed_dim_2))
-                # print(np.array(W_emb).shape)
                 W_emb_dict = {
                     (indices[1].at(s+1),embed_dim_2.at(d+1)): W_emb[d][s]
                     for s in range(len(indices[1]))
@@ -803,10 +737,6 @@ class Transformer:
               
         else:
             raise ValueError('Attempting to overwrite variable')
-
-        # Add constraints for layer norm
-        # if self.d_model == 1:
-        #     return
 
         for t in time_dim: 
             self.M.layer_norm_constraints.add(expr= sum_t[t] == sum(input_var[t,  d_prime] for d_prime in model_dims) )
@@ -1033,8 +963,8 @@ class Transformer:
             MHA_Block.compatibility_max_s = pyo.Var(MHA_Block.heads, time_dim, time_dim_enc, within=pyo.Binary) 
             MHA_Block.compatibility_scaled = pyo.Var(MHA_Block.heads, time_dim, time_dim_enc, within=pyo.Reals) 
         
-        MHA_Block.compatibility_exp = pyo.Var(MHA_Block.heads, time_dim, time_dim_enc, within=pyo.NonNegativeReals, bounds=(0,None)) # range: 0-->inf, initialize=init_compatibility_exp)
-        MHA_Block.compatibility_exp_sum = pyo.Var(MHA_Block.heads, time_dim, within=pyo.NonNegativeReals, bounds=(0,None)) #, initialize=init_compatibility_sum)
+        MHA_Block.compatibility_exp = pyo.Var(MHA_Block.heads, time_dim, time_dim_enc, within=pyo.NonNegativeReals, bounds=(0,None)) 
+        MHA_Block.compatibility_exp_sum = pyo.Var(MHA_Block.heads, time_dim, within=pyo.NonNegativeReals, bounds=(0,None))
         
         if exp_approx: # usepower series approx exp()
             MHA_Block.compatibility_2 = pyo.Var(MHA_Block.heads, time_dim, time_dim_enc, within=pyo.Reals)
@@ -1197,7 +1127,7 @@ class Transformer:
                                         max_compat += max([compat_uu, compat_uu, compat_lu, compat_ll]) # sum max for each k       
                                     M_max_compat = scale * max_compat 
                                 except:
-                                    M_max_compat = 100 * self.d_k #expect that 100 >> values calculated in TNN (NN values usually in range -1 to 1)
+                                    M_max_compat = 100 * self.d_k # Used when no bounds for Q or K. Expect that 100 >> values calculated in TNN (NN values usually in range -1 to 1)
                                     
                                 MHA_Block.attention_constraints.add(expr=  MHA_Block.compatibility_scaled[h,n,p]  >= MHA_Block.compatibility_max[h,n] - (M_max_compat * (1 - MHA_Block.compatibility_max_s[h,n,p])))
                                 MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h,n,p] == MHA_Block.compatibility_scaled[h,n,p] - MHA_Block.compatibility_max[h,n])
@@ -1205,7 +1135,6 @@ class Transformer:
                         else:
                             if mask and p > n:
                                 continue
-                                #MHA_Block.attention_constraints.add(expr= MHA_Block.compatibility[h,n,p] ==-100 * self.d_k) # set masked value to -inf
                             else:
                                 MHA_Block.attention_constraints.add(
                                     expr=MHA_Block.compatibility[h, n, p] 
@@ -1787,18 +1716,3 @@ class Transformer:
         constraints.add( expr= w <= (x.ub * y) + (x * y.lb) - (x.ub * y.lb))
         constraints.add( expr= w <= (x * y.ub) + (x.lb * y) - (x.lb * y.ub))
         constraints.add( expr= w >= (x.ub * y) + (x * y.ub) - (x.ub * y.ub))
-
-        
-        # if x.lb >= 0 and y.lb >= 0: 
-        #     # add cuts
-        #     constraints.add( expr= w >= (x.lb * y) + (x * y.lb) - (x.lb * y.lb))
-            
-        # if x.ub >= 0 and y.lb >= 0:
-        #     constraints.add( expr= w <= (x.ub * y) + (x * y.lb) - (x.ub * y.lb))
-        
-        # if x.lb >= 0 and y.ub >= 0:
-        #     constraints.add( expr= w <= (x * y.ub) + (x.lb * y) - (x.lb * y.ub))
-            
-        # if x.ub >= 0 and y.ub >= 0:
-        #     # add cuts
-        #     constraints.add( expr= w >= (x.ub * y) + (x * y.ub) - (x.ub * y.ub))

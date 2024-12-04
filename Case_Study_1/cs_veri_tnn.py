@@ -245,7 +245,7 @@ for l in range(depth):
     b_k = parameters[f"{layer_name}_{count}",'b_k']
     b_v = parameters[f"{layer_name}_{count}",'b_v']
     b_o = parameters[f"{layer_name}_{count}",'b_o']
-    transformer.add_attention( prev, f"attention_output_{count}", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from="keras")
+    transformer.add_attention( prev, f"attention_output_{count}", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, norm_softmax=True)
     prev = f"attention_output_{count}"
     
     # Residual 

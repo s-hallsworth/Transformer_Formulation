@@ -193,7 +193,7 @@ def reactor_tnn(opt_model, parameters,layer_outputs_dict,activation_dict, config
     b_v = parameters[layer,'b_v']
     b_o = parameters[layer,'b_o']
         
-    transformer.add_attention( "enc_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from='keras')
+    transformer.add_attention( "enc_norm_1", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, norm_softmax=True)
     
     # add res+norm2
     layer = "enc__layer_normalization_2"
@@ -228,7 +228,7 @@ def reactor_tnn(opt_model, parameters,layer_outputs_dict,activation_dict, config
     b_k = parameters[layer,'b_k']
     b_v = parameters[layer,'b_v']
     b_o = parameters[layer,'b_o']
-    transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, tnn_from='keras')
+    transformer.add_attention( "enc_norm_3", layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, norm_softmax=True)
     
     #add res+norm2
     layer = "enc__layer_normalization_4"
@@ -305,7 +305,7 @@ def reactor_tnn(opt_model, parameters,layer_outputs_dict,activation_dict, config
     b_v = parameters[layer,'b_v']
     b_o = parameters[layer,'b_o']
     
-    dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, mask=True, tnn_from='keras')
+    dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, mask=True, norm_softmax=True)
     
     # Dec add res+norm2
     layer = "dec__layer_normalization_2"
@@ -332,7 +332,7 @@ def reactor_tnn(opt_model, parameters,layer_outputs_dict,activation_dict, config
     b_o = parameters["dec__multi_head_attention_1",'b_o']
     
     layer = layer 
-    dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_5", tnn_from='keras')
+    dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_5", norm_softmax=True)
 
     
     # add res+norm3
@@ -379,7 +379,7 @@ def reactor_tnn(opt_model, parameters,layer_outputs_dict,activation_dict, config
     b_v = parameters[layer,'b_v']
     b_o = parameters[layer,'b_o']
 
-    dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, mask=True, tnn_from='keras')
+    dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, mask=True, norm_softmax=True)
     
     # Dec add res+norm2
     layer = "dec__layer_normalization_5"
@@ -406,7 +406,7 @@ def reactor_tnn(opt_model, parameters,layer_outputs_dict,activation_dict, config
     b_o = parameters[layer,'b_o']
     
     layer = layer 
-    dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_5", tnn_from='keras')
+    dec_in = transformer.add_attention( dec_in, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output="enc_norm_5", norm_softmax=True)
 
     
     # add res+norm6
