@@ -16,27 +16,27 @@ from typing import Union
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 def activate_envelope_att(model):
-        model.constr_convex.deactivate()
-        model.constr_concave.deactivate() 
-        model.constr_convex_tp.deactivate()
-        model.constr_convex_tp_sct.deactivate()
-        model.constr_concave_tp.deactivate()
-        model.constr_concave_tp_sct.deactivate()
+    model.constr_convex.deactivate()
+    model.constr_concave.deactivate() 
+    model.constr_convex_tp.deactivate()
+    model.constr_convex_tp_sct.deactivate()
+    model.constr_concave_tp.deactivate()
+    model.constr_concave_tp_sct.deactivate()
 
-        if model.s_cv == 0: # --> convex region only
-            model.constr_convex.activate()
-        elif model.s_cc == 0: # --> concave region only
-            model.constr_concave.activate() 
-        else: # in both regions
-            if model.t_cv == 0: # --> if x <= x_cv_tiepoint -->convex region
-                model.constr_convex_tp.activate()
-            elif model.t_cv == 1: # -->concave region
-                model.constr_convex_tp_sct.activate()
-                
-            if model.t_cc == 0: # --> if x >= x_cc_tiepoint -->concave region
-                model.constr_concave_tp.activate()
-            elif model.t_cc == 1:# --> convex region
-                model.constr_concave_tp_sct.activate()
+    if model.s_cv == 0: # --> convex region only
+        model.constr_convex.activate()
+    elif model.s_cc == 0: # --> concave region only
+        model.constr_concave.activate() 
+    else: # in both regions
+        if model.t_cv == 0: # --> if x <= x_cv_tiepoint -->convex region
+            model.constr_convex_tp.activate()
+        elif model.t_cv == 1: # -->concave region
+            model.constr_convex_tp_sct.activate()
+            
+        if model.t_cc == 0: # --> if x >= x_cc_tiepoint -->concave region
+            model.constr_concave_tp.activate()
+        elif model.t_cc == 1:# --> convex region
+            model.constr_concave_tp_sct.activate()
 
 class Transformer:
     """ 
@@ -49,6 +49,7 @@ class Transformer:
                               If this value is not specified (None) a default set of bounds and cuts will be used. 
                               This configuration corresponds to "All in the associated thesis document.
     """
+    
     def __init__(self, hyper_params:Union[list,str], opt_model, set_bound_cut=None):
         """
         Initializes the Transformer optimization model with specified hyperparameters and bound/cut configurations.
