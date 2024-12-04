@@ -1,7 +1,6 @@
 *\pyomo_env*
 *\pyomo_venv2
-__pycache__
-.\OneDrive\Thesis\Gurobi
+*\__pycache__
 *.cfg
 *.pth
 .\Case_Study_1\data

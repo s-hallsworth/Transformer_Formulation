@@ -50,6 +50,61 @@ class Transformer:
                               This configuration corresponds to "All in the associated thesis document.
     """
     def __init__(self, hyper_params:Union[list,str], opt_model, set_bound_cut=None):
+        """
+        Initializes the Transformer optimization model with specified hyperparameters and bound/cut configurations.
+
+        Args:
+            hyper_params (Union[list, str]): 
+                Hyperparameters of the Transformer model. Can be provided either as:
+                - A list: [sequence_length (N), embedding_dimensions (d_model), head_size (d_k), number_of_heads (d_H), input_dimensions (input_dim), epsilon (layer_norm_epsilon)].
+                - A string: Path to a JSON file containing the hyperparameters in the following format:
+                ```json
+                {
+                    "hyper_params": {
+                        "N": <sequence_length>,
+                        "d_model": <embedding_dimensions>,
+                        "d_k": <head_size>,
+                        "d_H": <number_of_heads>,
+                        "input_dim": <input_dimensions>,
+                        "epsilon": <layer_norm_epsilon>
+                    }
+                }
+                ```
+            opt_model (pyomo.ConcreteModel): 
+                The Pyomo optimization model instance where the Transformer formulation will be added.
+            set_bound_cut (dict, optional): 
+                A dictionary specifying which bounds and cuts to activate. If None, default values are applied. Keys include:
+                - "embed_var"
+                - "LN_var"
+                - "MHA_softmax_env", "MHA_Q", "MHA_K", "MHA_V", "MHA_attn_weight_sum", "MHA_attn_weight"
+                - "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_QK_MC", "MHA_WK_MC"
+                - "MHA_attn_score", "MHA_output", "RES_var", "AVG_POOL_var".
+                Defaults to None, which activates a predefined set of bounds and cuts optimized for typical use cases.
+
+        Attributes:
+            M (pyomo.ConcreteModel): 
+                The optimization model instance to which the Transformer components will be added.
+            N (int): 
+                The sequence length of the encoder.
+            d_model (int): 
+                The embedding dimensions of the Transformer model.
+            d_k (int): 
+                The size of each attention head.
+            d_H (int): 
+                The number of attention heads in the model.
+            input_dim (int): 
+                The input dimension for the model.
+            epsilon (float): 
+                A small value added for numerical stability in layer normalization.
+            bound_cut_activation (dict): 
+                A dictionary indicating which bounds and cuts are active.
+            model_dims (pyomo.Set): 
+                A Pyomo set initialized with the model dimensions (0 to d_model-1).
+
+        Notes:
+            - Prints the percentage of activated bounds and cuts during initialization.
+            - The `set_bound_cut` argument allows flexibility in configuring specific bounds and cuts for model optimization.
+        """
         # Define optimisation model
         self.M = opt_model
 
