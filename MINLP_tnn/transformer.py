@@ -1813,21 +1813,27 @@ class Transformer:
                 
         return residual_var
     
-    def __get_indices(self, input_var):
-        # Get indices of var
-        indices = str(input_var.index_set()).split('*')
-        indices_len = len(indices)
-        indices_attr = []
-        for i in indices:
-            try: 
-                indices_attr += [getattr(self.M, i)]
-            except:
-                raise ValueError('Input variable not indexed by a pyomo Set')
-        
-        return indices_len, indices_attr
     
     def add_FFN_2D(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters, bounds = (-2, 2), formulation=ReluBigMFormulation):
-        """ Add FFN using OMLT """
+        """
+        Adds a 2D feed-forward neural network (FFN) using OMLT which works with Pyomo models.
+
+        This method integrates a trained FFN into the Pyomo model, enabling it to
+        interact with optimization problems. The FFN's parameters are defined using
+        OMLT formulations.
+
+        Args:
+            input_var_name (Union[pyo.Var, str]): The name of or reference to the input Pyomo variable.
+            output_var_name (str): The name of the output Pyomo variable.
+            nn_name (str): Name of the neural network.
+            input_shape (tuple): Shape of the input layer for the FFN.
+            model_parameters (dict): Weights and biases of the FFN.
+            bounds (tuple, optional): Bounds for the input variables. Defaults to (-2, 2).
+            formulation: OMLT formulation class for the FFN. Defaults to ReluBigMFormulation.
+
+        Returns:
+            pyo.Var: The Pyomo variable for the FFN output.
+        """
         
         # Get input var
         if not isinstance(input_var_name, pyo.Var):
@@ -1887,7 +1893,25 @@ class Transformer:
         return output_var
     
     def get_fnn(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters):
-        """ Helper to add GurobiML feed forward Neural Network"""
+        """ 
+        Helper function to define a GurobiML feed-forward neural network (FFN).
+
+        This method prepares a trained FFN to be create a GurobiML FFN. The outputs of this function are used to create
+        a GurobiML FFN after the Pyomo model has been converted to a Gurobipy model. 
+
+        Args:
+            input_var_name (Union[pyo.Var, str]): The name of or reference to the input Pyomo variable.
+            output_var_name (str): The name of the output Pyomo variable.
+            nn_name (str): Name of the neural network.
+            input_shape (tuple): Shape of the input layer for the FFN.
+            model_parameters (dict): Weights and biases of the FFN.
+
+        Returns:
+            tuple:
+                - NetDef: The FFN's network definition.
+                - pyo.Var: The input Pyomo variable.
+                - pyo.Var: The output Pyomo variable.
+        """
         # Get input var
         if not isinstance(input_var_name, pyo.Var):
             input_var = getattr(self.M, input_var_name)
@@ -1918,6 +1942,19 @@ class Transformer:
             
         
     def add_avg_pool(self, input_var_name:Union[pyo.Var,str], output_var_name):
+        """
+        Adds an average pooling layer over the time dimension.
+
+        This method computes the average of a Pyomo variable over the sequence dimension
+        and creates a new variable for the pooled output.
+
+        Args:
+            input_var_name (Union[pyo.Var, str]): The name of or reference to the input Pyomo variable.
+            output_var_name (str): The name of the output Pyomo variable.
+
+        Returns:
+            pyo.Var: The Pyomo variable for the average pooled output.
+        """
         # Get input
         if not isinstance(input_var_name, pyo.Var):
             input_var = getattr(self.M, input_var_name)
@@ -1946,7 +1983,7 @@ class Transformer:
         else:
             raise ValueError('Attempting to overwrite variable')
 
-        # Compute average over feature dimension
+        # Compute average over sequence dimension
         for d in model_dims : 
             constraints.add(expr= output_var[d] * self.N == sum(input_var[t,d] for t in time_dim))
             
@@ -1960,7 +1997,20 @@ class Transformer:
         return output_var
     
     def __McCormick_bb(self, w, x, y):
-        """ Add McMcormick envelope for bilinear variable w = x * y"""
+        """ 
+        Adds McCormick envelope constraints for a bilinear variable.
+
+        This method approximates the bilinear product `w = x * y` using McCormick
+        envelopes.
+
+        Args:
+            w (pyo.Var): The Pyomo variable representing the bilinear product.
+            x (pyo.Var): The first input Pyomo variable.
+            y (pyo.Var): The second input Pyomo variable.
+
+        Returns:
+            None
+        """
         
         # Create constraint list for layer
         if not hasattr( self.M, "mccormick_bb_constr_list"):
@@ -1972,3 +2022,29 @@ class Transformer:
         constraints.add( expr= w <= (x.ub * y) + (x * y.lb) - (x.ub * y.lb))
         constraints.add( expr= w <= (x * y.ub) + (x.lb * y) - (x.lb * y.ub))
         constraints.add( expr= w >= (x.ub * y) + (x * y.ub) - (x.ub * y.ub))
+
+    def __get_indices(self, input_var):
+        """
+        Extracts the indices of a Pyomo variable indexed by a set.
+
+        This method retrieves the length and attributes of the indices used
+        for the provided Pyomo variable.
+
+        Args:
+            input_var (pyo.Var): The input Pyomo variable to extract indices from.
+
+        Returns:
+            tuple:
+                - int: Length of the indices.
+                - list: List of attributes corresponding to the Pyomo sets.
+        """
+        indices = str(input_var.index_set()).split('*')
+        indices_len = len(indices)
+        indices_attr = []
+        for i in indices:
+            try: 
+                indices_attr += [getattr(self.M, i)]
+            except:
+                raise ValueError('Input variable not indexed by a pyomo Set')
+        
+        return indices_len, indices_attr
