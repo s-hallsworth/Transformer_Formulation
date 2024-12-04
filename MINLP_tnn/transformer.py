@@ -101,38 +101,52 @@ class Transformer:
         if not hasattr( self.M, "model_dims"):
             self.M.model_dims = pyo.Set(initialize= list(range(self.d_model)))
 
-    def build_from_hug_torch(self, tnn_model sample_enc_input, sample_dec_input, enc_bounds = None , dec_bounds = None, Transformer='pytorch', default=True, hugging_face_dict=None):
+    def build_from_hug_torch(self, tnn_model, sample_enc_input, sample_dec_input, enc_bounds = None , dec_bounds = None, Transformer='pytorch', default=True, hugging_face_dict=None):
         """ 
         Constructs a mathematical formulation of a trained PyTorch or HuggingFace Transformer model with both encoder and decoder components.
 
         Args:
-            tnn_model (torch.nn.Module, TimeSeriesTransformerForPrediction): The trained Transformer model to be formulated.
-            sample_enc_input (torch.Tensor): Sample input tensor for the encoder to extract model dimensions and structure.
-            sample_dec_input (torch.Tensor): Sample input tensor for the decoder to extract model dimensions and structure.
-            enc_bounds (tuple, optional): Upper and lower bounds on encoder input values. Defaults to None.
-            dec_bounds (tuple, optional): Upper and lower bounds on decoder input values. Defaults to None.
-            Transformer (str): Type of transformer model ('pytorch' or 'huggingface'). Defaults to 'pytorch'.
-            default (bool): Whether to build the default architecture or parse from the layer structure. Defaults to True. 
-                            NB: Parsing issues may occur for layers are not implemented as modules in the TNNs architecture. 
-                                For example, residual layers are generally not included in the module list. In this case their
-                                position is inferred since they tend to occur with normalisation layers in the encoder and decoder blocks.
-            hugging_face_dict (dict, optional): Additional parameters for HuggingFace layer components. Required if `Transformer='huggingface'`.
-                                                Example:
-                                                hugging_face_dict = {}
-                                                hugging_face_dict["past_values"] =  past_values
-                                                hugging_face_dict["past_time_features"] = past_time_features
-                                                hugging_face_dict["past_observed_mask"] = past_observed_mask
-                                                hugging_face_dict["future_time_features"] = future_time_features
+            tnn_model (torch.nn.Module, TimeSeriesTransformerForPrediction): 
+                The trained Transformer model to be formulated.
+            sample_enc_input (torch.Tensor): 
+                Sample input tensor for the encoder to extract model dimensions and structure.
+            sample_dec_input (torch.Tensor): 
+                Sample input tensor for the decoder to extract model dimensions and structure.
+            enc_bounds (tuple, optional): 
+                A tuple specifying the upper and lower bounds on encoder input values. Defaults to None.
+            dec_bounds (tuple, optional): 
+                A tuple specifying the upper and lower bounds on decoder input values. Defaults to None.
+            Transformer (str, optional): 
+                Specifies the type of transformer model ('pytorch' or 'huggingface'). Defaults to 'pytorch'.
+            default (bool, optional): 
+                Indicates whether to build the default architecture or parse the model's layer structure. Defaults to True.
+                **Note**: Parsing issues may occur for layers not implemented as modules in the model architecture. For example, 
+                residual layers are often excluded from the module list and are inferred based on their typical placement 
+                (e.g., alongside normalization layers in encoder and decoder blocks).
+            hugging_face_dict (dict, optional): 
+                Additional parameters required for HuggingFace layer components if `Transformer='huggingface'`. Example structure:
+                ```
+                hugging_face_dict = {
+                    "past_values": past_values,
+                    "past_time_features": past_time_features,
+                    "past_observed_mask": past_observed_mask,
+                    "future_time_features": future_time_features
+                }
+                ```
 
         Returns:
-            list: A list containing the input variable name, output variable name, and a dictionary of feed-forward network parameters.
+            list: 
+                A list containing:
+                - The input variable name (str).
+                - The output variable name (str).
+                - A dictionary of feed-forward network parameters (dict).
         """
         
         # Parse to extract model archicture information and learnt parameters
         if Transformer == 'pytorch':
-            layer_names, parameters, _, enc_dec_count, _ = get_pytorch_learned_parameters(tnn_model sample_enc_input, sample_dec_input ,self.d_H, self.N)
+            layer_names, parameters, _, enc_dec_count, _ = get_pytorch_learned_parameters(tnn_model, sample_enc_input, sample_dec_input ,self.d_H, self.N)
         elif Transformer == 'huggingface':
-            layer_names, parameters, _, enc_dec_count, _ = get_hugging_learned_parameters(tnn_model sample_enc_input, sample_dec_input ,self.d_H, hugging_face_dict)
+            layer_names, parameters, _, enc_dec_count, _ = get_hugging_learned_parameters(tnn_model, sample_enc_input, sample_dec_input ,self.d_H, hugging_face_dict)
     
         # Build transformer
         if default: # build default pytorch architecture
