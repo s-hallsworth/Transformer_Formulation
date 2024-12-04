@@ -8,44 +8,91 @@ import collections
 from torch.nn import ReLU, SiLU
 #from vit_TNN import *
 
+"""
+The functions in this file parse the trained TNN models in order to create the optimisation-based formulation. 
+
+The functions extract the layer names and their associated weights, biases, activations and outputs. 
+The outputs of the trained TNN model can be used to verify the formulated TNN.
+
+Parsing functions are included for:
+    - Keras
+    - HuggingFace
+    - Pytorch
+    - Custom Pytorch-based Vision Transformer (ViT)
+"""
+
 def get_weights(model_path, save_json=True, file_name="model_weights.json"):
     """
-    Save weights of pre-trained keras model to json file with layer name appended
+    Extracts and saves the weights of a pre-trained Keras model to a JSON file.
+
+    Args:
+        model_path (str): Path to the pre-trained Keras model file.
+        save_json (bool, optional): Whether to save the weights to a JSON file. Defaults to True.
+        file_name (str, optional): Name of the JSON file to save weights. Defaults to "model_weights.json".
+
+    Returns:
+        tuple: 
+            - model_weights (dict): A dictionary containing the weights of the model.
+            - model (keras.Model): The loaded Keras model.
+
+    Notes:
+        - Prints a model summary
+        - If `save_json` is True, the weights are saved in JSON format instead of being returned.
     """
-    
-    # load pre-trained model
+
+    # Load pre-trained model
     model = keras.models.load_model(model_path)
 
-    # print model summary
-    # print("--- Model Summary ---")
-    # model.summary()
+    # Print model summary
+    print("--- Model Summary ---")
+    model.summary()
 
-    # extract weights
+    # Extract weights
     model_weights = {}
-
     for layer in model.layers:
         weights = layer.get_weights()
         if weights:  
             model_weights[layer.name] = [w.tolist() for w in weights]  
 
-    #save weights 
+    # Save weights 
     if save_json:   
         with open(file_name, 'w') as json_file:
             json.dump(model_weights, json_file)
             
         print(f"Weights of the model have been saved to {file_name}")
     
+    # Return weights and model
     else: 
         return model_weights, model       
 
 def get_learned_parameters(model_path):
     """
-    Read model parameters and store in dict with associated name
+    Extracts learnt parameters from a pre-trained Keras model (encoder only) and organizes them into a dictionary.
+
+    Args:
+        model_path (str): Path to the pre-trained Keras model file.
+
+    Returns:
+        tuple:
+            - layer_names (list): A list of layer names extracted from the model.
+            - dict_transformer_params (dict): A dictionary mapping layer names to their parameters (weights, biases, activations).
+            - model (keras.Model): The loaded Keras model.
+
+    Notes:
+        - Layers such as dropout are skipped during parameter extraction.
+        - Supports Layer Normalization, Multi-Head Attention, Conv2D, and Dense layers.
     """
-    
+
+    # Get weights
     transformer_weights, model = get_weights(model_path, save_json=False)
+    
+    # Get layer names
     model_layers = [x.name for x in model.layers if "dropout" not in x.name]
+    
+    # Get layer outputs
     model_outputs = [layer.output for layer in model.layers if "dropout" not in layer.name]
+    
+    # Get activation functions used in layer
     model_activations = []
     for layer in model.layers:
         if "dropout" in layer.name:
@@ -57,7 +104,7 @@ def get_learned_parameters(model_path):
         else:
             model_activations += [None]
 
-    # create dictionary with parameters
+    # Create dictionary with parameters
     dict_transformer_params = {}
     layer_names = []
     count_LN = 0
@@ -66,14 +113,17 @@ def get_learned_parameters(model_path):
     count_Dense = 0
     count_Layers = 0
     
+    # For each layer
     for i in range(len(model_layers)):
         layer_name = model_layers[i]
         
+        # Get layer parameters
         try:
             parameters =  transformer_weights[layer_name]
         except:
             continue
         
+        # Create dict with layer names and associated parameters
         if 'LAYER_NORM' in layer_name.upper():
             count_LN += 1
             new_layer_name = 'layer_normalization_'+str(count_LN)
@@ -81,7 +131,7 @@ def get_learned_parameters(model_path):
                 dict_transformer_params[(new_layer_name , 'gamma')] = parameters[0]
                 dict_transformer_params[(new_layer_name , 'beta')] = parameters[1] 
                 
-            # else may contain gamma and beta parameters
+            # else may contain gamma or beta parameters
         
         if 'MULTI_HEAD_ATTENTION' in layer_name.upper():  
             count_MHA += 1
@@ -111,10 +161,8 @@ def get_learned_parameters(model_path):
             
         if 'DENSE' in layer_name.upper(): 
             # if previous layer also dense, count as part of previous FFN
-            if 'DENSE' in model_layers[i-1].upper(): # and model_activations[i-1] == model_activations[i]: 
+            if 'DENSE' in model_layers[i-1].upper(): 
                 count_Layers += 1
-                #new_layer_name = 'dense_'+str(count_Layers)
-                
                 dict_transformer_params[NN_name] |= { "dense_"+str(count_Layers): {'W': parameters[0], 'b': parameters[1], 'activation': model_activations[i]}}
             
             # else create new ffn in dict 
@@ -123,8 +171,6 @@ def get_learned_parameters(model_path):
                 count_Dense += 1
                 NN_name = 'ffn_'+str(count_Dense)
                 new_layer_name = NN_name
-                #new_layer_name = 'dense_'+str(count_Layers)
-               
                 dict_transformer_params[NN_name] = {'input_shape': model_outputs[i-1].shape, 
                                                     'input': model_outputs[i-1],
                                                      "dense_"+str(count_Layers): {'W': parameters[0], 'b': parameters[1], 'activation': model_activations[i]}}  
@@ -134,8 +180,22 @@ def get_learned_parameters(model_path):
     return layer_names, dict_transformer_params, model
 
 def get_intermediate_values(model_path, sample_input, file_name=None):
-    
-    # load pre-trained model
+    """
+    Extracts and saves the intermediate outputs of each layer in a Keras model for a given input.
+
+    Args:
+        model_path (str): Path to the pre-trained Keras model file.
+        sample_input (numpy.ndarray): Input data to the model.
+        file_name (str, optional): Name of the file to save the intermediate outputs. Defaults to None.
+
+    Returns:
+        dict: A dictionary mapping layer names to their intermediate outputs.
+
+    Notes:
+        - If `file_name` is provided, the outputs are saved to a JSON file.
+    """
+
+    # Load pre-trained model
     model = keras.models.load_model(model_path)
 
     # Create a new model that outputs every layer's output
@@ -145,7 +205,7 @@ def get_intermediate_values(model_path, sample_input, file_name=None):
     # Make predictions
     outputs = model_multi_output.predict(sample_input)
     
-    # format and save
+    # Format as dict
     outputs_list = [output.tolist() for output in outputs]
     layer_outputs_dict = {}
     layer_names = []
@@ -161,7 +221,7 @@ def get_intermediate_values(model_path, sample_input, file_name=None):
         layer_outputs_dict[layer_name+'_'+str(count)] = outputs_list[i]
         layer_names += [layer_name]
         
-
+    # Save to json file
     if file_name:
         with open(file_name, 'w') as file:
             json.dump(layer_outputs_dict, file, indent=4)
@@ -172,9 +232,23 @@ def get_intermediate_values(model_path, sample_input, file_name=None):
 
 def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json'):
     """
-    Save weights of pre-trained PyTorch model to json file with layer name appended.
+    Extracts and saves the weights and biases of a pre-trained PyTorch model.
+
+    Args:
+        model (torch.nn.Module): The PyTorch model.
+        save_json (bool, optional): Whether to save the weights to a JSON file. Defaults to True.
+        file_name (str, optional): Name of the JSON file to save weights. Defaults to "./weights.json".
+
+    Returns:
+        tuple: 
+            - model_weights (dict): A dictionary mapping layer names to weights.
+            - model_bias (dict): A dictionary mapping layer names to biases.
+
+    Notes:
+        - If `save_json` is True, the weights are saved in JSON format instead of being returned.
     """
-    
+
+    # Set model to evaluation mode
     model.eval()
 
     # Extract weights
@@ -207,13 +281,31 @@ def get_pytorch_model_weights(model, save_json=True, file_name='.\weights.json')
     
 def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, sequence_size=None):
     """
-    Read model parameters and store in dict with associated name. 
+    Extracts learnt parameters from a pre-trained PyTorch Transformer model (with encoder and decoder) and organizes them into a dictionary.
+
+    Args:
+        model (torch.nn.Module): The PyTorch Transformer model.
+        enc_input (torch.Tensor): Input tensor for the encoder.
+        dec_input (torch.Tensor): Input tensor for the decoder.
+        num_heads (int): Number of attention heads in the Transformer model.
+        sequence_size (int, optional): Sequence size for the input data. Defaults to None.
+
+    Returns:
+        tuple:
+            - layer_names (list): A list of layer names extracted from the model.
+            - dict_transformer_params (dict): A dictionary mapping layer names to their parameters (weights, biases, activations).
+            - model (torch.nn.Module): The original model.
+            - counts (list): List containing counts of encoder and decoder layers.
+            - dict_outputs (dict): Dictionary of layer outputs.
+
+    Notes:
+        - Supports hooks to extract activations and shapes during the forward pass.
     """
+
 
     src = torch.as_tensor(enc_input).float()
     enc_prefix = "enc"
     dec_prefix = "dec"
-    
     input_shapes = collections.OrderedDict()
     output_shapes = collections.OrderedDict()
     dict_outputs = {}
@@ -274,7 +366,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
     count_decoder_layers = 0
     next = None
     
-    # for each layer
+    # For each layer store associated parameters in dictionary
     for i, layer in enumerate(layers):
         layer_name = layer #[0]
         new_layer_name = None
@@ -302,7 +394,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
             prefix = ""
             suffix = ""
 
-        # store learned parameters for layers  in dict
+        # store learnt parameters for layers  in dict
         W_parameters = transformer_weights.get(layer_name, None)
         b_parameters = transformer_bias.get(layer_name, None)
 
@@ -322,10 +414,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                 # if embed dim = k, v dim --> weights concatinated in in_proj (see pytorch doc)
                 W_parameters = transformer_weights.get(layer_name + ".in_proj")
                 b_parameters = transformer_bias.get(layer_name + ".in_proj", None)
-                
-                # print("weight shape: ", np.array(W_parameters).shape)
-                # print("bias shape: ",np.array(b_parameters).shape)
-                
+
                 if "self" in layer_name.lower():
                     emb_shape = [int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3), int(np.array(W_parameters).shape[0]/3)]
                 elif "multihead" in layer_name.lower():
@@ -334,15 +423,14 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                     
                     #cross attention calculates Q from dec inut but K, V from encoder output
                     emb_shape = [size_input_mha, size_output_encoder, size_output_encoder]
+                    
                 W_q, W_k, W_v = torch.split(torch.tensor(W_parameters), emb_shape)
-                # print("weight shape: ", W_q.shape)
+
                 if b_parameters:
                     b_q, b_k, b_v = torch.split(torch.tensor(b_parameters), emb_shape)
                 else:
                     b_q = None
-                # print("bias shape: ",  b_q.shape)
-                    
-                
+
             except:
                 W_q = torch.tensor(transformer_weights.get(layer_name + ".q_proj"))
                 W_k = torch.tensor(transformer_weights.get(layer_name + ".k_proj"))
@@ -352,7 +440,6 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                 b_k = torch.tensor(transformer_bias.get(layer_name + ".k_proj", None))
                 b_v = torch.tensor(transformer_bias.get(layer_name + ".v_proj", None))
                 
-            
             # set name of type of attention
             if 'self_attn' in layer_name.lower():    
                 name = 'self_attention'
@@ -439,11 +526,23 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
         print(layer, new_layer_name)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
-def get_ViT_model_weights(model, save_json=True, file_name='.\weights.json'):
+def get_ViT_model_weights(model, file_name='.\weights.json'):
     """
-    Save weights of pre-trained PyTorch model to json file with layer name appended.
+    Extracts weights from a custom pre-trained Vision Transformer (ViT) model that is Pytorch based. (see: vit_TNN.py)
+
+    Args:
+        model (torch.nn.Module): The Vision Transformer model.
+        file_name (str, optional): Name of the JSON file to save weights. Defaults to "./weights.json".
+
+    Returns:
+        tuple:
+            - model_weights (dict): A dictionary mapping layer names to weights.
+            - model_bias (dict): A dictionary mapping layer names to biases.
+            - cls_token (list): Class token from the model (learnt parameter).
+            - pos_embedding (list): Position embeddings from the model (learnt parameter).
     """
-    
+
+    # Set model to evaluation mode
     model.eval()
 
     # Extract weights
@@ -452,6 +551,7 @@ def get_ViT_model_weights(model, save_json=True, file_name='.\weights.json'):
     cls_token = []
     pos_embedding = []
     
+    # Parse model for cls, positonal encoding, weights and biases
     for name, param in model.named_parameters():
         
         if "cls" in name:
@@ -473,20 +573,27 @@ def get_ViT_model_weights(model, save_json=True, file_name='.\weights.json'):
                     new_name = new_name[:-1]
                 model_bias[new_name] = param.detach().cpu().numpy().tolist()
                 
-        
-    # Save weights
-    if save_json:
-        with open(file_name, 'w') as json_file:
-            json.dump(model_weights, json_file)
-            
-        print(f"Weights of the model have been saved to {file_name}")
-    
-    else:
-        return model_weights, model_bias, cls_token, pos_embedding
+    return model_weights, model_bias, cls_token, pos_embedding
 
 def get_torchViT_learned_parameters(model, enc_input, num_heads):
     """
-    Read model parameters and store in dict with associated name. 
+    Extracts learnt parameters from a custom pre-trained Vision Transformer (ViT) model that is Pytorch based. (see: vit_TNN.py)
+
+    Args:
+        model (torch.nn.Module): The Vision Transformer model.
+        enc_input (torch.Tensor): Input tensor for the encoder.
+        num_heads (int): Number of attention heads in the model.
+
+    Returns:
+        tuple:
+            - layer_names (list): A list of layer names extracted from the model.
+            - dict_transformer_params (dict): A dictionary mapping layer names to their parameters (weights, biases, activations).
+            - model (torch.nn.Module): The original ViT model.
+            - dict_outputs (dict): Dictionary of layer outputs.
+
+    Notes:
+        - Handles position embeddings and class tokens.
+        - Uses hooks to capture intermediate values during a forward pass.
     """
     if not torch.is_tensor(enc_input):
         src = torch.as_tensor(enc_input).float()
@@ -554,7 +661,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
     count_layer_names = []
     next = None
     
-    #save cls token and pos embedding learned params:
+    #save cls token and pos embedding learnt params:
     dict_transformer_params['cls_token'] = cls_token
     dict_transformer_params['pos_embedding'] = pos_embedding
     
@@ -565,7 +672,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
         prefix = ""
         suffix = ""
 
-        # store learned parameters for layers  in dict
+        # store learnt parameters for layers  in dict
         W_parameters = transformer_weights.get(layer_name, None)
         b_parameters = transformer_bias.get(layer_name, None)
 
@@ -676,14 +783,32 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
                 dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
                 dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
-        #print(layer, layer_name, new_layer_name)
     return layer_names, dict_transformer_params, model, dict_outputs
 
 
 def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, hugging_face_dict):
     """
-    Read model parameters and store in dict with associated name. 
+    Extracts learned parameters from a HuggingFace Transformer model.
+
+    Args:
+        model (transformers.PreTrainedModel): The HuggingFace Transformer model.
+        enc_input (torch.Tensor): Input tensor for the encoder.
+        dec_input (torch.Tensor): Input tensor for the decoder.
+        num_heads (int): Number of attention heads in the model.
+        hugging_face_dict (dict): Dictionary of additional input parameters for HuggingFace models.
+
+    Returns:
+        tuple:
+            - layer_names (list): A list of layer names extracted from the model.
+            - dict_transformer_params (dict): A dictionary mapping layer names to their parameters (weights, biases, activations).
+            - model (transformers.PreTrainedModel): The original HuggingFace model.
+            - counts (list): List containing counts of encoder and decoder layers.
+            - dict_outputs (dict): Dictionary of layer outputs.
+
+    Notes:
+        - Hooks are registered to capture layer activations and shapes during a forward pass.
     """
+
     
     from transformers.src.transformers.activations import SiLUActivation
     from transformers.src.transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
@@ -792,7 +917,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
             prefix = ""
             suffix = ""
 
-        # store learned parameters for layers  in dict
+        # store learnt parameters for layers  in dict
         W_parameters = transformer_weights.get(layer_name, None)
         b_parameters = transformer_bias.get(layer_name, None)
 
@@ -913,19 +1038,35 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
             dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
             dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
-        print(layer, new_layer_name)
-    #print(layer_names)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
 def arrange_qkv(W, num_heads):
-    " reshape W to match expected shape when reading weights [model_dims, num heads * qkv_dim] --> [model_dims, num heads, qkv_dim]"
+    """
+    Utility function W to match expected shape when reading weights [model_dims, num heads * qkv_dim] --> [model_dims, num heads, qkv_dim]
+
+    Args:
+        W (torch.Tensor): Weight tensor to be rearranged.
+        num_heads (int): Number of attention heads in the model.
+
+    Returns:
+        torch.Tensor: Reshaped weight tensor in the desired format.
+    """
     model_dims = W.shape[-1]
     qkv_dim = int(model_dims/num_heads)
     W = W.view(num_heads, qkv_dim, model_dims) #[h,k,d]
     return W.permute(2,0,1) #[d,h,k]
 
 def arrange_o(W, num_heads):
-    " reshape W to match expected shape [ num heads, qkv_dim, model_dims]"
+    """
+    Utility function to reshape W to match expected shape [ num heads, qkv_dim, model_dims]
+
+    Args:
+        W (torch.Tensor): Weight tensor to be rearranged.
+        num_heads (int): Number of attention heads in the model.
+
+    Returns:
+        torch.Tensor: Reshaped weight tensor in the desired format.
+    """
     W = torch.tensor(W) # [d, h*k]
     model_dims = W.shape[-1]
     qkv_dim = int(model_dims/num_heads)
@@ -934,6 +1075,23 @@ def arrange_o(W, num_heads):
     return W.permute(1,2,0) #[h, k, d]
 
 def get_pytorch_intermediate_values(model, sample_input1, sample_input2, sequence_size):
+    """
+    Extracts intermediate outputs of all layers in a PyTorch model for a given input.
+
+    Args:
+        model (torch.nn.Module): The PyTorch model.
+        sample_input1 (torch.Tensor): Encoder input tensor to the model.
+        sample_input2 (torch.Tensor): Decoder input tensor to the model.
+        sequence_size (int): Size of the sequence for input data.
+
+    Returns:
+        dict: A dictionary mapping layer names to their intermediate outputs.
+
+    Notes:
+        - Hooks are registered to capture layer outputs during the forward pass.
+        - Layers with dropout are skipped.
+    """
+
     model.eval()
     sample_input1 = torch.as_tensor(sample_input1)
     sample_input2 = torch.as_tensor(sample_input2)
