@@ -7,7 +7,41 @@ import numpy as np
 import omlt
 import re
 
+"""
+This file contains helper functions to parse a Pyomo model and convert it to a Gurobi model.
+"""
+
 def to_gurobi(pyomo_model, func_nonlinear=1):
+    """
+    Converts a Pyomo optimization model to a Gurobi optimization model.
+
+    Args:
+        pyomo_model (pyomo.ConcreteModel): 
+            A Pyomo model containing variables, constraints, and an objective function.
+        func_nonlinear (int, optional): 
+            Specifies how nonlinear functions (like exp()) are handled. Defaults to 1.
+            - 0: Piecewise linear approximation.
+            - 1: Outer approximation of the function.
+            - -1: Controlled by Gurobi's `FuncNonlinear` parameter.
+
+    Returns:
+        tuple: 
+            - gurobi_model (gurobipy.Model): A Gurobi model equivalent to the input Pyomo model.
+            - var_map (dict): A mapping from Pyomo variables to Gurobi variables.
+            - block_map (dict): A mapping from Pyomo blocks to corresponding Gurobi representations.
+
+    Raises:
+        ValueError: If unsupported functions or expressions are encountered.
+
+    Notes:
+        - Handles Pyomo variables, parameters, and blocks, including OMLT blocks for neural networks.
+        - Supports a wide range of Pyomo expression types, including:
+            - LinearExpression
+            - ProductExpression
+            - SumExpression
+            - UnaryFunctionExpression (exp, log, sqrt, abs)
+            - MaxExpression, MinExpression, and more (See: expr_to_gurobi()).
+    """
     
     # Create gurobi model with same name as pyomo model
     gurobi_model = Model(pyomo_model.name)
@@ -44,9 +78,7 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
                                             
                                             if isinstance(block_attr2, dict) and isinstance(list(block_attr2.keys())[0], int):
                                                 for index, obj in block_attr2.items():    
-                                                    var_map, block_map = convert_block(obj, var_map, gurobi_model, block_map)      
-                                # else:
-                                #     var_map, block_map = convert_block(var[index], var_map, gurobi_model)   
+                                                    var_map, block_map = convert_block(obj, var_map, gurobi_model, block_map)       
                             else:
                                 var_map, block_map = convert_block(var[index], var_map, gurobi_model, block_map)    
             else:
@@ -68,12 +100,8 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
        
     # Convert constraints
     for con in pyomo_model.component_objects(pyo.Constraint, active=True): 
-        #print(con)
         for index in con:
-            #print("-", con[index])
             lhs, rhs = con[index].expr.args
-            #print("-- ", lhs, rhs)
-            ## UNARY FUNCTIONS
             unary = False
             if isinstance(lhs, pyo_expr.numeric_expr.UnaryFunctionExpression):
                 func_equ = lhs
@@ -130,6 +158,23 @@ def to_gurobi(pyomo_model, func_nonlinear=1):
     return gurobi_model, var_map, block_map
 
 def get_gurobi_vtype(pyomo_var):
+    """
+    Determines the Gurobi variable type corresponding to a Pyomo variable's domain.
+
+    Args:
+        pyomo_var (pyomo.Var): A Pyomo variable.
+
+    Returns:
+        gurobipy.GRB.VarType: The Gurobi variable type, one of:
+            - GRB.CONTINUOUS
+            - GRB.BINARY
+            - GRB.INTEGER
+
+    Examples:
+        >>> get_gurobi_vtype(pyomo_model.x)
+        GRB.CONTINUOUS
+    """
+
     try:
         domain =  pyomo_var.domain
     except:
@@ -145,6 +190,20 @@ def get_gurobi_vtype(pyomo_var):
         return GRB.CONTINUOUS  # Default to continuous if the domain is not specified or different
 
 def convert_block(var, var_map, gurobi_model, block_map):
+    """
+    Converts a Pyomo block to its Gurobi equivalent and maps its variables. 
+    The function recursively handles blocks with block attributes.
+
+    Args:
+        var (pyomo.Block): The Pyomo block to be converted.
+        var_map (dict): Mapping from Pyomo variables to Gurobi variables.
+        gurobi_model (gurobipy.Model): The Gurobi model where the block will be added.
+        block_map (dict): Mapping from Pyomo blocks to corresponding Gurobi representations.
+
+    Returns:
+        tuple: Updated `var_map` and `block_map`.
+    """
+
     for attr in dir(var): # iterate over Block attributes
         block_attr = getattr(var, attr)
         
@@ -159,6 +218,19 @@ def convert_block(var, var_map, gurobi_model, block_map):
     return var_map, block_map
 
 def create_nested_dict(dict, var_name, gurobi_var, reg_expr="[\[\]]"):
+    """
+    Creates or updates a nested dictionary structure for mapping Pyomo variables to Gurobi variables.
+    This is necessary to convert Pyomo's indexed variables to Gurobi variables.
+
+    Args:
+        dict (dict): The dictionary to update.
+        var_name (str): Name of the Pyomo variable.
+        gurobi_var (gurobipy.Var): The Gurobi variable corresponding to the Pyomo variable.
+        reg_expr (str, optional): Regular expression to split variable names. Defaults to "[\\[\\]]".
+
+    Returns:
+        dict: Updated nested dictionary with the mapping.
+    """
     name_split = re.split(reg_expr, var_name) # split name on [, ., ]
     name_split = [elem for elem in name_split if elem] # remove empties
     
@@ -173,6 +245,19 @@ def create_nested_dict(dict, var_name, gurobi_var, reg_expr="[\[\]]"):
     return dict
                     
 def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
+    """
+    Creates equivalent Pyomo variables or parameters for the Gurobi model and updates mappings.
+
+    Args:
+        var (Union[pyomo.Var, pyomo.Param]): A Pyomo variable or parameter to convert.
+        var_map (dict): Mapping from Pyomo variables to Gurobi variables.
+        gurobi_model (gurobipy.Model): The Gurobi model where variables are added.
+        block_map (dict, optional): Mapping from Pyomo blocks to Gurobi representations. Defaults to None.
+
+    Returns:
+        tuple: Updated `var_map` and `block_map`.
+    """
+
     
     # Variables
     if isinstance(var, (pyo.Var,pyo_base.var._VarData)):
@@ -240,9 +325,6 @@ def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
                         block_map = create_nested_dict(block_map, pyomo_var.name, gurobi_var[index])
                         
                 else:
-                    # print(pyomo_var, type(pyomo_var))
-                    # print(str(var)+str(pyomo_var))
-                    
                     gurobi_var[index].lb = pyomo_var
                     gurobi_var[index].ub = pyomo_var
                     var_map[str(var)+str(pyomo_var)] = gurobi_var[index] 
@@ -260,7 +342,30 @@ def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
     return var_map, block_map
                 
 def expr_to_gurobi(expr, var_map, gurobi_model):
-    # print("expression", expr, type(expr))
+    """
+    Recursively converts a Pyomo expression into its Gurobi equivalent.
+
+    Args:
+        expr (pyomo.Expression): The Pyomo expression to convert.
+        var_map (dict): Mapping from Pyomo variables to Gurobi variables.
+        gurobi_model (gurobipy.Model): The Gurobi model where the expression will be added.
+
+    Returns:
+        tuple: 
+            - Gurobi expression equivalent to the Pyomo expression.
+            - bool: Indicator of successful conversion.
+
+    Raises:
+        ValueError: If the expression type is unsupported.
+        
+    Notes:
+        - Supports a wide range of Pyomo expression types, including:
+            - LinearExpression
+            - ProductExpression
+            - PowExpression
+            - SumExpression
+            - MaxExpression, MinExpression, and more.
+    """
     
     ## INT
     if isinstance(expr, (int, np.int32, np.int64 )):
@@ -335,8 +440,6 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
     elif isinstance(expr, pyo_expr.numeric_expr.NegationExpression):
         return -expr_to_gurobi(expr.args[0], var_map, gurobi_model)[0], True
     
-    
-        
     ## DAE.INTEGRAL EXPR
     elif isinstance(expr, dae.Integral):
         #print("intefgral",expr, expr.getname(), expr.args)
@@ -384,38 +487,6 @@ def expr_to_gurobi(expr, var_map, gurobi_model):
     else:
         raise ValueError(f"Unsupported expression type: {type(expr)}")
 
-# # Test toy transformer
-
-# from pyomo import dae
-# import numpy as np
-# from transformer import *
-# import extract_from_pretrained as extract_from_pretrained
-# from toy_problem import *
-# from toy_problem_setup import *
-# from omlt import OmltBlock
-# from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation
-# from omlt.io.keras import keras_reader
-# import omlt
-# import OMLT_helper
-
-# gurobi_model = to_gurobi(model)
-# gurobi_model.optimize()
-
-# if gurobi_model.status == GRB.OPTIMAL:
-#     optimal_parameters = {}
-#     for v in gurobi_model.getVars():
-#         #print(f'var name: {v.varName}, var type {type(v)}')
-#         if "[" in v.varName:
-#             name = v.varname.split("[")[0]
-#             if name in optimal_parameters.keys():
-#                 optimal_parameters[name] += [v.x]
-#             else:
-#                 optimal_parameters[name] = [v.x]
-#         else:    
-#             optimal_parameters[v.varName] = v.x
-#     #print(f'Objective: {gurobi_model.objVal}')
-    
-#     print(optimal_parameters)
 
 ############################################################################
 # Example usage
