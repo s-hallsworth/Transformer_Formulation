@@ -16,7 +16,7 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
 import transformer_b_flag as TNN
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
+from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 from helpers.print_stats import solve_pyomo, solve_gurobipy
 import helpers.convert_pyomo as convert_pyomo
 from training_scripts.Tmodel import TransformerModel
@@ -209,7 +209,7 @@ class TestTransformer(unittest.TestCase):
     #     # add ffn1
     #     ffn_parameter_dict = {}
     #     input_shape = parameters["enc__ffn_1"]['input_shape']
-    #     ffn_params = transformer.get_fnn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
+    #     ffn_params = transformer.get_ffn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
     #     ffn_parameter_dict["enc__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
 
     #     # add res+norm3
@@ -248,7 +248,7 @@ class TestTransformer(unittest.TestCase):
     #     # add ffn2
     #     ffn_parameter_dict = {}
     #     input_shape = parameters["enc__ffn_2"]['input_shape']
-    #     ffn_params = transformer.get_fnn( "enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters)
+    #     ffn_params = transformer.get_ffn( "enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters)
     #     ffn_parameter_dict["enc__ffn_2"] = ffn_params # ffn_params: nn, input_nn, output_nn
 
     #     # add res+norm5
@@ -272,7 +272,7 @@ class TestTransformer(unittest.TestCase):
     #     # Add FNN1 to gurobi model
     #     for key, value in ffn_parameter_dict.items():
     #         nn, input_nn, output_nn = value
-    #         input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+    #         input, output = get_inputs_gurobipy_FFN(input_nn, output_nn, map_var)
     #         pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
         
     #     gurobi_model.update() # update gurobi model with FFN constraints
@@ -473,7 +473,7 @@ class TestTransformer(unittest.TestCase):
         # add ffn1
         ffn_parameter_dict = {}
         input_shape = parameters["enc__ffn_1"]['input_shape']
-        ffn_params = transformer.get_fnn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
+        ffn_params = transformer.get_ffn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
         ffn_parameter_dict["enc__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
 
         # add res+norm2
@@ -508,7 +508,7 @@ class TestTransformer(unittest.TestCase):
         # add ffn1
         ffn_parameter_dict = {}
         input_shape = parameters["enc__ffn_2"]['input_shape']
-        ffn_params = transformer.get_fnn( "enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters)
+        ffn_params = transformer.get_ffn( "enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters)
         ffn_parameter_dict["enc__ffn_2"] = ffn_params # ffn_params: nn, input_nn, output_nn
 
         # add res+norm2
@@ -619,7 +619,7 @@ class TestTransformer(unittest.TestCase):
         nn_name = "dec__ffn_1"
         input_shape = parameters[nn_name]['input_shape']
         layer = nn_name
-        ffn_params = transformer.get_fnn( dec_norm_3,layer, nn_name, input_shape, parameters)
+        ffn_params = transformer.get_ffn( dec_norm_3,layer, nn_name, input_shape, parameters)
         ffn_parameter_dict[nn_name] = ffn_params # ffn_params: nn, input_nn, output_nn
         dec_in = ffn_params[-1]
         
@@ -694,7 +694,7 @@ class TestTransformer(unittest.TestCase):
         nn_name = "dec__ffn_2"
         input_shape = parameters[nn_name]['input_shape']
         layer = nn_name
-        ffn_params = transformer.get_fnn( dec_norm_3,layer, nn_name, input_shape, parameters)
+        ffn_params = transformer.get_ffn( dec_norm_3,layer, nn_name, input_shape, parameters)
         ffn_parameter_dict[nn_name] = ffn_params # ffn_params: nn, input_nn, output_nn
         dec_in = ffn_params[-1]
         
@@ -763,7 +763,7 @@ class TestTransformer(unittest.TestCase):
         # Add FNN1 to gurobi model
         for key, value in ffn_parameter_dict.items():
             nn, input_nn, output_nn = value
-            input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+            input, output = get_inputs_gurobipy_FFN(input_nn, output_nn, map_var)
             pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
         
         gurobi_model.update() # update gurobi model with FFN constraints
@@ -1228,7 +1228,7 @@ if __name__ == '__main__':
     # for key, value in ffn_parameter_dict.items():
     #     print(key, value)
     #     nn, input_nn, output_nn = value
-    #     input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+    #     input, output = get_inputs_gurobipy_FFN(input_nn, output_nn, map_var)
     #     pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
     
     # gurobi_model.update() # update gurobi model with FFN constraints

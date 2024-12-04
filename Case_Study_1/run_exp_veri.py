@@ -36,7 +36,7 @@ import transformer_b_flag as TNN
 import helpers.extract_from_pretrained as extract_from_pretrained
 from helpers.print_stats import solve_pyomo, solve_gurobipy, save_gurobi_results
 import helpers.convert_pyomo as convert_pyomo
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
+from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 
 # turn off floating-point round-off
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' 
@@ -172,7 +172,7 @@ for image_size in im_sz:
                 # Add FNNs to gurobi model using GurobiML
                 for key, value in ffn_parameter_dict.items():
                     nn, input_nn, output_nn = value
-                    input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+                    input, output = get_inputs_gurobipy_FFN(input_nn, output_nn, map_var)
                     pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
 
                 gurobi_model.update() # update gurobi model with FFN constraints

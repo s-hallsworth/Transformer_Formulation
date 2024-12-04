@@ -16,7 +16,7 @@ import helpers.extract_from_pretrained as extract_from_pretrained
 from helpers.print_stats import solve_pyomo, solve_gurobipy, save_gurobi_results
 import helpers.convert_pyomo as convert_pyomo
 from helpers.combine_csv import combine
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
+from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 
 # turn off floating-point round-off
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' 
@@ -252,9 +252,9 @@ for r in range(REP):
         transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
         transformer.add_residual_connection("input_embed", "attention_output", "residual_1")
         transformer.add_layer_norm( "residual_1", "layer_norm_2", gamma2, beta2)
-        nn, input_nn, output_nn = transformer.get_fnn("layer_norm_2", "ffn_1", "ffn_1", (seq_len,2), parameters)
+        nn, input_nn, output_nn = transformer.get_ffn("layer_norm_2", "ffn_1", "ffn_1", (seq_len,2), parameters)
         transformer.add_residual_connection("residual_1", "ffn_1", "residual_2")  
-        nn2, input_nn2, output_nn2 = transformer.get_fnn( "residual_2", "ffn_2", "ffn_2", (pred_len+1, 2), parameters)
+        nn2, input_nn2, output_nn2 = transformer.get_ffn( "residual_2", "ffn_2", "ffn_2", (pred_len+1, 2), parameters)
             
         # add constraints to trained TNN input
         m.tnn_constraints = pyo.ConstraintList()
@@ -290,10 +290,10 @@ for r in range(REP):
         gurobi_model, map_var, _ = convert_pyomo.to_gurobi(m)
         
         ## Add FNN1 to gurobi model
-        input_1, output_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+        input_1, output_1 = get_inputs_gurobipy_FFN(input_nn, output_nn, map_var)
         pred_constr1 = add_predictor_constr(gurobi_model, nn, input_1, output_1)
         
-        inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
+        inputs_2, outputs_2 = get_inputs_gurobipy_FFN(input_nn2, output_nn2, map_var)
         pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
         gurobi_model.update()
         #pred_constr.print_stats()

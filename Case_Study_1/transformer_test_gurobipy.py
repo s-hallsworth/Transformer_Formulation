@@ -10,7 +10,7 @@ from omlt import OmltBlock
 from helpers import convert_pyomo
 from gurobipy import Model, GRB
 from gurobi_ml import add_predictor_constr
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
+from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
@@ -402,13 +402,13 @@ class TestTransformer(unittest.TestCase):
     #     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
     #     transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
     #     transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-    #     nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
+    #     nn, input_nn, output_nn = transformer.get_ffn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
 
     #     # # Convert to gurobipy
     #     gurobi_model, map_var = convert_pyomo.to_gurobi(model)
 
     #     ## Add  NN to gurobi model
-    #     inputs_1, outputs_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+    #     inputs_1, outputs_1 = get_inputs_gurobipy_FFN(input_nn, output_nn, map_var)
     #     pred_constr1 = add_predictor_constr(gurobi_model, nn, inputs_1, outputs_1)
     #     gurobi_model.update()
     #     #pred_constr.print_stats()
@@ -455,7 +455,7 @@ class TestTransformer(unittest.TestCase):
     #     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
     #     transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
     #     transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-    #     nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
+    #     nn, input_nn, output_nn = transformer.get_ffn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
     #     transformer.add_residual_connection(model,"residual_1", "ffn_1", "residual_2")  
             
     #     #Check  var and constraints created
@@ -467,7 +467,7 @@ class TestTransformer(unittest.TestCase):
     #     gurobi_model, map_var = convert_pyomo.to_gurobi(model)
 
     #     ## Add  NN to gurobi model
-    #     inputs_1, outputs_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+    #     inputs_1, outputs_1 = get_inputs_gurobipy_FFN(input_nn, output_nn, map_var)
     #     pred_constr1 = add_predictor_constr(gurobi_model, nn, inputs_1, outputs_1)
     #     gurobi_model.update()
     #     #pred_constr.print_stats()
@@ -515,7 +515,7 @@ class TestTransformer(unittest.TestCase):
     #     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
     #     transformer.add_residual_connection(model,"input_embed", "attention_output", "residual_1")
     #     transformer.add_layer_norm(model, "residual_1", "layer_norm_2", "gamma2", "beta2")
-    #     nn, input_nn, output_nn = transformer.get_fnn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
+    #     nn, input_nn, output_nn = transformer.get_ffn(model, "layer_norm_2", "ffn_1", "ffn_1", (10,2), tps.parameters)
     #     transformer.add_residual_connection(model,"residual_1", "ffn_1", "residual_2")  
     #     transformer.add_avg_pool(model, "residual_2", "avg_pool")
         
@@ -528,7 +528,7 @@ class TestTransformer(unittest.TestCase):
     #     gurobi_model, map_var = convert_pyomo.to_gurobi(model)
 
     #     ## Add  NN to gurobi model
-    #     inputs_1, outputs_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+    #     inputs_1, outputs_1 = get_inputs_gurobipy_FFN(input_nn, output_nn, map_var)
     #     pred_constr1 = add_predictor_constr(gurobi_model, nn, inputs_1, outputs_1)
     #     gurobi_model.update()
     #     #pred_constr.print_stats()
@@ -579,19 +579,19 @@ class TestTransformer(unittest.TestCase):
         transformer.add_attention( "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
         transformer.add_residual_connection("input_embed", "attention_output", "residual_1")
         transformer.add_layer_norm( "residual_1", "layer_norm_2", gamma2, beta2)
-        nn, input_nn, output_nn = transformer.get_fnn("layer_norm_2", "ffn_1", "ffn_1", (seq_len,2), tps.parameters)
+        nn, input_nn, output_nn = transformer.get_ffn("layer_norm_2", "ffn_1", "ffn_1", (seq_len,2), tps.parameters)
         transformer.add_residual_connection("residual_1", "ffn_1", "residual_2")  
         transformer.add_avg_pool( "residual_2", "avg_pool")
-        nn2, input_nn2, output_nn2 = transformer.get_fnn( "avg_pool", "ffn_2", "ffn_2", (1,2), tps.parameters)
+        nn2, input_nn2, output_nn2 = transformer.get_ffn( "avg_pool", "ffn_2", "ffn_2", (1,2), tps.parameters)
 
         # # Convert to gurobipy
         gurobi_model, map_var, _ = convert_pyomo.to_gurobi(model)
 
         ## Add FNN1 to gurobi model
-        inputs_1, outputs_1 = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+        inputs_1, outputs_1 = get_inputs_gurobipy_FFN(input_nn, output_nn, map_var)
         pred_constr1 = add_predictor_constr(gurobi_model, nn, inputs_1, outputs_1)
         
-        inputs_2, outputs_2 = get_inputs_gurobipy_FNN(input_nn2, output_nn2, map_var)
+        inputs_2, outputs_2 = get_inputs_gurobipy_FFN(input_nn2, output_nn2, map_var)
         pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
         gurobi_model.update()
         #pred_constr.print_stats()

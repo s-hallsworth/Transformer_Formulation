@@ -139,7 +139,7 @@ class Transformer:
     def __add_ffn(self, parameters,ffn_parameter_dict, layer, input_name):
 
         input_shape = np.array(parameters[layer]['input_shape'])
-        ffn_params = self.get_fnn( input_name, layer, layer, input_shape, parameters)
+        ffn_params = self.get_ffn( input_name, layer, layer, input_shape, parameters)
 
         ffn_parameter_dict[layer] = ffn_params #.append(ffn_params)
         # return name of input to next layer
@@ -1703,7 +1703,7 @@ class Transformer:
                 
         return output_var
     
-    def get_fnn(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters):
+    def get_ffn(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters):
         """ Helper to add gurobi ml feed forward Neural Network"""
         # get input var
         if not isinstance(input_var_name, pyo.Var):

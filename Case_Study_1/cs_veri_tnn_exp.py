@@ -32,7 +32,6 @@ import torchvision
 # Import from repo file
 from helpers.print_stats import solve_pyomo, solve_gurobipy
 import helpers.convert_pyomo as convert_pyomo
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
 import transformer_b_flag as TNN
 import helpers.extract_from_pretrained as extract_from_pretrained
 from vit_TNN import *
@@ -212,7 +211,7 @@ def verification_tnn(model, inputimage, image_size, patch_size, channels, file_n
         # # # FFN
         layer_name = "ffn"
         count = count_layer_name(layer_name, count_list)
-        ffn_params =  transformer.get_fnn(out, f"{layer_name}_{count}", f"{layer_name}_{count}", (num_patch_dim + 1, dim), parameters)
+        ffn_params =  transformer.get_ffn(out, f"{layer_name}_{count}", f"{layer_name}_{count}", (num_patch_dim + 1, dim), parameters)
         ffn_parameter_dict[f"{layer_name}_{count}"] = ffn_params # ffn_params: nn, input_nn, output_nn
         prev = f"{layer_name}_{count}"
             

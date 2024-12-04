@@ -10,7 +10,7 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
 from cs_reactor_tnn_exp import reactor_problem, reactor_tnn
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
+from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 from helpers.print_stats import save_gurobi_results
 import helpers.convert_pyomo as convert_pyomo
 import transformers, sys
@@ -118,7 +118,7 @@ for r in range(REP):
         # Add FNNs to gurobi model using GurobiML
         for key, value in ffn_parameter_dict.items():
             nn, input_nn, output_nn = value
-            input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+            input, output = get_inputs_gurobipy_FFN(input_nn, output_nn, map_var)
             pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
 
         gurobi_model.update() # update gurobi model with FFN constraints

@@ -206,7 +206,7 @@ def reactor_tnn(opt_model, parameters,layer_outputs_dict,activation_dict, config
     # add ffn1
     ffn_parameter_dict = {}
     input_shape = parameters["enc__ffn_1"]['input_shape']
-    ffn_params = transformer.get_fnn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
+    ffn_params = transformer.get_ffn( "enc_norm_2", "enc__ffn_1", "enc__ffn_1", input_shape, parameters)
     ffn_parameter_dict["enc__ffn_1"] = ffn_params # ffn_params: nn, input_nn, output_nn
 
     # add res+norm2
@@ -241,7 +241,7 @@ def reactor_tnn(opt_model, parameters,layer_outputs_dict,activation_dict, config
     # add ffn1
     ffn_parameter_dict = {}
     input_shape = parameters["enc__ffn_2"]['input_shape']
-    ffn_params = transformer.get_fnn( "enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters)
+    ffn_params = transformer.get_ffn( "enc_norm_4", "enc__ffn_2", "enc__ffn_2", input_shape, parameters)
     ffn_parameter_dict["enc__ffn_2"] = ffn_params # ffn_params: nn, input_nn, output_nn
 
     # add res+norm2
@@ -351,7 +351,7 @@ def reactor_tnn(opt_model, parameters,layer_outputs_dict,activation_dict, config
     nn_name = "dec__ffn_1"
     input_shape = parameters[nn_name]['input_shape']
     layer = nn_name
-    ffn_params = transformer.get_fnn( dec_norm_3,layer, nn_name, input_shape, parameters)
+    ffn_params = transformer.get_ffn( dec_norm_3,layer, nn_name, input_shape, parameters)
     ffn_parameter_dict[nn_name] = ffn_params # ffn_params: nn, input_nn, output_nn
     dec_in = ffn_params[-1]
     
@@ -425,7 +425,7 @@ def reactor_tnn(opt_model, parameters,layer_outputs_dict,activation_dict, config
     nn_name = "dec__ffn_2"
     input_shape = parameters[nn_name]['input_shape']
     layer = nn_name
-    ffn_params = transformer.get_fnn( dec_norm_3,layer, nn_name, input_shape, parameters)
+    ffn_params = transformer.get_ffn( dec_norm_3,layer, nn_name, input_shape, parameters)
     ffn_parameter_dict[nn_name] = ffn_params # ffn_params: nn, input_nn, output_nn
     dec_in = ffn_params[-1]
     

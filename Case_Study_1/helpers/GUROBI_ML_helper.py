@@ -55,7 +55,7 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
         
     return nn
 
-def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
+def get_inputs_gurobipy_FFN(input_nn, output_nn, map_var):
     inputs = []
     outputs = []
     prev_input = {}

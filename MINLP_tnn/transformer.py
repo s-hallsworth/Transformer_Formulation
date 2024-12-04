@@ -274,7 +274,7 @@ class Transformer:
         """
         # Create GurobiML Network Definition of FFN layers
         input_shape = np.array(parameters[layer]['input_shape'])
-        ffn_params = self.get_fnn( input_name, layer, layer, input_shape, parameters)
+        ffn_params = self.get_ffn( input_name, layer, layer, input_shape, parameters)
 
         # Store network definition, NN input var and NN output var
         ffn_parameter_dict[layer] = ffn_params
@@ -1962,7 +1962,7 @@ class Transformer:
                 
         return output_var
     
-    def get_fnn(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters):
+    def get_ffn(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters):
         """ 
         Helper function to define a GurobiML feed-forward neural network (FFN).
 

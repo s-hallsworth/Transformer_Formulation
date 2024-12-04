@@ -8,8 +8,26 @@ from tensorflow.keras.layers import Dense, Input
 import re
 
 
-def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
-):
+def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters):
+    """
+    Converts model weights into a Keras Sequential model definition based on the provided layer parameters.
+    This model is needed to construct GurobiML's optimisation-based FFN.
+
+    Args:
+        new_name (str): Name for the new Keras FFN model.
+        NN_name (str): Identifier for the neural network in the `model_parameters` dictionary.
+        input_shape (tuple or list): Shape of the input data for the model.
+        model_parameters (dict): Dictionary containing the weights, biases, and activation functions of the layers.
+
+    Returns:
+        keras.Sequential: A Keras Sequential model created with the provided parameters.
+
+    Notes:
+        - Supported activation functions: ReLU, SiLU, and linear.
+        - Raises an error if an unsupported activation function is encountered.
+        - Transposes weights if necessary for compatibility with Keras layer expectations.
+    """
+
     input_shape = np.array(input_shape)
     nn = Sequential(name=new_name)
     nn.add(Input(input_shape))
@@ -17,8 +35,6 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
     
     # get weights, biases, num inputs, num outputs for each layer of FFN
     for layer_name, val in model_parameters[NN_name].items():
-        # print("---------------------------")
-        # print(layer_name)
         
         if any(keyword in layer_name for keyword in ("dense", "linear", "fc","fn.net")):
             if any(keyword in layer_name for keyword in ("linear", "fc","fn.net")):
@@ -29,10 +45,6 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
                 bias = np.array(val['b'])
             n_layer_inputs, n_layer_nodes = np.shape(weights)
             
-            # print(weights.shape, bias.shape)
-            # print(layer_name, val['activation'])
-            # print(weights.shape, bias.shape)
-            # print(layer_name, val['activation'])
             
             # Determine activation function
             if val['activation'] =='relu':
@@ -47,15 +59,34 @@ def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters
             else:
                 raise TypeError(f'Error in layer: {layer_name}. Activation function not currently supported for ', val['activation'])
 
-    # print("model summary",nn.summary())
-
-    # set weights for each layer
+    # Set weights for each layer
     for i, w in enumerate(weights_list):
         nn.layers[i].set_weights(w)
         
     return nn
 
-def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
+def get_inputs_gurobipy_FFN(input_nn, output_nn, map_var):
+    """
+    Lists are created to store the names of the input and output FFN variables of the Gurobi model according to 
+    the mapping of the equivalent Pyomo input and output variable names. 
+    
+    This function is used to help create the GurobiML FFN and link it to the Gurobi model's variables.
+
+    Args:
+        input_nn (pyo.Var): The Pyomo variable that is input to FFN.
+        output_nn (pyo.Var): The Pyomo variable that is output of FFN.
+        map_var (dict): Mapping of variable names to Gurobi variables.
+
+    Returns:
+        tuple:
+            - inputs (list): List of input variables grouped by indices.
+            - outputs (list): List of output variables grouped by indices.
+
+    Notes:
+        - Assumes variables are indexed and extracts groups based on their indices.
+        - Handles multi-dimensional input and output variable structures.
+    """
+
     inputs = []
     outputs = []
     prev_input = {}
@@ -66,9 +97,7 @@ def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
     o_flag = False
     
     for index, value in map_var.items():
-    
         if  str(index.split('[')[0]) == input_nn.name:
-            # print(index.split('[')[0], input_nn.name)
             if "," in str(index):
                 # print(i)
                 if i == "":
@@ -88,8 +117,6 @@ def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
             else:
                 inputs += [value]
               
-                       
-            
         elif str(index.split('[')[0]) == output_nn.name:
             if "," in str(index):
                 if o == "":
@@ -117,6 +144,10 @@ def get_inputs_gurobipy_FNN(input_nn, output_nn, map_var):
     return inputs, outputs 
 
 def add_envelope(attention_output_name, transformer_block, gurobi_model, block_map):
+    """
+    This incomplete code is a starting point for implementing the softmax overestimator constraints 
+    dynamically during the solve.
+    """
     
     # constraint lists
     constr_convex = []

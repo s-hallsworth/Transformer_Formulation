@@ -35,7 +35,7 @@ import torchvision
 # Import from repo file
 from helpers.print_stats import solve_pyomo, solve_gurobipy
 import helpers.convert_pyomo as convert_pyomo
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FNN
+from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 import transformer_b_flag as TNN
 from training_scripts.Tmodel import TransformerModel
 import helpers.extract_from_pretrained as extract_from_pretrained
@@ -265,7 +265,7 @@ for l in range(depth):
     # # # FFN
     layer_name = "ffn"
     count = count_layer_name(layer_name, count_list)
-    ffn_params =  transformer.get_fnn(out, f"{layer_name}_{count}", f"{layer_name}_{count}", (num_patch_dim + 1, dim), parameters)
+    ffn_params =  transformer.get_ffn(out, f"{layer_name}_{count}", f"{layer_name}_{count}", (num_patch_dim + 1, dim), parameters)
     ffn_parameter_dict[f"{layer_name}_{count}"] = ffn_params # ffn_params: nn, input_nn, output_nn
     prev = f"{layer_name}_{count}"
           
@@ -320,7 +320,7 @@ gurobi_model, map_var, _ = convert_pyomo.to_gurobi(model)
 # Add FNNs to gurobi model using GurobiML
 for key, value in ffn_parameter_dict.items():
     nn, input_nn, output_nn = value
-    input, output = get_inputs_gurobipy_FNN(input_nn, output_nn, map_var)
+    input, output = get_inputs_gurobipy_FFN(input_nn, output_nn, map_var)
     pred_constr = add_predictor_constr(gurobi_model, nn, input, output)
 
 gurobi_model.update() # update gurobi model with FFN constraints
