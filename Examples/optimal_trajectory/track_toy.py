@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 import numpy as np
 import math
-from helpers.print_stats import solve_pyomo
+from MINLP_tnn.helpers.print_stats import solve_pyomo
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 # from amplpy import AMPL

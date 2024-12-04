@@ -4,3 +4,4 @@
 *.cfg
 *.pth
 .\Case_Study_1\data
+*.egg-info

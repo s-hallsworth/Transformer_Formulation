@@ -33,12 +33,12 @@ from gurobi_ml import add_predictor_constr
 import torchvision
 
 # Import from repo file
-from helpers.print_stats import solve_pyomo, solve_gurobipy
-import helpers.convert_pyomo as convert_pyomo
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
+from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy
+import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
+from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 import transformer_b_flag as TNN
-from training_scripts.Tmodel import TransformerModel
-import helpers.extract_from_pretrained as extract_from_pretrained
+from Examples.optimal_trajectory.training.Tmodel import TransformerModel
+import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
 
 TESTING = True # TESTING
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off

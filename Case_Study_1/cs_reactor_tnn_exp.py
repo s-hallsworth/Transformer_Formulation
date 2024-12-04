@@ -6,7 +6,7 @@ import torch
 
 # Import from repo file
 import transformer_b_flag as TNN
-import helpers.extract_from_pretrained as extract_from_pretrained
+import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
 import transformers, sys
 sys.modules['transformers.src.transformers'] = transformers
 from transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig

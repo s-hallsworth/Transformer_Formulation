@@ -10,9 +10,9 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
 from cs_reactor_tnn_exp import reactor_problem, reactor_tnn
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
-from helpers.print_stats import save_gurobi_results
-import helpers.convert_pyomo as convert_pyomo
+from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
+from MINLP_tnn.helpers.print_stats import save_gurobi_results
+import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
 import transformers, sys
 sys.modules['transformers.src.transformers'] = transformers
 from transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig

@@ -37,6 +37,7 @@ print(len(time), time)
 dt = time[1] - time[0]  # time step
 scale = 10
 
+
 # Generate training data
 def generate_data(num_samples, time):
     x1_list = []  
@@ -84,6 +85,8 @@ for i in [len(x1)-1]:
     plt.grid(True)
 plt.show()
 
+# Get the directory of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
 ## Save data
 ID = []
@@ -99,7 +102,8 @@ data = {
 }
 
 df = pd.DataFrame(data)
-file_path = f".\\data\\data_T{T}.csv"
+rel_path = f"data\\data_T{T}.csv"
+file_path = os.path.join(script_dir, rel_path)
 os.makedirs(os.path.dirname(file_path), exist_ok=True)
 df.to_csv(file_path, index=False,mode='w+')
 print("Generated data saved to ", file_path)

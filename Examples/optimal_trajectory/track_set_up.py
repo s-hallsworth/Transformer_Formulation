@@ -1,13 +1,13 @@
 import pyomo.environ as pyo
 import numpy as np
 import math
-from helpers.print_stats import solve_pyomo, solve_gurobipy
+from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy
 from gurobipy import Model, GRB, GurobiError
-import helpers.convert_pyomo as convert_pyomo
+import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
 import matplotlib.pyplot as plt
 import torch
 import transformer_b as TNN
-from helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_pytorch_intermediate_values
+from MINLP_tnn.helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_pytorch_intermediate_values
 
 from training_scripts.Tmodel import TransformerModel
 # from amplpy import AMPL

@@ -16,11 +16,11 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
 import transformer_b_flag as TNN
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
-from helpers.print_stats import solve_pyomo, solve_gurobipy
-import helpers.convert_pyomo as convert_pyomo
-from training_scripts.Tmodel import TransformerModel
-import helpers.extract_from_pretrained as extract_from_pretrained
+from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
+from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy
+import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
+from Examples.optimal_trajectory.training.Tmodel import TransformerModel
+import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
 import transformers, sys
 sys.modules['transformers.src.transformers'] = transformers
 from transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig

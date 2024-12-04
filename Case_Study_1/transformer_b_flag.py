@@ -5,13 +5,13 @@ import math
 from pyomo import dae
 import json
 import os
-from helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_hugging_learned_parameters
+from MINLP_tnn.helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_hugging_learned_parameters
 from omlt import OmltBlock
 from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation#, FullSpaceSmoothNNFormulation
 from omlt.io.keras import keras_reader
 import omlt
-import helpers.OMLT_helper 
-import helpers.GUROBI_ML_helper as GUROBI_ML_helper
+import MINLP_tnn.helpers.OMLT_helper 
+import MINLP_tnn.helpers.GUROBI_ML_helper as GUROBI_ML_helper
 from typing import Union
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
@@ -1677,7 +1677,7 @@ class Transformer:
         for dim in input_indices_attr[1]:
             input_bounds[dim] = bounds
         
-        net_relu = helpers.OMLT_helper.weights_to_NetDef(output_var_name, nn_name, input_shape, model_parameters, input_bounds)
+        net_relu = MINLP_tnn.helpers.OMLT_helper.weights_to_NetDef(output_var_name, nn_name, input_shape, model_parameters, input_bounds)
         NN_block.build_formulation(ReluBigMFormulation(net_relu))
         
         # Set input constraints

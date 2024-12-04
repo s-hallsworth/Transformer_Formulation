@@ -10,7 +10,7 @@ from omlt import OmltBlock
 from helpers import convert_pyomo
 from gurobipy import Model, GRB
 from gurobi_ml import add_predictor_constr
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
+from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off

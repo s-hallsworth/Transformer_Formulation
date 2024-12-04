@@ -10,13 +10,15 @@ from gurobipy import Model, GRB
 from gurobi_ml import add_predictor_constr
 
 # Import from repo files
-import transformer_b_flag_cuts as TNN
-from training_scripts.Tmodel import TransformerModel
-import helpers.extract_from_pretrained as extract_from_pretrained
-from helpers.print_stats import solve_pyomo, solve_gurobipy, save_gurobi_results
-import helpers.convert_pyomo as convert_pyomo
-from helpers.combine_csv import combine
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
+from MINLP_tnn.transformer import Transformer as TNN
+from MINLP_tnn.helpers import extract_from_pretrained
+from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy, save_gurobi_results
+import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
+from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
+from training.Tmodel import TransformerModel
+from combine_csv import combine
+import keras.src.models.functional
+
 
 # turn off floating-point round-off
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' 
@@ -30,12 +32,14 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0'
 # Set Up
 TESTING = False # fix TNN input for testing (faster solve)
 combine_files = not TESTING
-REP = 3 # number of repetitions of each scenario
-NAME = "track_k_e_none_2"
+REP = 1 # number of repetitions of each scenario
+NAME = "traj_k_e"
 SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
-exp_name = "Track_k_e_none_2_reruns"
-PATH =  f".\\Experiments\\{exp_name}"+"\\"
+exp_name = "traj_k_e"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+rel_PATH =  f"\\experiments\\{exp_name}"+"\\"
+PATH = os.path.join(script_dir, rel_PATH)
 
 # Store TNN Architecture info
 tnn_config = {}
@@ -51,7 +55,8 @@ tnn_config["Num ReLu"] = 2
 # optimal trajectory of a projectile launched with x velocity v1 and y velocity v2
 
 model = pyo.ConcreteModel(name="(TRAJ_TOY)")
-hyper_params = '.\\data\\toy_track_k_enc_config_2.json' 
+rel_dir = '.\\data\\toy_traj_k_enc_config_2.json' 
+hyper_params = os.path.join(script_dir, rel_dir)
 tnn_config["Config File"] = hyper_params
 
 # define constants
@@ -65,7 +70,6 @@ pred_len = 1
 
 time = time[:seq_len+pred_len]
 steps = len(time)
-print(steps)
 
 g = 9.81
 v_l1 = 0.2
@@ -86,7 +90,6 @@ model.loc1 = pyo.Param(model.time, rule=target_location_rule)
 
 def target_location2_rule(M, t):
     np.random.seed(int(v_l2*t*100))
-    print(np.random.uniform(-1,1)/30)
     return (v_l2*t) - (0.5 * g * (t**2)) + ( np.random.uniform(-1,1)/30 )
 model.loc2 = pyo.Param(model.time, rule=target_location2_rule) 
 
@@ -102,7 +105,7 @@ model.x2_constr = pyo.Constraint(expr= model.x2[0] == 0)
 
 
 # transformer inputs to get expected TNN output
-input_x1 = [0.0, 0.00555569, 0.01111138] # from solution track_toy.py
+input_x1 = [0.0, 0.00555569, 0.01111138] # from solution traj_toy.py
 input_x2 = [0.0, 0.05100613, 0.09444281]
 
 # Set objective
@@ -111,13 +114,16 @@ model.obj = pyo.Objective(
 )  # -1: maximize, +1: minimize (default)
 
 # load trained transformer
-model_path = ".\\trained_transformer\\trajectory\\TNN_traj_enc_2.keras" # dmodel 4, num heads 1, n ence 1, n dec 1, head dim 4, pred_len 2+1 
-layer_names, parameters ,_ = extract_from_pretrained.get_learned_parameters(model_path)
+model_path = "training\\models\\TNN_traj_enc_2.keras" # dmodel 4, num heads 1, n ence 1, n dec 1, head dim 4, pred_len 2+1 
+model_PATH = os.path.join(script_dir, model_path)
+layer_names, parameters , tnn_model = extract_from_pretrained.get_learned_parameters(model_PATH)
+
+
 tnn_config["Model"] = model_path
 
 # get intermediate results dictionary for optimal input values
 input = np.array([[ [x1,x2] for x1,x2 in zip(input_x1, input_x2)]], dtype=np.float32)
-layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_path, input[:, 0:seq_len, :])
+layer_outputs_dict = extract_from_pretrained.get_intermediate_values(model_PATH, input[:, 0:seq_len, :])
 FFN_out = np.array(layer_outputs_dict["dense_4"])[0].transpose(1,0)
 
 # ##------ Fix model solution for TESTING ------##
@@ -229,7 +235,7 @@ for r in range(REP):
             for elem in val["list"]:
                 activation_dict[elem] = val["act_val"] # set activation dict to new combi
         tnn_config["Activated Bounds/Cuts"] = activation_dict # save act config
-        print(activation_dict)
+
         # clone optimization model
         m = model.clone()
         
@@ -282,7 +288,6 @@ for r in range(REP):
                     continue
                 else:
                     out_index += 2
-                    print(t, indices[0].at(out_index), indices[1].first(), indices[1].last())
                     m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.x1[t])
                     m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.x2[t])
 

@@ -13,7 +13,7 @@ Parameters can be changed on lines 16-18.
 
 import numpy as np
 import gurobipy as gb
-import helpers.partitioningStrategies as partitioningStrategies
+import MINLP_tnn.helpers.partitioningStrategies as partitioningStrategies
 
 problemNo = 0 # image to select from MNIST dataset
 N = 1 # number of partitions = 1 --> big M formulation

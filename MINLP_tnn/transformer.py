@@ -4,13 +4,13 @@ import torch
 import math
 import json
 import os
-from helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_hugging_learned_parameters
+from MINLP_tnn.helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_hugging_learned_parameters
 from omlt import OmltBlock
 from omlt.neuralnet import *
 from omlt.io.keras import keras_reader
 import omlt
-import helpers.OMLT_helper 
-import helpers.GUROBI_ML_helper as GUROBI_ML_helper
+import MINLP_tnn.helpers.OMLT_helper 
+import MINLP_tnn.helpers.GUROBI_ML_helper as GUROBI_ML_helper
 from typing import Union
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
@@ -496,7 +496,7 @@ class Transformer:
         dec_layer = 0 
         
         for l, layer in enumerate(layer_names):
-            print("layer iteration", layer)
+            #print("layer iteration", layer)
             
             
             if l == 0: #input layer
@@ -1934,7 +1934,7 @@ class Transformer:
             input_bounds[dim] = bounds
         
         # Get Network Definition of FFN
-        net_relu = helpers.OMLT_helper.weights_to_NetDef(output_var_name, nn_name, input_shape, model_parameters, input_bounds)
+        net_relu = MINLP_tnn.helpers.OMLT_helper.weights_to_NetDef(output_var_name, nn_name, input_shape, model_parameters, input_bounds)
         
         # Build FFN of type "formlation"
         NN_block.build_formulation(formulation(net_relu))

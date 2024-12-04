@@ -33,10 +33,10 @@ import torchvision
 from vit_TNN import *
 from cs_veri_tnn_exp import *
 import transformer_b_flag as TNN
-import helpers.extract_from_pretrained as extract_from_pretrained
-from helpers.print_stats import solve_pyomo, solve_gurobipy, save_gurobi_results
-import helpers.convert_pyomo as convert_pyomo
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
+import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
+from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy, save_gurobi_results
+import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
+from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 
 # turn off floating-point round-off
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' 

@@ -9,11 +9,11 @@ from gurobi_machinelearning.src.gurobi_ml.add_predictor import add_predictor_con
 
 # Import from repo files
 import transformer_b_flag as TNN
-import helpers.extract_from_pretrained as extract_from_pretrained
-from helpers.print_stats import save_gurobi_results
-import helpers.convert_pyomo as convert_pyomo
-from helpers.combine_csv import combine
-from helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
+import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
+from MINLP_tnn.helpers.print_stats import save_gurobi_results
+import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
+from MINLP_tnn.helpers.combine_csv import combine
+from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 import transformers, sys
 sys.modules['transformers.src'] = transformers
 sys.modules['transformers.src.transformers'] = transformers

@@ -30,10 +30,10 @@ from gurobi_ml import add_predictor_constr
 import torchvision
 
 # Import from repo file
-from helpers.print_stats import solve_pyomo, solve_gurobipy
-import helpers.convert_pyomo as convert_pyomo
+from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy
+import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
 import transformer_b_flag as TNN
-import helpers.extract_from_pretrained as extract_from_pretrained
+import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
 from vit_TNN import *
 
 TESTING = False # TESTING
