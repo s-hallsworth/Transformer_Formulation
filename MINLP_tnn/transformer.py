@@ -149,10 +149,10 @@ class Transformer:
         Args:
             parameters (dict): Dictionary containing learned parameters of the Transformer model.
             layer (str): Layer identifier for the positional encoding.
-            input_name (Union[pyo.Var,str]): Name of positional encoding output variable added to the optimisation model.
+            input_name (Union[pyo.Var,str]): Input variable or variable name to the current layer
 
         Returns:
-            pyo.Var: The name of the output variable from the positional encoding layer.
+            pyo.Var: The output variable from the positional encoding layer.
         """
         b_pe = parameters[layer,'b']
             
@@ -161,46 +161,92 @@ class Transformer:
             
         return output_name
     
-    def __add_linear(self, parameters, layer, input_name, embed_dim, layer_index=""):
-        
+    def __add_linear(self, parameters, layer, input_name, embed_dim):
+        """
+        Adds a linear transformation layer with optional bias.
+
+        Args:
+            parameters (dict): Dictionary containing learned parameters of the Transformer model.
+            layer (str): Layer identifier for the positional encoding.
+            input_name (Union[pyo.Var,str]): Input variable or variable name to the current layer
+            embed_dim (int): Size of embedding dimension of the linear layer.
+        Returns:
+            pyo.Var: The output variable from the positional encoding layer.
+        """
+        # Get learnt parameter
         W_linear = parameters[layer,'W']
         try:
             b_linear = parameters[layer,'b']
         except:
             b_linear = None
 
-        output_name = layer
-                        
+        # Add linear layer                
         if not b_linear is None:    
-            output_var = self.embed_input( input_name, output_name, embed_dim, W_linear, b_linear) 
+            output_var = self.embed_input( input_name, layer, embed_dim, W_linear, b_linear) 
         else:
-            output_var = self.embed_input( input_name, output_name, embed_dim, W_linear)
+            output_var = self.embed_input( input_name, layer, embed_dim, W_linear)
             
         # return name of input to next layer
-        return output_name
+        return output_var
     
     def __add_ffn(self, parameters,ffn_parameter_dict, layer, input_name):
+        """
+        Adds a feed-forward neural network (FFN) layer with ReLU activation.
 
+        Args:
+            parameters (dict): Dictionary containing learned parameters of the Transformer model.
+            ffn_parameter_dict (dict): Dictionary to store FFN layer parameters.
+            layer (str): Layer identifier for the FFN.
+            input_name (Union[pyo.Var,str]): Input variable or variable name to the current layer.
+
+        Returns:
+            tuple: A tuple containing the name of the output variable from the FFN layer and the updated FFN parameter dictionary.
+        """
+        # Create GurobiML Network Definition of FFN layers
         input_shape = np.array(parameters[layer]['input_shape'])
         ffn_params = self.get_fnn( input_name, layer, layer, input_shape, parameters)
 
-        ffn_parameter_dict[layer] = ffn_params #.append(ffn_params)
-        # return name of input to next layer
-        return layer, ffn_parameter_dict
+        # Store network definition, NN input var and NN output var
+        ffn_parameter_dict[layer] = ffn_params
+        
+        return layer, ffn_parameter_dict # return name of input to next layer, FFN parameters
     
-    def __add_layer_norm(self, parameters, layer, input_name, layer_index=""):
+    def __add_layer_norm(self, parameters, layer, input_name):
+        """
+        Adds a layer normalization layer to the model.
+
+        Args:
+            parameters (dict): Dictionary containing learned parameters of the Transformer model.
+            layer (str): Layer identifier for layer normalization.
+            input_name (Union[pyo.Var,str]): Input variable or variable name to the current layer
+            
+        Returns:
+            pyo.Var: The output variable from the layer normalization layer.
+        """
+        # Get learnt parameter
         gamma = parameters[layer, 'gamma']
         beta  = parameters[layer, 'beta']
         
-        output_name = layer
-        
         # add layer normalization layer
-        output_var = self.add_layer_norm( input_name, output_name, gamma, beta)
+        output_var = self.add_layer_norm( input_name, layer, gamma, beta)
         
         # return name of input to next layer
-        return output_name
+        return output_var
     
     def __add_cross_attn(self, parameters, layer, input_name, enc_output_name):
+        """
+        Adds a cross-attention layer that integrates information from the encoder into the decoder.
+
+        Args:
+            parameters (dict): Dictionary containing learned parameters of the Transformer model.
+            layer (str): Layer identifier for layer normalization.
+            input_name (Union[pyo.Var,str]): Input variable or variable name to the current layer
+            enc_output_name (Union[pyo.Var,str]): Encoder's output variable.
+            
+        Returns:
+            pyo.Var: The output variable from the cross-attention layer.
+        """
+        # Get learnt parameter
         W_q = parameters[layer,'W_q']
         W_k = parameters[layer,'W_k']
         W_v = parameters[layer,'W_v']
@@ -212,14 +258,28 @@ class Transformer:
             b_v = parameters[layer,'b_v']
             b_o = parameters[layer,'b_o']
             
+            # add attention layer with biases
             output_var = self.add_attention( input_name, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, cross_attn=True, encoder_output=enc_output_name)
         except: # no bias values found
+            # add attention layer without biases
             output_var = self.add_attention( input_name, layer, W_q, W_k, W_k, W_o, cross_attn=True, encoder_output=enc_output_name)
         
-        # return name of input to next layer
-        return layer
+        return output_var
     
-    def __add_self_attn(self, parameters, layer, input_name):
+    def __add_self_attn(self, parameters, layer, input_name, mask=False):
+        """
+        Adds a self-attention layer for processing intra-sequence dependencies.
+
+        Args:
+            parameters (dict): Dictionary containing learned parameters of the Transformer model.
+            layer (str): Layer identifier for layer normalization.
+            input_name (Union[pyo.Var,str]): Input variable or variable name to the current layer
+            mask (boolean): Indicator of whether to use casual mask (True) or not (False). Default: False
+            
+        Returns:
+            pyo.Var: The output variable from the self-attention layer.
+        """
+        # Get learnt parameter
         W_q = parameters[layer,'W_q']
         W_k = parameters[layer,'W_k']
         W_v = parameters[layer,'W_v']
@@ -233,16 +293,29 @@ class Transformer:
         except: # no bias values found
                 b_q = None
         
-        if not b_q is None:     
-            self.add_attention( input_name, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
+        if not b_q is None:    
+            # add attention layer with biases 
+            output_var = self.add_attention( input_name, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, mask)
         else:
-            self.add_attention( input_name, layer, W_q, W_k, W_k, W_o)
+            # add attention layer without biases
+            output_var = self.add_attention( input_name, layer, W_q, W_k, W_k, W_o, mask)
             
-        # return name of input to next layer
-        return layer
+        return output_var
     
     def __add_encoder_layer(self, parameters, layer, input_name, enc_layer, ffn_parameter_dict):
-        embed_dim = self.M.model_dims 
+        """
+        Adds default Pytorch encoder layer, including self-attention, layer normalization, and FFN components.
+
+        Args:
+            parameters (dict): Dictionary containing learned parameters of the Transformer model.
+            layer (Union[pyo.Var, str]): Layer identifier for the encoder layer.
+            input_name (str): Input variable or variable name to the current layer
+            enc_layer (int): Index of the current encoder layer.
+            ffn_parameter_dict (dict): Dictionary to store FFN layer parameters.
+
+        Returns:
+            tuple: A tuple containing the output variable and the updated FFN parameter dictionary.
+        """
         
         input_name_1 = self.__add_self_attn(parameters, f"enc__self_attention_1", input_name)
         self.add_residual_connection(input_name, input_name_1, f"{layer}__{enc_layer}_residual_1")
@@ -250,17 +323,30 @@ class Transformer:
         
         input_name, ffn_parameter_dict = self.__add_ffn(parameters, ffn_parameter_dict, "enc__ffn_1", input_name_2) # add ReLU ANN
         
-        
         self.add_residual_connection(input_name, input_name_2, f"{layer}__{enc_layer}_residual_2")
         input_name = self.__add_layer_norm(parameters, "enc__layer_normalization_2", f"{layer}__{enc_layer}_residual_2", enc_layer)
         
-        # return name of input to next layer
         return input_name, ffn_parameter_dict
     
     def __add_decoder_layer(self, parameters, layer, input_name, dec_layer, ffn_parameter_dict, enc_output_name):
+        """
+        Adds default Pytorch decoder layer, including self-attention, layer normalization, and FFN components.
+
+        Args:
+            parameters (dict): Dictionary containing learned parameters of the Transformer model.
+            layer (Union[pyo.Var, str]): Layer identifier for the encoder layer.
+            input_name (str): Input variable or variable name to the current layer
+            dec_layer (int): Index of the current decoder layer.
+            ffn_parameter_dict (dict): Dictionary to store FFN layer parameters.
+            enc_output_name (Union[pyo.Var,str]): Encoder's output variable.
+
+        Returns:
+            tuple: A tuple containing the output variable and the updated FFN parameter dictionary.
+        """
+        
         embed_dim = self.M.model_dims 
         
-        input_name_1 = self.__add_self_attn(parameters, f"dec__self_attention_1", input_name)
+        input_name_1 = self.__add_self_attn(parameters, f"dec__self_attention_1", input_name, mask=True)
         self.add_residual_connection(input_name, input_name_1, f"{layer}__{dec_layer}_residual_1")
         input_name_2 = self.__add_layer_norm(parameters, "dec__layer_normalization_1", f"{layer}__{dec_layer}_residual_1", dec_layer)
         
@@ -277,8 +363,8 @@ class Transformer:
         return input_name, ffn_parameter_dict
     
     def __build_layers_default(self, layer_names, parameters, enc_dec_count, enc_bounds, dec_bounds):
-        """_summary_
-        Adds transformer layers for pytorch model
+        """
+        Creates model with default transformer architecture for pytorch
         See https://pytorch.org/docs/stable/_modules/torch/nn/modules/transformer.html#Transformer
         
         **NB**: 
@@ -393,6 +479,7 @@ class Transformer:
     
     def __build_layers_parse(self, layer_names, parameters, enc_dec_count, enc_bounds, dec_bounds):
         """
+        Create encoder-decoder TNN model based on parsed layers list
         Args:
             layer_names (list): names of layers in transformer model
             parameters (dict): transformer model's learned parameters
@@ -412,9 +499,9 @@ class Transformer:
         dec_layer = 0 
         enc_post_attn_flag = False
         
+        # for each layer in TNN
         for l, layer in enumerate(layer_names):
-            print("layer iteration", layer)
-            
+            #print("layer iteration", layer)
             
             if l == 0: #input layer
                 self.M.enc_input= pyo.Var(self.M.enc_time_dims,  self.M.input_dims, bounds=enc_bounds)
@@ -442,7 +529,7 @@ class Transformer:
                 residual = None
                 if "norm" in layer and not layer.endswith("_1"):
                     residual = layer_names[l - 2]
-                dec_input_name, ffn_parameter_dict  = self.__add_ED_layer(parameters, layer, dec_input_name, dec_layer, ffn_parameter_dict, enc_output_name=enc_input_name, residual=residual)
+                dec_input_name, ffn_parameter_dict  = self.__add_ED_layer(parameters, layer, dec_input_name, dec_layer, ffn_parameter_dict, enc_output_name=enc_input_name, residual=residual, mask=True)
                 
                 if "self_attention" in layer:
                     dec_layer +=1
@@ -474,22 +561,44 @@ class Transformer:
         #return: encoder input name, decoder input name, transformer output name, ffn parameters dictionary
         return [["enc_input","dec_input"], dec_input_name , ffn_parameter_dict]
     
-    def __add_ED_layer(self, parameters, layer, input_name, layer_num, ffn_parameter_dict, enc_output_name=None, residual=None):
+    def __add_ED_layer(self, parameters, layer, input_name, layer_num, ffn_parameter_dict, enc_output_name=None, residual=None, mask=False):
         """
-        Add components of encoder/decoder.
+        Add components of encoder or decoder. Depending on the type of layer specified, this method constructs the appropriate subcomponent 
+        (e.g., self-attention, cross-attention, layer normalization, linear transformations, feed-forward neural networks, or positional encoding).
+
+        Args:
+            parameters (dict): Dictionary containing learned parameters of the Transformer model.
+            layer (str): Layer identifier specifying the type of layer to add.
+            input_name (Union[pyo.Var,str]): Input variable or variable name to the current layer
+            layer_num (int): Index of the current layer in the encoder or decoder stack.
+            ffn_parameter_dict (dict): Dictionary to store parameters for feed-forward neural network layers.
+            enc_output_name (Union[pyo.Var,str], optional): Name of the encoder's output variable, used in cross-attention layers. Defaults to None.
+            residual (str, optional): Name of the residual connection variable. If provided, a residual connection will be added. Defaults to None.
+            mask (boolean, optional): Indicates whether a mask should be applied for self-attention layers. Defaults to False.
+
+        Returns:
+            tuple:
+                - str: The name of the output variable from the last component added in the layer.
+                - dict: Updated dictionary of feed-forward neural network parameters.
+
+        Notes:
+            - The method checks the type of layer specified by the `layer` argument and dynamically builds the corresponding component.
+            - Residual connections are added for specific layers if a `residual` is provided.
         """
         
         if "self_attention" in layer:
-            output_name = self.__add_self_attn(parameters, layer, input_name)
+            output_name = self.__add_self_attn(parameters, layer, input_name, mask)
             
         if "multi_head_attention" in layer:
             output_name = self.__add_cross_attn(parameters, layer, input_name, enc_output_name)
                 
         if "layer_norm" in layer:
-            # add residual connection
+            # add residual connection if supplied
             if not residual is None:
                 self.add_residual_connection(input_name, residual, f"{layer}__{layer_num}_residual")
                 input_name = f"{layer}__{layer_num}_residual"
+                
+            # add layer normalisation
             output_name = self.__add_layer_norm(parameters, layer, input_name, layer_num)
             
         if "linear" in layer:
@@ -505,22 +614,47 @@ class Transformer:
         return output_name, ffn_parameter_dict 
     
     
-    def add_input_var(self, input_var_name, dims=(2,2), bounds=(-1,1)):
+    def add_input_var(self, input_var_name, dims, bounds):
+        """
+        Adds a TNN input variable to the Pyomo model with specified dimensions and bounds.
+
+        Args:
+            input_var_name (str): Name of the input variable to be added to the Pyomo model.
+            dims (tuple): Dimensions of the input variable in the form `(dim_0, dim_1)`. 
+            bounds (tuple): Bounds for the input variable in the form `(lower_bound, upper_bound)`.
+
+        Returns:
+            pyo.Var: The created or existing Pyomo variable representing the input to TNN.
+        """
         if not hasattr(self.M, input_var_name+"dim_0"):
             setattr(self.M, input_var_name+"dim_0", pyo.Set(initialize= list(range(dims[0]))))
             dim_0 = getattr(self.M, input_var_name+"dim_0")  
             
             setattr(self.M, input_var_name+"dim_1", pyo.Set(initialize= list(range(dims[1]))))
             dim_1 = getattr(self.M, input_var_name+"dim_1") 
-            
+        
             setattr(self.M, input_var_name, pyo.Var(dim_0, dim_1, bounds=bounds))
             input_var = getattr(self.M, input_var_name)
+        else:
+            raise ValueError('Attempting to overwrite variable')
+        
         return input_var
     
     def add_pos_encoding(self, input_var_name:Union[pyo.Var,str], embed_var_name, b_emb):
         """
-        Embed the feature dimensions of input
+        Add positional encoding layer
+        
+        Args:
+            input_var_name (Union[pyo.Var,str]): Input variable or variable name to the current layer
+            embed_var_name (str): Identifier of variables added by this function. 
+            b_emb (list): List containing positional encoding parameters extracted from trained TNN.
+
+        Returns:
+            pyo.Var: Output of positional encoding layer.
+        
         """
+        
+        # Create constraint list for layer
         if not hasattr(self.M, "pe_constraints"):
             self.M.pe_constraints = pyo.ConstraintList()
         
@@ -530,19 +664,20 @@ class Transformer:
         else:
             input_var = input_var_name
         
-        if input_var.is_indexed():
-            # define embedding var
+        if input_var.is_indexed(): 
+            # Create layer output variable
             if not hasattr(self.M, embed_var_name):
                 setattr(self.M, embed_var_name, pyo.Var(input_var.index_set(), within=pyo.Reals, initialize= 0))
                 embed_var = getattr(self.M, embed_var_name)   
             else:
                 raise ValueError('Attempting to overwrite variable')
             
-            
+            # Get dimensions of input
             dims = []
             for set in str(input_var.index_set()).split("*"):
                 dims.append( getattr( self.M, set) )
 
+            # Create dict with positional encoding param indexed by input dim
             count_i = 0
             count_j = 0
             b_emb_dict = {}
@@ -553,9 +688,11 @@ class Transformer:
                 count_i += 1
                 count_j = 0
             
+            # Create Pyomo parameter to store positional encoding values
             setattr(self.M, embed_var_name+"_b_pe", pyo.Param(input_var.index_set() , initialize=b_emb_dict))
             b_emb= getattr(self.M, embed_var_name+"_b_pe")  
         
+            # Add positional encoding values to layer input
             for index in input_var.index_set() :
                 self.M.pe_constraints.add(embed_var[index] == input_var[index] +  b_emb[index])
                 if self.bound_cut_activation["embed_var"]:
@@ -567,27 +704,43 @@ class Transformer:
                     elif isinstance(input_var, pyo.Param):
                         embed_var[index].ub = input_var[index] +  b_emb[index]
                         embed_var[index].lb = input_var[index] +  b_emb[index]
-        return embed_var
+        else:
+            raise ValueError('Non-indexed input provided. Input must be an indexed variable representing the sequence')
+        
+        return embed_var # return positionallu encoded variable
     
     def embed_input(self, input_var_name:Union[pyo.Var,str], embed_var_name, embed_dim_2, W_emb=None, b_emb = None):
         """
-        Embed the feature dimensions of input
+        Embeds the feature dimensions of an input variable by applying linear transformations 
+        
+        Args:
+            input_var_name (Union[pyo.Var, str]): The name or instance of the input variable to be embedded.
+            embed_var_name (str): The name for the resulting embedded variable in the Pyomo model.
+            embed_dim_2 (pyo.Set): Dimensions of the embedding output.
+            W_emb (list, optional): Weight matrix for the embedding transformation. Defaults to None.
+            b_emb (list, optional): Bias vector for the embedding transformation. Defaults to None.
+
+        Returns:
+            pyo.Var: The Pyomo variable representing the embedded input.
         """
+        # Create constraint list for layer
         if not hasattr(self.M, "embed_constraints"):
             self.M.embed_constraints = pyo.ConstraintList()
            
+        # Get input var
         if not isinstance(input_var_name, pyo.Var):
             input_var = getattr(self.M, input_var_name)
         else:
             input_var = input_var_name
         
         if input_var.is_indexed():
+            # Get dimensions of input variable
             set_var = input_var.index_set()
             indices = []
             for set in str(set_var).split("*"):
                 indices.append( getattr( self.M, set) )
 
-            # define embedding var
+            # Create layer output variable
             if not hasattr(self.M, embed_var_name):
                 setattr(self.M, embed_var_name, pyo.Var(indices[0], embed_dim_2 , within=pyo.Reals, initialize= 0))
                 embed_var = getattr(self.M, embed_var_name)   
@@ -596,19 +749,7 @@ class Transformer:
             
             if W_emb is None:
                 if b_emb is None:
-                    for index, index_input in zip( embed_var.index_set(), set_var):
-                        self.M.embed_constraints.add(embed_var[index] == input_var[index_input])
-
-                        if self.bound_cut_activation["embed_var"]:
-                            if isinstance(input_var, pyo.Var):
-                                if not input_var[index_input].ub is None:
-                                    embed_var[index].ub = input_var[index_input].ub
-                                if not input_var[index_input].lb is None:
-                                    embed_var[index].lb = input_var[index_input].lb
-                                
-                            elif isinstance(input_var, pyo.Param):
-                                embed_var[index].ub = input_var[index_input]
-                                embed_var[index].lb = input_var[index_input]   
+                    raise ValueError('Layer has no weight or bias parameters. Weight is None and bias is None')  
                                 
                 elif len(embed_dim_2) == len(indices[1]):
                     # Create bias variable
@@ -634,9 +775,12 @@ class Transformer:
                                 elif isinstance(input_var, pyo.Param):
                                     embed_var[t, d].ub = input_var[t,s] +  b_emb[d]
                                     embed_var[t, d].lb = input_var[t,s] +  b_emb[d]
+                else:
+                    raise ValueError(f'Mismatching dimensions: {len(embed_dim_2)} and {len(indices[1])}')  
                 
                           
-            else: # w_emb has a value
+            else: # W_emb has a value
+                # Create parameter to store learnt weight matrix
                 W_emb_dict = {
                     (indices[1].at(s+1),embed_dim_2.at(d+1)): W_emb[d][s]
                     for s in range(len(indices[1]))
@@ -645,16 +789,16 @@ class Transformer:
                 setattr(self.M, embed_var_name+"_W_emb", pyo.Param(indices[1], embed_dim_2 , initialize=W_emb_dict))
                 W_emb= getattr(self.M, embed_var_name+"_W_emb")   
                 
-                if not b_emb is None:
-                    # Create bias variable
+                if not b_emb is None: # with bias
+                    # Create bias parameter
                     b_emb_dict = {
                         (embed_dim_2.at(d+1)): b_emb[d]
                         for d in range(len(embed_dim_2))
                     }
-                    
                     setattr(self.M, embed_var_name+"_b_emb", pyo.Param(embed_dim_2 , initialize=b_emb_dict))
                     b_emb= getattr(self.M, embed_var_name+"_b_emb")  
                 
+                    # Perform matrix multiplication
                     for d in embed_dim_2 :
                         for t in indices[0]:
                             self.M.embed_constraints.add(embed_var[t, d] 
@@ -669,7 +813,8 @@ class Transformer:
                                 elif isinstance(input_var, pyo.Param):
                                     embed_var[t, d].ub = sum(input_var[t,s] * W_emb[s,d] for s in indices[1]) +  b_emb[d]
                                     embed_var[t, d].lb = sum(input_var[t,s] * W_emb[s,d] for s in indices[1]) +  b_emb[d]
-                else:
+                else: # no bias
+                    # Perform matrix multiplication
                     for d in embed_dim_2 :
                         for t in indices[0]:
                             self.M.embed_constraints.add(embed_var[t, d] 
@@ -1669,7 +1814,7 @@ class Transformer:
         return output_var
     
     def get_fnn(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters):
-        """ Helper to add gurobi ml feed forward Neural Network"""
+        """ Helper to add GurobiML feed forward Neural Network"""
         # get input var
         if not isinstance(input_var_name, pyo.Var):
             input_var = getattr(self.M, input_var_name)
