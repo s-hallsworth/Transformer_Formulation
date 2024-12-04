@@ -3,17 +3,40 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
+"""
+This script generates a dataset simulating trajectories of projectile motion, saves it as a CSV file, 
+and plots a sample trajectory.
+
+Main Features:
+    - Simulates N trajectories over a given time interval with varying initial velocities.
+    - Computes the horizontal (x1) and vertical (x2) positions for each trajectory.
+    - Saves the generated data to a CSV file with columns: time, x1, x2, and ID.
+
+Functions:
+    - generate_data(num_samples, time):
+        Generates the x1 and x2 trajectories for the given number of samples and time steps.
+
+Workflow:
+    1. Define simulation parameters (e.g., number of trajectories, time steps, and time increments).
+    2. Call `generate_data()` to create motion trajectories and their corresponding velocities.
+    3. Plot a sample trajectory for visualization.
+    4. Save the trajectory data to a CSV file for further analysis.
+
+Output:
+    - A plot showing the optimal trajectory.
+    - A CSV file containing the simulation data, saved in the `..\\data\\` directory.
+"""
+
 
 N = 300   # number of functions
 T = 1   # number of time steps
 incr = 0.5/19
-#steps = 100
-#time = np.linspace(0, T, num=steps)
 time = np.arange(0, T,incr)
 steps = len(time)
 print(len(time), time)
 dt = time[1] - time[0]  # time step
 scale = 10
+
 # Generate training data
 def generate_data(num_samples, time):
     x1_list = []  
@@ -49,7 +72,6 @@ def generate_data(num_samples, time):
     return np.array(x1_list), np.array(x2_list), v1_list, v2_list
 
 x1, x2, v1_list, v2_list = generate_data(num_samples=N, time=time)
-# print(x1.shape, x2.shape)
 print("v1 mean max min", np.mean(v1_list), max(v1_list), min(v1_list))
 print("v2 mean max min", np.mean(v2_list), max(v2_list), min(v2_list))
 
@@ -77,7 +99,7 @@ data = {
 }
 
 df = pd.DataFrame(data)
-file_path = f"..\\data\\data_T{T}.csv"
+file_path = f".\\data\\data_T{T}.csv"
 os.makedirs(os.path.dirname(file_path), exist_ok=True)
 df.to_csv(file_path, index=False,mode='w+')
 print("Generated data saved to ", file_path)
