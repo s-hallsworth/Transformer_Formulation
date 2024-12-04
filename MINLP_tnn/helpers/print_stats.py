@@ -9,7 +9,26 @@ import os
 import matplotlib.pyplot as plt
 
 
+
 def save_gurobi_results(model, file_name, descr_short, rep, tnn_config):
+    """
+    Saves Gurobi optimization results to a CSV file.
+
+    Args:
+        model (gurobipy.Model): The solved Gurobi model.
+        file_name (str): Name of the CSV file (without extension) to save results.
+        descr_short (str): Short description of the experiment.
+        rep (int): The repetition number of the experiment.
+        tnn_config (dict): Configuration dictionary containing TNN-specific parameters.
+
+    Writes:
+        A CSV file containing various metrics and results of the optimization process.
+
+    Notes:
+        - Includes model statistics such as the number of variables, constraints, runtime, and optimality gap.
+        - Handles MIP-specific metrics like the number of nodes explored and solutions found.
+    """
+
     # Collect the required information
     time_limit = model.Params.TimeLimit
     threads = model.Params.Threads
@@ -59,7 +78,6 @@ def save_gurobi_results(model, file_name, descr_short, rep, tnn_config):
         ['Opt Gap', optimality_gap],
         ['Obj Value', objective_value],
         ['RNR Obj Value', root_node_relax_obj_value],
-        #['RNR Time (wu)', root_node_relax_time],
         ['RNR Iters', root_node_iterations],
     ]
 
@@ -73,6 +91,24 @@ def save_gurobi_results(model, file_name, descr_short, rep, tnn_config):
 
 
 def solve_gurobipy(model, time_limit, callback=None):
+    """
+    Solves a Gurobi optimization model and prints the results.
+
+    Args:
+        model (gurobipy.Model): The Gurobi model to be solved.
+        time_limit (float or None): Time limit in seconds for the solver. If None, no limit is applied.
+        callback (optional): Callback function for advanced solver interactions.
+
+    Returns:
+        tuple: A tuple containing:
+            - runtime (float): The runtime of the optimization in seconds.
+            - optimality_gap (float or None): The optimality gap, if applicable.
+
+    Notes:
+        - Supports solving MIP and continuous models.
+        - Prints key solver metrics such as solve status, runtime, number of solutions found, and optimality gap.
+    """
+
     # Set a time limit
     if not time_limit is None:
         model.setParam('TimeLimit',time_limit)
@@ -121,6 +157,22 @@ def solve_gurobipy(model, time_limit, callback=None):
     return runtime, optimality_gap
     
 def solve_pyomo(model, solver, time_limit):
+    """
+    Solves a Pyomo optimization model and prints the results.
+
+    Args:
+        model (pyomo.ConcreteModel): The Pyomo model to be solved.
+        solver (pyomo.opt.SolverFactory): The Pyomo solver to be used.
+        time_limit (float or None): Time limit in seconds for the solver. If None, no limit is applied.
+
+    Returns:
+        pyomo.opt.SolverResults: The results object containing solution information.
+
+    Notes:
+        - Supports time limits via solver options.
+        - Extracts and prints key metrics such as runtime, solver status, termination condition, and optimality gap.
+    """
+
     if time_limit is not None:
         solver.options['timelimit'] = time_limit
     print('Time Limit: ', time_limit)
@@ -176,6 +228,30 @@ def solve_pyomo(model, solver, time_limit):
     return results
 
 def save_results(exp_name, exp_set_name, path, dict, expected_value, opt_value, expected_x_value, opt_x_value, show_plt=True):
+    """
+    Saves experiment results to a CSV file and generates a plot.
+
+    Args:
+        exp_name (str): Name of the experiment.
+        exp_set_name (str): Name of the experiment set.
+        path (str): Directory path where the results will be saved.
+        dict (dict): Dictionary containing experiment-specific metrics and configurations.
+        expected_value (np.ndarray): Array of expected output values.
+        opt_value (np.ndarray): Array of optimized output values.
+        expected_x_value (np.ndarray): Corresponding x-values for the expected results.
+        opt_x_value (np.ndarray): Corresponding x-values for the optimized results.
+        show_plt (bool): Whether to display the plot. Defaults to True.
+
+    Saves:
+        - A CSV file with experiment metrics and configurations.
+        - A PNG plot comparing expected values from trained TNN and values from optimised TNN.
+
+    Notes:
+        - Automatically appends to the CSV file if it exists; otherwise, creates a new one.
+        - Generates a plot comparing expected and solved results.
+    """
+
+    
     path = path
     
     file_name = f".\\{path}\\{exp_set_name}_results.csv"  
