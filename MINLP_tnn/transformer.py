@@ -2,12 +2,11 @@ import pyomo.environ as pyo
 import numpy as np
 import torch
 import math
-from pyomo import dae
 import json
 import os
 from helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_hugging_learned_parameters
 from omlt import OmltBlock
-from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation#, FullSpaceSmoothNNFormulation
+from omlt.neuralnet import *
 from omlt.io.keras import keras_reader
 import omlt
 import helpers.OMLT_helper 
@@ -24,7 +23,7 @@ def activate_envelope_att(model):
         model.constr_concave_tp.deactivate()
         model.constr_concave_tp_sct.deactivate()
 
-        if model.s_cv == 0: # --> convex region onlyt
+        if model.s_cv == 0: # --> convex region only
             model.constr_convex.activate()
         elif model.s_cc == 0: # --> concave region only
             model.constr_concave.activate() 
@@ -40,33 +39,40 @@ def activate_envelope_att(model):
                 model.constr_concave_tp_sct.activate()
 
 class Transformer:
-    """ A Time Series Transformer based on Vaswani et al's "Attention is All You Need" paper."""
-    def __init__(self, config_file:Union[list,str], opt_model, set_bound_cut=None):
+    """ 
+    A MINLP formulation of a transformer neural network based on Vaswani et al's "Attention is All You Need" paper.
+    
+    Attributes:
+        hyper_params (Union[list,str]): Hyper-parameters of the TNN model including headsize, number of heads and embedding dimension
+        opt_model (pyo.ConcreteModel()): A pyomo optimisation model
+        set_bound_cut (dict, optional): A dictionary with boolean values to indicate which bounds and cuts to activate/deactivate.
+                              If this value is not specified (None) a default set of bounds and cuts will be used. 
+                              This configuration corresponds to "All in the associated thesis document.
+    """
+    def __init__(self, hyper_params:Union[list,str], opt_model, set_bound_cut=None):
         # Define optimisation model
         self.M = opt_model
 
         # Define hyper parameters either from json file or list
-        if isinstance(config_file, str):
-            with open(config_file, "r") as file:
+        if isinstance(hyper_params, str):
+            with open(hyper_params, "r") as file:
                 config = json.load(file)
-
-            self.N = config['hyper_params']['N']             # enc sequence length
-            self.d_model = config['hyper_params']['d_model'] # embedding dimensions of model
-            self.d_k = config['hyper_params']['d_k']         # head size
-            self.d_H = config['hyper_params']['d_H']         # number of heads
-            self.input_dim = config['hyper_params']['input_dim'] # dimension of input
-            self.epsilon = config['hyper_params']['epsilon']     # epsilon used for layer norm
-            
+            self.N = config['hyper_params']['N']                # enc sequence length
+            self.d_model = config['hyper_params']['d_model']    # embedding dimensions of model
+            self.d_k = config['hyper_params']['d_k']            # head size
+            self.d_H = config['hyper_params']['d_H']            # number of heads
+            self.input_dim = config['hyper_params']['input_dim']# dimension of input
+            self.epsilon = config['hyper_params']['epsilon']    # epsilon used for layer norm
             file.close()
         else:
-            self.N = config_file[0]        # enc sequence length
-            self.d_model = config_file[1]  # embedding dimensions of model
-            self.d_k = config_file[2]      # head size
-            self.d_H = config_file[3]      # number of heads
-            self.input_dim = config_file[4] # dimension of input
-            self.epsilon = config_file[5]   # epsilon used for layer norm
+            self.N = hyper_params[0]            # enc sequence length
+            self.d_model = hyper_params[1]      # embedding dimensions of model
+            self.d_k = hyper_params[2]          # head size
+            self.d_H = hyper_params[3]          # number of heads
+            self.input_dim = hyper_params[4]    # dimension of input
+            self.epsilon = hyper_params[5]      # epsilon used for layer norm
 
-        #Define active bounds and cuts
+        # Define active bounds and cuts
         list_act= [ "embed_var",
         "LN_var", "LN_mean", "LN_num", "LN_num_squ", "LN_denom", "LN_num_squ_sum",
         "MHA_softmax_env", "MHA_Q", "MHA_K", "MHA_V", "MHA_attn_weight_sum", "MHA_attn_weight",
@@ -89,43 +95,73 @@ class Transformer:
             #self.bound_cut_activation["MHA_softmax_env"] = False ## TO DO: add this as dynamic cut in callback
         else:
             self.bound_cut_activation = set_bound_cut 
-            
-        print('Percentage activated bounds+cuts: ', 100 * sum(self.bound_cut_activation.values())/ len(list_act))
+        print('Percentage activated bounds + cuts: ', 100 * sum(self.bound_cut_activation.values())/ len(list_act))
 
-        
         # initialise set of model dims
         if not hasattr( self.M, "model_dims"):
             self.M.model_dims = pyo.Set(initialize= list(range(self.d_model)))
 
-    
-    def build_from_pytorch(self, pytorch_model, sample_enc_input, sample_dec_input, enc_bounds = None , dec_bounds = None, Transformer='torch', default=True, hugging_face_dict=None):
-        """ Builds transformer formulation for a trained pytorchtransfomrer model with and enocder an decoder """
-        
-        # Get learned parameters
-        if Transformer == 'pytorch':
-            layer_names, parameters, _, enc_dec_count, _ = get_pytorch_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, self.N)
-        elif Transformer == 'huggingface':
-            layer_names, parameters, _, enc_dec_count, _ = get_hugging_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, hugging_face_dict)
-    
+    def build_from_hug_torch(self, tnn_model sample_enc_input, sample_dec_input, enc_bounds = None , dec_bounds = None, Transformer='pytorch', default=True, hugging_face_dict=None):
+        """ 
+        Constructs a mathematical formulation of a trained PyTorch or HuggingFace Transformer model with both encoder and decoder components.
 
-        self.epsilon = 1e-5
-        if default:
+        Args:
+            tnn_model (torch.nn.Module, TimeSeriesTransformerForPrediction): The trained Transformer model to be formulated.
+            sample_enc_input (torch.Tensor): Sample input tensor for the encoder to extract model dimensions and structure.
+            sample_dec_input (torch.Tensor): Sample input tensor for the decoder to extract model dimensions and structure.
+            enc_bounds (tuple, optional): Upper and lower bounds on encoder input values. Defaults to None.
+            dec_bounds (tuple, optional): Upper and lower bounds on decoder input values. Defaults to None.
+            Transformer (str): Type of transformer model ('pytorch' or 'huggingface'). Defaults to 'pytorch'.
+            default (bool): Whether to build the default architecture or parse from the layer structure. Defaults to True. 
+                            NB: Parsing issues may occur for layers are not implemented as modules in the TNNs architecture. 
+                                For example, residual layers are generally not included in the module list. In this case their
+                                position is inferred since they tend to occur with normalisation layers in the encoder and decoder blocks.
+            hugging_face_dict (dict, optional): Additional parameters for HuggingFace layer components. Required if `Transformer='huggingface'`.
+                                                Example:
+                                                hugging_face_dict = {}
+                                                hugging_face_dict["past_values"] =  past_values
+                                                hugging_face_dict["past_time_features"] = past_time_features
+                                                hugging_face_dict["past_observed_mask"] = past_observed_mask
+                                                hugging_face_dict["future_time_features"] = future_time_features
+
+        Returns:
+            list: A list containing the input variable name, output variable name, and a dictionary of feed-forward network parameters.
+        """
+        
+        # Parse to extract model archicture information and learnt parameters
+        if Transformer == 'pytorch':
+            layer_names, parameters, _, enc_dec_count, _ = get_pytorch_learned_parameters(tnn_model sample_enc_input, sample_dec_input ,self.d_H, self.N)
+        elif Transformer == 'huggingface':
+            layer_names, parameters, _, enc_dec_count, _ = get_hugging_learned_parameters(tnn_model sample_enc_input, sample_dec_input ,self.d_H, hugging_face_dict)
+    
+        # Build transformer
+        if default: # build default pytorch architecture
             input_var_name, output_var_name, ffn_parameter_dict = self.__build_layers_default( layer_names, parameters, enc_dec_count , enc_bounds, dec_bounds)
-        else:
+        else: # build architecture from layer parsing
             input_var_name, output_var_name, ffn_parameter_dict = self.__build_layers_parse( layer_names, parameters, enc_dec_count , enc_bounds, dec_bounds)
         
         return [input_var_name, output_var_name, ffn_parameter_dict]
 
-    def __add_pos_encoding(self, parameters, layer:Union[pyo.Var,str], input_name, layer_index=""):
+    def __add_pos_encoding(self, parameters, layer, input_name:Union[pyo.Var,str]):
+        """
+        Adds positional encoding to the input of a specific layer.
+
+        Args:
+            parameters (dict): Dictionary containing learned parameters of the Transformer model.
+            layer (str): Layer identifier for the positional encoding.
+            input_name (Union[pyo.Var,str]): Name of positional encoding output variable added to the optimisation model.
+
+        Returns:
+            pyo.Var: The name of the output variable from the positional encoding layer.
+        """
         b_pe = parameters[layer,'b']
             
         output_name = layer          
         output_var = self.add_pos_encoding(input_name, output_name, b_pe)
             
-        # return name of input to next layer
         return output_name
     
-    def __add_linear(self, parameters, layer:Union[pyo.Var,str], input_name, embed_dim, layer_index=""):
+    def __add_linear(self, parameters, layer, input_name, embed_dim, layer_index=""):
         
         W_linear = parameters[layer,'W']
         try:
@@ -152,7 +188,7 @@ class Transformer:
         # return name of input to next layer
         return layer, ffn_parameter_dict
     
-    def __add_layer_norm(self, parameters, layer:Union[pyo.Var,str], input_name, layer_index=""):
+    def __add_layer_norm(self, parameters, layer, input_name, layer_index=""):
         gamma = parameters[layer, 'gamma']
         beta  = parameters[layer, 'beta']
         
@@ -164,7 +200,7 @@ class Transformer:
         # return name of input to next layer
         return output_name
     
-    def __add_cross_attn(self, parameters, layer:Union[pyo.Var,str], input_name, enc_output_name):
+    def __add_cross_attn(self, parameters, layer, input_name, enc_output_name):
         W_q = parameters[layer,'W_q']
         W_k = parameters[layer,'W_k']
         W_v = parameters[layer,'W_v']
@@ -183,7 +219,7 @@ class Transformer:
         # return name of input to next layer
         return layer
     
-    def __add_self_attn(self, parameters, layer:Union[pyo.Var,str], input_name):
+    def __add_self_attn(self, parameters, layer, input_name):
         W_q = parameters[layer,'W_q']
         W_k = parameters[layer,'W_k']
         W_v = parameters[layer,'W_v']
@@ -205,7 +241,7 @@ class Transformer:
         # return name of input to next layer
         return layer
     
-    def __add_encoder_layer(self, parameters, layer:Union[pyo.Var,str], input_name, enc_layer, ffn_parameter_dict):
+    def __add_encoder_layer(self, parameters, layer, input_name, enc_layer, ffn_parameter_dict):
         embed_dim = self.M.model_dims 
         
         input_name_1 = self.__add_self_attn(parameters, f"enc__self_attention_1", input_name)
@@ -221,7 +257,7 @@ class Transformer:
         # return name of input to next layer
         return input_name, ffn_parameter_dict
     
-    def __add_decoder_layer(self, parameters, layer:Union[pyo.Var,str], input_name, dec_layer, ffn_parameter_dict, enc_output_name):
+    def __add_decoder_layer(self, parameters, layer, input_name, dec_layer, ffn_parameter_dict, enc_output_name):
         embed_dim = self.M.model_dims 
         
         input_name_1 = self.__add_self_attn(parameters, f"dec__self_attention_1", input_name)
@@ -438,7 +474,7 @@ class Transformer:
         #return: encoder input name, decoder input name, transformer output name, ffn parameters dictionary
         return [["enc_input","dec_input"], dec_input_name , ffn_parameter_dict]
     
-    def __add_ED_layer(self, parameters, layer:Union[pyo.Var,str], input_name, layer_num, ffn_parameter_dict, enc_output_name=None, residual=None):
+    def __add_ED_layer(self, parameters, layer, input_name, layer_num, ffn_parameter_dict, enc_output_name=None, residual=None):
         """
         Add components of encoder/decoder.
         """
@@ -1574,7 +1610,7 @@ class Transformer:
         
         return indices_len, indices_attr
     
-    def add_FFN_2D(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters, bounds = None):
+    def add_FFN_2D(self, input_var_name:Union[pyo.Var,str], output_var_name, nn_name, input_shape, model_parameters, bounds = None, formulation=ReluBigMFormulation):
         """ Add FFN using OMLT """
         
         # get input var
@@ -1607,7 +1643,7 @@ class Transformer:
             input_bounds[dim] = bounds
         
         net_relu = helpers.OMLT_helper.weights_to_NetDef(output_var_name, nn_name, input_shape, model_parameters, input_bounds)
-        NN_block.build_formulation(ReluBigMFormulation(net_relu))
+        NN_block.build_formulation(formulation(net_relu))
         
         # Set input constraints
         if input_indices_len == 1:

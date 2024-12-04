@@ -1190,7 +1190,7 @@ if __name__ == '__main__':
     # transformer = TNN.Transformer( ".\\data\\reactor_config_huggingface.json", opt_model) 
     
     # # build optimization TNN
-    # result =  transformer.build_from_pytorch( tnn_model,sample_enc_input=src, sample_dec_input=src,enc_bounds = bounds_target , dec_bounds=bounds_target, Transformer='huggingface', default=False, hugging_face_dict=hugging_face_dict)
+    # result =  transformer.build_from_hug_torch( tnn_model,sample_enc_input=src, sample_dec_input=src,enc_bounds = bounds_target , dec_bounds=bounds_target, Transformer='huggingface', default=False, hugging_face_dict=hugging_face_dict)
     # tnn_input_enc = getattr( opt_model, result[0][0])
     # tnn_input_dec = getattr( opt_model, result[0][1])
     # tnn_output = getattr( opt_model, result[-2])

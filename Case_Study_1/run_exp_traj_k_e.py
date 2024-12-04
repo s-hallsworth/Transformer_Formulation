@@ -51,8 +51,8 @@ tnn_config["Num ReLu"] = 2
 # optimal trajectory of a projectile launched with x velocity v1 and y velocity v2
 
 model = pyo.ConcreteModel(name="(TRAJ_TOY)")
-config_file = '.\\data\\toy_track_k_enc_config_2.json' 
-tnn_config["Config File"] = config_file
+hyper_params = '.\\data\\toy_track_k_enc_config_2.json' 
+tnn_config["Config File"] = hyper_params
 
 # define constants
 T_end = 0.5
@@ -244,7 +244,7 @@ for r in range(REP):
         #----------------------#
     
         #init and activate constraints
-        transformer = TNN.Transformer(config_file, m, activation_dict)  
+        transformer = TNN.Transformer(hyper_params, m, activation_dict)  
         
         # Define tranformer
         transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))

@@ -40,7 +40,7 @@ print("intermediary output: ", intermediate_outputs)
 # Get learned parameters
 opt_model = pyo.ConcreteModel(name="opt_model_name")
 transformer = TNN.Transformer( ".\\data\\toy_config_pytorch.json", opt_model) 
-result =  transformer.build_from_pytorch( model, src, tgt, enc_bounds = (0,1), dec_bounds=(0,1))
+result =  transformer.build_from_hug_torch( model, src, tgt, enc_bounds = (0,1), dec_bounds=(0,1))
 print("transformer built: ",result)
 
 ## Set objective

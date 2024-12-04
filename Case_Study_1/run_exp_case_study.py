@@ -35,7 +35,7 @@ NAME = "reactor_cs"
 SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
 exp_name = "Reactor_"
-config_file = ".\\data\\reactor_config_huggingface.json" 
+hyper_params = ".\\data\\reactor_config_huggingface.json" 
 model_path = ".\\trained_transformer\\case_study\\model_TimeSeriesTransformer_final.pth"
 PATH =  f".\\Experiments\\{exp_name}"+"\\"
 
@@ -50,7 +50,7 @@ tnn_config["Num Dense"] = 15
 tnn_config["Num ReLu"] = 0
 tnn_config["Num SiLU"] = 4
 tnn_config["Num Attn"] = 6
-tnn_config["Config File"] = config_file
+tnn_config["Config File"] = hyper_params
 
 # Model Configuration
 device = "cpu"
@@ -220,7 +220,7 @@ for r in range(REP):
         m = opt_model.clone()
     
         #init and activate constraints
-        transformer = TNN.Transformer(config_file, m, activation_dict)  
+        transformer = TNN.Transformer(hyper_params, m, activation_dict)  
         
         # Define tranformer
         enc_dim_1 = src.size(0)

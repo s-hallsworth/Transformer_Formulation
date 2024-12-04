@@ -54,12 +54,12 @@ def generate_layer_outputs(model_path, define=True, x_input=None, u_input=None):
 
 
 #model_path = ".\\TNN_enc_0002.keras"
-# config_file = '.\\data\\toy_config_relu_10.json' 
+# hyper_params = '.\\data\\toy_config_relu_10.json' 
 # T = 9000 # time steps
 # seq_len = 10
 # pred_len = 2
 # window = seq_len + pred_len
-# model = tps.setup_toy( T, seq_len, pred_len, model_path, config_file)
+# model = tps.setup_toy( T, seq_len, pred_len, model_path, hyper_params)
 
 # gen_x, gen_u, _,_ = gen_x_u(9000)
 # output = generate_layer_outputs(model_path, True, gen_x[0], gen_u[0])

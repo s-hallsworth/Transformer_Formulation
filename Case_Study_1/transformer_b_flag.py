@@ -41,15 +41,15 @@ def activate_envelope_att(model):
 
 class Transformer:
     """ A Time Series Transformer based on Vaswani et al's "Attention is All You Need" paper."""
-    def __init__(self, config_file:Union[list,str], opt_model, set_bound_cut=None):
+    def __init__(self, hyper_params:Union[list,str], opt_model, set_bound_cut=None):
         
         self.M = opt_model
         # # time set
         # time_input = getattr( self.M, time_var_name)
         
          # get hyper params
-        if isinstance(config_file, str):
-            with open(config_file, "r") as file:
+        if isinstance(hyper_params, str):
+            with open(hyper_params, "r") as file:
                 config = json.load(file)
 
             self.N = config['hyper_params']['N'] # enc sequence length
@@ -61,12 +61,12 @@ class Transformer:
             
             file.close()
         else:
-            self.N = config_file[0] # enc sequence length
-            self.d_model = config_file[1]  # embedding dimensions of model
-            self.d_k = config_file[2]
-            self.d_H = config_file[3]
-            self.input_dim = config_file[4]
-            self.epsilon = config_file[5]
+            self.N = hyper_params[0] # enc sequence length
+            self.d_model = hyper_params[1]  # embedding dimensions of model
+            self.d_k = hyper_params[2]
+            self.d_H = hyper_params[3]
+            self.input_dim = hyper_params[4]
+            self.epsilon = hyper_params[5]
 
         #Dict of bounds and cuts to activate
         list_act= [ "embed_var",
@@ -91,14 +91,14 @@ class Transformer:
             self.M.model_dims = pyo.Set(initialize= list(range(self.d_model)))
 
     
-    def build_from_pytorch(self, pytorch_model, sample_enc_input, sample_dec_input, enc_bounds = None , dec_bounds = None, Transformer='torch', default=True, hugging_face_dict=None):
+    def build_from_hug_torch(self, tnn_model sample_enc_input, sample_dec_input, enc_bounds = None , dec_bounds = None, Transformer='torch', default=True, hugging_face_dict=None):
         """ Builds transformer formulation for a trained pytorchtransfomrer model with and enocder an decoder """
         
         # Get learned parameters
         if Transformer == 'pytorch':
-            layer_names, parameters, _, enc_dec_count, _ = get_pytorch_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, self.N)
+            layer_names, parameters, _, enc_dec_count, _ = get_pytorch_learned_parameters(tnn_model sample_enc_input, sample_dec_input ,self.d_H, self.N)
         elif Transformer == 'huggingface':
-            layer_names, parameters, _, enc_dec_count, _ = get_hugging_learned_parameters(pytorch_model, sample_enc_input, sample_dec_input ,self.d_H, hugging_face_dict)
+            layer_names, parameters, _, enc_dec_count, _ = get_hugging_learned_parameters(tnn_model sample_enc_input, sample_dec_input ,self.d_H, hugging_face_dict)
     
 
         self.epsilon = 1e-5

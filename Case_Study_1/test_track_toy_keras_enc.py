@@ -34,7 +34,7 @@ class TestTransformer(unittest.TestCase):
     #     seq_len = tt
         
     #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(config_file, m)  
+    #     transformer = TNN.Transformer(hyper_params, m)  
     #     transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
         
     #     # add constraints to trained TNN input
@@ -92,7 +92,7 @@ class TestTransformer(unittest.TestCase):
 
         
     #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(config_file, m)  
+    #     transformer = TNN.Transformer(hyper_params, m)  
     #     transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
     #     transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
         
@@ -178,7 +178,7 @@ class TestTransformer(unittest.TestCase):
     #             b_o = 0
         
     #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(config_file, m)  
+    #     transformer = TNN.Transformer(hyper_params, m)  
     #     transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
     #     transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
     #     transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
@@ -331,7 +331,7 @@ class TestTransformer(unittest.TestCase):
     #             b_o = 0
         
     #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(config_file, m)  
+    #     transformer = TNN.Transformer(hyper_params, m)  
     #     transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
     #     transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
     #     transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
@@ -419,7 +419,7 @@ class TestTransformer(unittest.TestCase):
     #     #     print(f"{i}: {v}")
         
     #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(config_file, m)  
+    #     transformer = TNN.Transformer(hyper_params, m)  
     #     transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
     #     transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
     #     transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
@@ -521,7 +521,7 @@ class TestTransformer(unittest.TestCase):
         
         
         # Define tranformer and execute 
-        transformer = TNN.Transformer(config_file, m, set_bound_cut=bound_cut)  
+        transformer = TNN.Transformer(hyper_params, m, set_bound_cut=bound_cut)  
         transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
         transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
         transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
@@ -707,7 +707,7 @@ def reformat(dict, layer_name):
 if __name__ == '__main__': 
     # instantiate pyomo model component
     model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
-    config_file = '.\\data\\toy_track_k_enc_config_2.json' 
+    hyper_params = '.\\data\\toy_track_k_enc_config_2.json' 
     
     # define constants
     T_end = 0.5#0.0105

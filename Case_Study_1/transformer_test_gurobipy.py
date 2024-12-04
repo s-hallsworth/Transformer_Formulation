@@ -65,12 +65,12 @@ class TestTransformer(unittest.TestCase):
     # def test_no_embed_input(self):
     #     # Define Test Case Params
     #     model = tps.model.clone()
-    #     #config_file = '.\\data\\toy_config_relu_2.json'
-    #     config_file = tps.config_file 
+    #     #hyper_params = '.\\data\\toy_config_relu_2.json'
+    #     hyper_params = tps.hyper_params 
     #     T = 11 
         
     #     # Define tranformer and execute up to embed
-    #     transformer = TNN.Transformer(model, config_file, "time_input")  
+    #     transformer = TNN.Transformer(model, hyper_params, "time_input")  
     #     transformer.embed_input(model, "input_param","input_embed", "variables")
         
     #     # Convert to gurobipy
@@ -105,11 +105,11 @@ class TestTransformer(unittest.TestCase):
     # # def test_embed_input(self):
     # #     # Define Test Case Params
     # #     model = tps.model.clone()
-    # #     config_file = '.\\data\\toy_config_embed_3.json' 
+    # #     hyper_params = '.\\data\\toy_config_embed_3.json' 
     # #     T = 11
         
     # #     # Define tranformer and execute up to embed
-    # #     transformer = TNN.Transformer(model, config_file, "time_input")  
+    # #     transformer = TNN.Transformer(model, hyper_params, "time_input")  
     # #     W_emb = np.random.rand(transformer.input_dim, transformer.d_model) # define rand embedding matrix
     # #     transformer.embed_input(model, "input_param","input_embed", "variables",W_emb)
         
@@ -152,12 +152,12 @@ class TestTransformer(unittest.TestCase):
 
     #     # Define Test Case Params
     #     model = tps.model.clone()
-    #     # config_file = '.\\data\\toy_config_relu_2.json' 
-    #     config_file = tps.config_file 
+    #     # hyper_params = '.\\data\\toy_config_relu_2.json' 
+    #     hyper_params = tps.hyper_params 
     #     T = 11
         
     #     # Define tranformer and execute up to layer norm
-    #     transformer = TNN.Transformer(model, config_file, "time_input")  
+    #     transformer = TNN.Transformer(model, hyper_params, "time_input")  
     #     transformer.embed_input(model, "input_param","input_embed", "variables")
     #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
         
@@ -203,12 +203,12 @@ class TestTransformer(unittest.TestCase):
 
     #     # Define Test Case Params
     #     model = tps.model.clone()
-    #     # config_file = '.\\data\\toy_config_relu_2.json' 
-    #     config_file = tps.config_file 
+    #     # hyper_params = '.\\data\\toy_config_relu_2.json' 
+    #     hyper_params = tps.hyper_params 
     #     T = 11
         
     #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(model, config_file, "time_input")  
+    #     transformer = TNN.Transformer(model, hyper_params, "time_input")  
     #     transformer.embed_input(model, "input_param","input_embed", "variables")
     #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
     #     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
@@ -288,12 +288,12 @@ class TestTransformer(unittest.TestCase):
         
     #     # Define Test Case Params
     #     model = tps.model.clone()
-    #     # config_file = '.\\data\\toy_config_relu_2.json' 
-    #     config_file = tps.config_file 
+    #     # hyper_params = '.\\data\\toy_config_relu_2.json' 
+    #     hyper_params = tps.hyper_params 
     #     T = 11
 
     #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(model, config_file, "time_input")  
+    #     transformer = TNN.Transformer(model, hyper_params, "time_input")  
     #     transformer.embed_input(model, "input_param","input_embed", "variables")
     #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
     #     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
@@ -345,12 +345,12 @@ class TestTransformer(unittest.TestCase):
         
     #     # Define Test Case Params
     #     model = tps.model.clone()
-    #     # config_file = '.\\data\\toy_config_relu_2.json' 
-    #     config_file = tps.config_file 
+    #     # hyper_params = '.\\data\\toy_config_relu_2.json' 
+    #     hyper_params = tps.hyper_params 
     #     T = 11
         
     #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(model, config_file, "time_input")  
+    #     transformer = TNN.Transformer(model, hyper_params, "time_input")  
     #     transformer.embed_input(model, "input_param","input_embed", "variables")
     #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
     #     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
@@ -391,12 +391,12 @@ class TestTransformer(unittest.TestCase):
         
     #     # Define Test Case Params
     #     model = tps.model.clone()
-    #     # config_file = '.\\data\\toy_config_relu_2.json' 
-    #     config_file = tps.config_file 
+    #     # hyper_params = '.\\data\\toy_config_relu_2.json' 
+    #     hyper_params = tps.hyper_params 
     #     T = 11
         
     #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(model, config_file, "time_input")  
+    #     transformer = TNN.Transformer(model, hyper_params, "time_input")  
     #     transformer.embed_input(model, "input_param","input_embed", "variables")
     #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
     #     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
@@ -444,12 +444,12 @@ class TestTransformer(unittest.TestCase):
         
     #     # Define Test Case Params
     #     model = tps.model.clone()
-    #     # config_file = '.\\data\\toy_config_relu_2.json' 
-    #     config_file = tps.config_file 
+    #     # hyper_params = '.\\data\\toy_config_relu_2.json' 
+    #     hyper_params = tps.hyper_params 
     #     T = 11
         
     #     # Define tranformer and execute 
-    #     transformer = TNN.Transformer(model, config_file, "time_input")  
+    #     transformer = TNN.Transformer(model, hyper_params, "time_input")  
     #     transformer.embed_input(model, "input_param","input_embed", "variables")
     #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
     #     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
@@ -504,12 +504,12 @@ class TestTransformer(unittest.TestCase):
         
     #     # Define Test Case Params
     #     model = tps.model.clone()
-    #     # config_file = '.\\data\\toy_config_relu_2.json' 
-    #     config_file = tps.config_file 
+    #     # hyper_params = '.\\data\\toy_config_relu_2.json' 
+    #     hyper_params = tps.hyper_params 
     #     T = 11
         
     #     # Define tranformer layers 
-    #     transformer = TNN.Transformer(model, config_file, "time_input")  
+    #     transformer = TNN.Transformer(model, hyper_params, "time_input")  
     #     transformer.embed_input(model, "input_param","input_embed", "variables")
     #     transformer.add_layer_norm(model, "input_embed", "layer_norm", "gamma1", "beta1")
     #     transformer.add_attention(model, "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
@@ -563,8 +563,8 @@ class TestTransformer(unittest.TestCase):
         
         # Define Test Case Params
         model = tps.model.clone()
-        # config_file = '.\\data\\toy_config_relu_2.json' 
-        config_file = tps.config_file 
+        # hyper_params = '.\\data\\toy_config_relu_2.json' 
+        hyper_params = tps.hyper_params 
         T = 11
         gamma1 = tps.parameters['layer_normalization_1', 'gamma']
         beta1  = tps.parameters['layer_normalization_1', 'beta']
@@ -573,7 +573,7 @@ class TestTransformer(unittest.TestCase):
         beta2  = tps.parameters['layer_normalization_2', 'beta']
         
         # Define tranformer and execute 
-        transformer = TNN.Transformer(config_file, model)  
+        transformer = TNN.Transformer(hyper_params, model)  
         transformer.embed_input("input_param","input_embed", model.model_dims)
         transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
         transformer.add_attention( "layer_norm","attention_output", tps.W_q, tps.W_k, tps.W_v, tps.W_o, tps.b_q, tps.b_k, tps.b_v, tps.b_o)
@@ -684,7 +684,7 @@ def reformat(dict, layer_name):
 # ------- MAIN -----------------------------------------------------------------------------------
 if __name__ == '__main__': 
     model_path = "..\\Solve_Toy\\TNN_enc_0002.keras"
-    config_file = '..\\Solve_Toy\\data\\toy_config_relu_10.json' 
+    hyper_params = '..\\Solve_Toy\\data\\toy_config_relu_10.json' 
     T = 9000 # time steps
     seq_len = 10
     pred_len = 2
@@ -696,7 +696,7 @@ if __name__ == '__main__':
     input_data = np.array([[ [x,u] for x,u in zip(x_input_10, u_input_10)]])
 
     
-    model = tps.setup_toy( T, 0, seq_len, pred_len, model_path, config_file, input_data[0])
+    model = tps.setup_toy( T, 0, seq_len, pred_len, model_path, hyper_params, input_data[0])
     layer_outputs_dict = tir.generate_layer_outputs(model_path, define=False)
     
     unittest.main() 

@@ -98,7 +98,7 @@ tnn_model.load_state_dict(torch.load(tnn_path, map_location=device))
 
 # create optimization transformer
 transformer = TNN.Transformer( ".\\data\\toy_config_pytorch.json", model) 
-result =  transformer.build_from_pytorch( tnn_model,sample_enc_input=src, sample_dec_input=src,enc_bounds = bounds_target , dec_bounds=bounds_target )
+result =  transformer.build_from_hug_torch( tnn_model,sample_enc_input=src, sample_dec_input=src,enc_bounds = bounds_target , dec_bounds=bounds_target )
 print("transformer built: ",result)
 tnn_input_enc = getattr( model, result[0][0])
 tnn_input_dec = getattr( model, result[0][1])

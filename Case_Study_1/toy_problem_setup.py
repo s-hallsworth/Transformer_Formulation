@@ -11,7 +11,7 @@ Define toy problem parametrs and var then run from another script like toy_probl
 
 ## 
 # model_path = "..\\Transformer_Toy\\transformer_small_relu_2_seqlen_2.keras"
-# config_file = '.\\data\\toy_config_relu_2_seqlen_2.json' 
+# hyper_params = '.\\data\\toy_config_relu_2_seqlen_2.json' 
 # #model_path = "..\\Transformer_Toy\\transformer_small_relu_2_TOY.keras" 
 # T = 9000 # time steps
 # seq_len = 2
@@ -20,9 +20,9 @@ Define toy problem parametrs and var then run from another script like toy_probl
 
 ## create model
 
-def setup_toy( T,start_time, seq_len, pred_len, model_path, config_file, input_data):
+def setup_toy( T,start_time, seq_len, pred_len, model_path, hyper_params, input_data):
     model_path = model_path
-    config_file = config_file
+    hyper_params = hyper_params
     model = pyo.ConcreteModel(name="(TOY_OPTIMAL_CONTROL)")
     layer_names, parameters ,_ = extract_from_pretrained.get_learned_parameters(model_path)
     window = seq_len + pred_len
