@@ -11,6 +11,6 @@ setup(
     description="A MINLP optimisation-based formulation of a trained transformer neural network",
     author="S Hallsworth",
     packages=find_packages(),
-    install_requires=parse_requirements("requirements.txt"),
+    install_requires=parse_requirements("requirements_tnn.txt"),
     python_requires=">=3.10",
 )

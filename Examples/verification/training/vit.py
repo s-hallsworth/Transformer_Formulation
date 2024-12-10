@@ -1,23 +1,8 @@
 
 # Code adapted from: https://github.com/shub-garg/Vision-Transformer-VIT-for-MNIST/blob/main/Vision_Transformer_for_MNIST.ipynb
-# # Transformers in Computer Vision
-# 
-# 
-# 
-# Transformer architectures owe their origins in natural language processing (NLP), and indeed form the core of the current state of the art models for most NLP applications.
-# 
-# We will now see how to develop transformers for processing image data (and in fact, this line of deep learning research has been gaining a lot of attention in 2021). The *Vision Transformer* (ViT) introduced in [this paper](https://arxiv.org/pdf/2010.11929.pdf) shows how standard transformer architectures can perform very well on image. The high level idea is to extract patches from images, treat them as tokens, and pass them through a sequence of transformer blocks before throwing on a couple of dense classification layers at the very end.
-# 
-# 
-# Some caveats to keep in mind:
-# - ViT models are very cumbersome to train (since they involve a ton of parameters) so budget accordingly.
-# - ViT models are a bit hard to interpret (even more so than regular convnets).
-# - Finally, while in this notebook we will train a transformer from scratch, ViT models in practice are almost always *pre-trained* on some large dataset (such as ImageNet) before being transferred onto specific training datasets.
-# 
-# 
-# 
-# 
-
+    # # '' Transformers in Computer Vision
+    # Transformer architectures owe their origins in natural language processing (NLP), and indeed form the core of the current state of the art models for most NLP applications.
+    # ''
 from email.mime import image
 import torch
 from torch import nn
@@ -36,8 +21,31 @@ from vit_TNN import *
 import csv
 import os
 
-torch.manual_seed(42)
+"""
+The code implements a training loop to train Vision Transformers with differing parameters
 
+Features:
+    - Preprocessing of MNIST dataset to resize images and normalize pixel values.
+    - Extraction of image patches and passing them through a Vision Transformer model.
+    - Iterative training of the ViT model with varying configurations (dimension, depth, and MLP dimension).
+    - Visualization of training batches for inspection.
+    - Saving of trained models and recording of results in a CSV file for analysis.
+    
+Adjustable Parameters:
+    - Image size: Resize dimensions of the input images.
+    - Patch size: Size of the patches extracted from each image.
+    - ViT model parameters: Dimension (`dim`), depth (`depth`), number of heads (`heads`), and MLP dimension (`mlp_dim`).
+
+Outputs:
+    - Trained ViT models saved as `.pt` files.
+    - Test and Train accuracy logged to a CSV file for analysis.
+    
+Usage:
+    - Update the `DOWNLOAD_PATH` to specify the directory for downloading the MNIST dataset.
+    - Run the script to train ViT models with varying configurations and analyze their performance.
+"""
+
+torch.manual_seed(42)
 DOWNLOAD_PATH = '/data/mnist'
 BATCH_SIZE_TRAIN = 100
 BATCH_SIZE_TEST = 1000
@@ -47,7 +55,6 @@ image_size=8
 patch_size=2 
 transform_mnist = torchvision.transforms.Compose([torchvision.transforms.Resize((image_size, image_size)), torchvision.transforms.ToTensor(),
                                 torchvision.transforms.Normalize((0,), (1,))])
-                               #torchvision.transforms.Normalize((0.1307,), (0.3081,))])
 
 train_set = torchvision.datasets.MNIST(DOWNLOAD_PATH, train=True, download=True,
                                        transform=transform_mnist)
@@ -77,7 +84,7 @@ def show_batch(data_loader):
 # depth=2
 heads=6
 # mlp_dim=32
-path = r".\trained_transformer\verification"+f"_{image_size*image_size}"
+path = r".\models"+f"_{image_size*image_size}"
 csv_file_path = path+"\\vit_results.csv"
 columns = ['name', 'dim', 'depth', 'heads', 'mlp_dim', 'avg_test_loss', 'test_accuracy']
 eps = 1e-6 

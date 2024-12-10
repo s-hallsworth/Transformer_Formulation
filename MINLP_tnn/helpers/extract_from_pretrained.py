@@ -523,7 +523,6 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
                 dict_transformer_params[(new_layer_name, 'W')] =  W_parameters
                 dict_transformer_params[(new_layer_name, 'b')] =  b_parameters
                 
-        #print(layer, new_layer_name)
     return layer_names, dict_transformer_params, model, [count_encoder_layers, count_decoder_layers], dict_outputs
 
 def get_ViT_model_weights(model, file_name='.\weights.json'):

@@ -1,3 +1,27 @@
+# numpy
+# pyomo==6.7.1
+# gurobipy==11.0.2
+# pyscipopt==5.1.1
+# amplpy==0.14.0 
+# ampltools==0.7.5
+# omlt==1.1
+# keras==3
+# tensorflow
+# pandas
+# torch
+# scikit-learn
+# scipy
+# seaborn
+# matplotlib
+# torchinfo
+# einops
+# torchvision
+# gurobi-machinelearning
+# google
+# ruff
+#pip freeze > requirements.txt
+numpy==1.26.4
+pandas==2.2.1
 torch==2.4.1
 scikit-learn==1.4.1.post1
 scipy==1.12.0
@@ -8,6 +32,7 @@ gurobipy==11.0.2
 pyscipopt==5.1.1
 google==3.0.0
 gurobi-machinelearning==1.5.0
+tensorflow==2.15.0
 ruff==0.4.1
 omlt==1.1
 amplpy==0.14.0 
@@ -15,7 +40,3 @@ ampltools==0.7.5
 torchinfo==1.8.0
 einops==0.8.0
 torchvision==0.19.1
-numpy==1.26.4
-pandas==2.2.1
-tensorflow==2.13.0
-keras>=2.13.0

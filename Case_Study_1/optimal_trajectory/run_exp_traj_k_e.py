@@ -15,10 +15,7 @@ from MINLP_tnn.helpers import extract_from_pretrained
 from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy, save_gurobi_results
 import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
 from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
-from training.Tmodel import TransformerModel
 from combine_csv import combine
-import keras.src.models.functional
-
 
 # turn off floating-point round-off
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' 
@@ -114,7 +111,7 @@ model.obj = pyo.Objective(
 )  # -1: maximize, +1: minimize (default)
 
 # load trained transformer
-model_path = "training\\models\\TNN_traj_enc_2.keras" # dmodel 4, num heads 1, n ence 1, n dec 1, head dim 4, pred_len 2+1 
+model_path = "training\\models\\TNN_traj_enc_3.keras" # dmodel 4, num heads 1, n ence 1, n dec 1, head dim 4, pred_len 2+1 
 model_PATH = os.path.join(script_dir, model_path)
 layer_names, parameters , tnn_model = extract_from_pretrained.get_learned_parameters(model_PATH)
 
