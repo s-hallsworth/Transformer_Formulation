@@ -2,3 +2,4 @@ tensorflow==2.17.0
 pandas<2.2.0
 gluonts==0.14.4     
 optimum-intel==1.13.0
+gurobi_logtools

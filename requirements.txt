@@ -18,3 +18,4 @@ ampltools==0.7.5
 torchinfo==1.8.0
 einops==0.8.0
 torchvision==0.19.1
+gurobi_logtools
