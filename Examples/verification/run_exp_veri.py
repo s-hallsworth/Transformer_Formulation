@@ -12,7 +12,7 @@ import torchvision
 
 ## Import from repo files
 from training import vit_TNN
-from cs_veri_tnn_exp import *   #import problem definition and TNN architecture
+from veri_tnn_exp import *   #import problem definition and TNN architecture
 from MINLP_tnn.transformer import Transformer as TNN # import MINLP transformer
 import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
 from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy, save_gurobi_results
