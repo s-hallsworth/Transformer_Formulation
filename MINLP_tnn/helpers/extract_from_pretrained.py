@@ -652,7 +652,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
     layers = [i for i in list(input_shapes.keys()) if i ]
     
     # Get weights and biases
-    transformer_weights, transformer_bias, cls_token, pos_embedding = get_ViT_model_weights(model, save_json=False)
+    transformer_weights, transformer_bias, cls_token, pos_embedding = get_ViT_model_weights(model)
     
     # Create dictionary with parameters
     dict_transformer_params = {}

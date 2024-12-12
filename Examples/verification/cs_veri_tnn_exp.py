@@ -1,22 +1,3 @@
-"""
-This code an adaptation of code from: https://github.com/cog-imperial/PartitionedFormulations_NN/blob/main/src/optimalAdversary.py
-created by:
-    Calvin Tsay (tsaycal) - Imperial College London
-    Jan Kronqvist (jkronqvi) - KTH Royal Institute of Technology
-    Alexander Thebelt (ThebTron) - Imperial College London
-    Ruth Misener (rmisener) - Imperial College London
-
-For further details see the git repo or refer to the related article "Partition-based formulations for mixed-integer optimization of trained ReLU neural networks" Tsay et al. 2021
-
-This file contains implementations of the Optimal Adversary problem described in
-Section 4.1 of the manuscript. The file can be run directly, with the following parameters.
-Parameters can be changed on lines 57-69.
-    
-    Parameters:
-        problemNo (int): index of problem to be solved, can be in range(100)
-        epsilon (real): maximum l1-norm defining perturbations
-"""
-
 import pyomo.environ as pyo
 import numpy as np
 from pyomo.opt import SolverFactory
@@ -28,18 +9,74 @@ import torch
 from gurobipy import Model, GRB
 from gurobi_ml import add_predictor_constr
 import torchvision
+import sys
 
 # Import from repo file
 from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy
 import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
-import transformer_b_flag as TNN
+from MINLP_tnn.transformer import Transformer as TNN
 import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
-from vit_TNN import *
-
-TESTING = False # TESTING
+from training import vit_TNN
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
+
+"""
+Verification of Transformer Neural Networks using Pyomo and Gurobi.
+
+This script defines functions and utilities for verifying Transformer Neural Networks (TNNs) 
+on the MNIST dataset. The TNN is modelled as a Mixed Integer Nonlinear 
+Programming (MINLP) problem and solved using Pyomo and Gurobi frameworks.
+
+Functions:
+- `verification_problem`: 
+    Constructs a Pyomo model for verifying adversarial robustness of a TNN with input image 
+    perturbations constrained by an epsilon value.
+    
+- `count_layer_name`: 
+    Tracks and counts occurrences of layer names for creating unique identifiers in the 
+    Transformer formulation.
+    
+- `verification_tnn`: 
+    Formulates a Transformer architecture as constraints in the optimization model, 
+    including embedding, layer normalization, multi-head attention, feed-forward layers, 
+    and positional encoding.
+
+Dependencies:
+- Pyomo for optimization model construction.
+- PyTorch for loading pretrained TNN models.
+- Gurobi for solving the formulated optimization problem.
+- torchvision for loading and preprocessing the MNIST dataset.
+- omlt and custom helper functions for integrating TNN layers with Pyomo models.
+
+Usage:
+1. Define the `verification_problem` to initialize the Pyomo model with perturbation constraints.
+2. Use `verification_tnn` to incorporate TNN architecture as constraints.
+3. Solve the resulting MINLP using Gurobi or Pyomo solvers in a separate script (e.g. run_exp_veri.py).
+4. Analyze the results to verify adversarial robustness.
+"""
+
 def verification_problem(inputimage, epsilon, channels, image_size, labels, classification_labels):
+    """
+    Constructs a Pyomo model for adversarial robustness verification of a vision Transformer Neural Network (TNN).
+
+    Args:
+        inputimage (torch.Tensor): Input image tensor with shape (C, H, W) representing the MNIST image.
+        epsilon (float): Maximum allowed perturbation per pixel.
+        channels (int): Number of image channels (e.g., 1 for grayscale images).
+        image_size (int): Dimension of the input image (e.g., 28 for 28x28 images).
+        labels (list): List of two integers `[true_label, adversarial_label]`.
+        classification_labels (int): Total number of classification labels in the dataset.
+
+    Returns:
+        tuple:
+            - model (pyo.ConcreteModel): Pyomo model with constraints for image perturbation and TNN outputs.
+            - input (torch.Tensor): Preprocessed input image reshaped into the required format.
+
+    Notes:
+        - The objective function maximizes the adversarial output difference between true and adversarial labels.
+        - Perturbation constraints ensure that pixel modifications are bounded by `epsilon`.
+    """
+    
     max_input = np.max(inputimage.numpy())
     min_input = np.min(inputimage.numpy())
     input = torch.as_tensor(inputimage).float().reshape(1, channels, image_size, image_size) #image_size * image_size image
@@ -78,11 +115,7 @@ def verification_problem(inputimage, epsilon, channels, image_size, labels, clas
     # total purturb at each pixel <= epsilon   
     model.purturb_constraints.add(expr= sum(model.purturb[i] for i in model.purturb.index_set()) <= model.eps) 
     
-    # Set objective:
-    # model.obj = pyo.Objective(
-    #     expr= -(model.out[0, model.labels.last()] - model.out[0, model.labels.first()]) , sense=pyo.minimize
-    # )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
-    
+    # Set objective 
     model.obj = pyo.Objective(
         expr= (model.out[0, model.labels.last()] - model.out[0, model.labels.first()]) , sense=pyo.maximize
     )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
@@ -91,12 +124,53 @@ def verification_problem(inputimage, epsilon, channels, image_size, labels, clas
     return model, input
 
 def count_layer_name(layer_name, count_list):
+        """
+        Tracks and counts occurrences of layer names to create unique identifiers for Transformer layers.
+
+        Args:
+            layer_name (str): Name of the layer being added to the Transformer model.
+            count_list (list): List that tracks occurrences of layer names to ensure unique identifiers.
+
+        Returns:
+            int: Updated count of the layer in the `count_list`.
+
+        Notes:
+            - This function is used to maintain unique naming for layers when added as Pyomo constraints.
+        """
         count = count_list.count(layer_name) + 1
         count_list.append(layer_name)
         return count
    
 def verification_tnn(model, inputimage, image_size, patch_size, channels, file_name, tnn_path, activation_dict, device, eps=1e-6):
-    # Load transformer
+    """
+    Incorporates a pretrained Transformer Neural Network (TNN) into a Pyomo model as mathematical constraints using the MINLP TNN.
+
+    Args:
+        model (pyo.ConcreteModel): Pyomo model instance to which the TNN constraints will be added.
+        inputimage (torch.Tensor): Input image tensor reshaped for processing by the Transformer model.
+        image_size (int): Dimension of the input image (e.g., 28 for 28x28 images).
+        patch_size (int): Size of each patch in the image for the patch embedding layer.
+        channels (int): Number of image channels (e.g., 1 for grayscale images).
+        file_name (str): Name of the configuration file describing the TNN architecture.
+        tnn_path (str): Path to the pretrained TNN model file (.pt format).
+        activation_dict (dict): Dictionary specifying which constraints are active for each Transformer layer.
+        device (str): Computational device to use ('cpu' or 'cuda').
+        eps (float, optional): Small value to prevent division by zero during normalization. Defaults to 1e-6.
+
+    Returns:
+        tuple:
+            - model (pyo.ConcreteModel): Updated Pyomo model with Transformer architecture constraints.
+            - ffn_parameter_dict (dict): Dictionary containing feed-forward network (FFN) parameters.
+            - layer_outputs_dict (dict): Outputs of layers from the pretrained Transformer model.
+            - transformer (TNN): Transformer object encapsulating the formulated constraints.
+
+    Notes:
+        - Converts the pretrained Vision Transformer (ViT) model into constraints, including embedding, 
+          positional encoding, layer normalization, self-attention, and feed-forward layers.
+        - Ensures compatibility with Pyomo optimization models for adversarial robustness verification.
+    """
+    
+    # Load vision transformer
     config_params = file_name.split('_')
     image_size_flat = image_size * image_size
     dim= int(config_params[1])
@@ -104,12 +178,14 @@ def verification_tnn(model, inputimage, image_size, patch_size, channels, file_n
     heads= int(config_params[3])
     mlp_dim= int(config_params[4])
     head_size = int(dim/heads)
+    num_classes = 10
     config_list = [channels, dim, head_size , heads, image_size*image_size, eps]
-    tnn_model = torch.load(tnn_path, map_location=device)
+    
+    tnn_model = torch.load(tnn_path, map_location=device, weights_only=False)
     input = torch.as_tensor(inputimage).float().reshape(1, channels, image_size, image_size) #image_size * image_size image
     
     # Define formulated transformer
-    transformer = TNN.Transformer( config_list, model, activation_dict)
+    transformer = TNN( config_list, model, activation_dict)
     layer_names, parameters, _, layer_outputs_dict = extract_from_pretrained.get_torchViT_learned_parameters(tnn_model, input, heads)
         
     # list to help create new variable names for each layer  
@@ -127,7 +203,7 @@ def verification_tnn(model, inputimage, image_size, patch_size, channels, file_n
     b_emb = parameters[f"{layer_name}_{count}",'b']
     model.patch_input= pyo.Var(model.num_patch_dim, model.patch_dim)
 
-    #--------
+    # Perform patching
     model.rearrange_constraints = pyo.ConstraintList()
     for i in range(0, image_size, patch_size):  
         for j in range(0, image_size, patch_size):  
@@ -141,9 +217,11 @@ def verification_tnn(model, inputimage, image_size, patch_size, channels, file_n
                     pos_j = pi * patch_size + pj 
 
                     model.rearrange_constraints.add(expr= model.patch_input[pos_i, pos_j] == model.purturb_image[i + pi, j + pj])
+    
+    # Linearly transforme patched image
     out = transformer.embed_input( "patch_input" , "embed_input", model.embed_dim, W_emb, b_emb)
 
-    #  CLS tokens
+    #  Add CLS tokens
     cls_token = parameters['cls_token']
     model.cls_dim= pyo.Set(initialize=range(num_patch_dim + 1))
     model.cls = pyo.Var(model.cls_dim, model.embed_dim)
