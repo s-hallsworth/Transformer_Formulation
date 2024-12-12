@@ -1,22 +1,3 @@
-"""
-This code an adaptation of code from: https://github.com/cog-imperial/PartitionedFormulations_NN/blob/main/src/optimalAdversary.py
-created by:
-    Calvin Tsay (tsaycal) - Imperial College London
-    Jan Kronqvist (jkronqvi) - KTH Royal Institute of Technology
-    Alexander Thebelt (ThebTron) - Imperial College London
-    Ruth Misener (rmisener) - Imperial College London
-
-For further details see the git repo or refer to the related article "Partition-based formulations for mixed-integer optimization of trained ReLU neural networks" Tsay et al. 2021
-
-This file contains implementations of the Optimal Adversary problem described in
-Section 4.1 of the manuscript. The file can be run directly, with the following parameters.
-Parameters can be changed on lines 46-60.
-    
-    Parameters:
-        problemNo (int): index of problem to be solved, can be in range(100)
-        epsilon (real): maximum l1-norm defining perturbations
-"""
-
 import numpy as np
 import gurobipy as gb
 import pyomo.environ as pyo
@@ -33,36 +14,81 @@ from gurobi_ml import add_predictor_constr
 import torchvision
 
 # Import from repo file
-from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy
 import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
 from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
-import transformer_b_flag as TNN
-from Case_Study_1.training_scripts.Tmodel import TransformerModel
+from MINLP_tnn.transformer import Transformer as TNN # import MINLP transformer
+from training import vit_TNN
 import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
 
 TESTING = True # TESTING
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
+
+"""
+    Code to test the set up of the TNN multiple encoder layers.
+
+    This script defines a Pyomo-based optimization problem to verify the implementation of a 
+    Vision Transformer (ViT) by solving an adversarial perturbation problem using the MNIST dataset. 
+    Then converts the Pyomo model to a Gurobipy model for solving in order to use the latest Gurobi version. 
+    The script leverages Gurobi v11 as the backend solver for optimization.
+    
+    In this script the verification problem is defined so late the sum of all perturbations is minimised
+    and that the perturbed image is equal to the input image.
+
+    Main Steps:
+    1. **Data Loading**:
+       - Load and preprocess the MNIST dataset.
+       - Extract an input image and label for testing purposes.
+
+    2. **Pyomo Model Construction**:
+       - Formulate the optimization objective to minimize perturbations.
+
+    3. **Transformer Constraint Integration**:
+       - Load a pretrained Vision Transformer model.
+       - Incorporate its learned weights and architecture as constraints into the Pyomo model.
+       - Use extracted layers such as embeddings, self-attention, and feed-forward layers.
+
+    4. **Conversion to Gurobi**:
+       - Convert the Pyomo model to a Gurobi model.
+       - Add feed-forward network constraints using GurobiML.
+
+    5. **Optimization and Results Logging**:
+       - Solve the formulated optimization problem using Gurobi.
+       - Log results and compare outputs for validation.
+
+    Parameters:
+        - `TESTING` (bool): Enables testing mode for additional validation.
+        - `image_size` (int): Size of the image input (e.g., 4 for 4x4 images).
+        - `patch_size` (int): Size of patches for Transformer input.
+        - `tnn_path` (str): Path to the pretrained Vision Transformer model.
+        - `activation_dict` (dict): Specifies active constraints for each Transformer layer.
+        - `combinations` (list): Defines configurations of active constraints.
+
+    Notes:
+        - The perturbation objective aims to minimize differences between perturbed and target images.
+        - Validation ensures outputs from the optimization model closely match the pretrained model's outputs.
+        - Logs and intermediate results are saved for debugging and analysis.
+"""
+
+
 #Load MNIST data
+image_size=4 ##
 torch.manual_seed(42)
 DOWNLOAD_PATH = '/data/mnist'
-transform_mnist = torchvision.transforms.Compose([ torchvision.transforms.Resize((4, 4)), ##
+transform_mnist = torchvision.transforms.Compose([ torchvision.transforms.Resize((image_size, image_size)), ##
                                                   torchvision.transforms.ToTensor(),
                                 torchvision.transforms.Normalize((0,), (1,))])
-                               #torchvision.transforms.Normalize((0.1307,), (0.3081,))]) #transform to match training data scale
 mnist_testset = torchvision.datasets.MNIST(DOWNLOAD_PATH, train=False, download=True, transform=transform_mnist)
 test_loader = torch.utils.data.DataLoader(mnist_testset, batch_size=10, shuffle=False)
 images, labels = next(iter(test_loader))
 
 # Set parameters
 problemNo = 0 # image to select from MNIST dataset ( test: 0 --> the number 7)
-epsilon = 0.0001
 inputimage = torch.round(images[problemNo], decimals=4) # flattened image
 max_input = np.max(inputimage.numpy())
 min_input = np.min(inputimage.numpy())
 labels = [labels[problemNo].item(), 1] # [true label, adversary label]
 classification_labels = 10
 channels = 1
-image_size=4 ##
 image_size_flat = image_size * image_size
 patch_size=2 ##
 num_classes=10
@@ -81,32 +107,33 @@ model.labels = pyo.Set(initialize=labels)
 model.channel_dim = pyo.Set(initialize=range(channels))
 model.image_dim = pyo.Set(initialize=range(image_size))
 model.out_labels_dim = pyo.Set(initialize=range(classification_labels))
-
-model.eps = pyo.Param(initialize=epsilon)
 model.target_image = pyo.Param(model.image_dim, model.image_dim, initialize=tgt_dict)
 
 # Define variables
 model.purturb_image = pyo.Var(model.image_dim, model.image_dim)
-model.purturb = pyo.Var(model.image_dim, model.image_dim, bounds=(0, model.eps))
+model.purturb = pyo.Var(model.image_dim, model.image_dim, bounds=(0, 0.001))
 
 # Add constraints to purturbed image:
 model.purturb_constraints = pyo.ConstraintList()
 for i in model.purturb_image.index_set():
-    model.purturb_image[i].lb = max( model.target_image[i] - epsilon, min_input) # cap min value of pixels
-    model.purturb_image[i].ub = min( model.target_image[i] + epsilon, max_input) # cap max value of pixels
+    model.purturb_image[i].lb = min_input # cap min value of pixels
+    model.purturb_image[i].ub = max_input # cap max value of pixels
     
-    #purturb >= to the abs different between x and x'
+    # perturbed image equals target image
+    model.purturb_constraints.add(expr=  model.purturb_image[i] >= model.target_image[i])
+    model.purturb_constraints.add(expr=  model.purturb_image[i] <= model.target_image[i])
+    
+    # perturbation is diff between target and pertubed image
     model.purturb_constraints.add(expr= model.purturb[i] >= model.purturb_image[i] - model.target_image[i])
-    model.purturb_constraints.add(expr= model.purturb[i] >= model.target_image[i] - model.purturb_image[i])
-    
-# total purturb at each pixel <= epsilon   
-model.purturb_constraints.add(expr= sum(model.purturb[i] for i in model.purturb.index_set()) <= model.eps) 
-   
+    model.purturb_constraints.add(expr= model.purturb[i] >= model.target_image[i]  - model.purturb_image[i] )
+
    
 # Load transformer
 from vit_TNN import *
-file_name = "vit_6_2_6_12"
-tnn_path = f".\\trained_transformer\\verification_16\\{file_name}.pt" 
+file_name = "vit_6_1_6_12"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+tnn_path = f".\\training\\models\\verification_{image_size}x{image_size}\\{file_name}.pt" 
+tnn_path= os.path.join(script_dir, tnn_path)
 device = 'cpu'
 config_params = file_name.split('_')
 dim= int(config_params[1])
@@ -129,13 +156,10 @@ for key in ACTI_LIST_FULL:
     activation_dict[key] = False
 
 combinations = [
-#1, 1, 0, 0, 0
-1 , 0, 1, 1, 1, #1 all
-#1 , 0, 1, 1, 0 #2 -- fastest feasibile solution _/
-#1 , 0, 1, 0, 0, #3 -- good trade off speed and solve time _/
-#1 , 0, 0, 0, 0, #4 -- smallest opt. gap _/
-#1 , 0, 0, 1, 1, #5_/
-#1 , 0, 0, 1, 0, #6 --- fastest optimal solution _/
+ 1 , 0, 1, 1, 1, #1 all
+# 1 , 0, 1, 1, 0 #2 -- fastest feasibile solution _/
+# 1 , 0, 1, 0, 0, #3 -- good trade off speed and solve time _/
+# 1 , 0, 0, 1, 0, #6 --- fastest optimal solution _/
 # 0 , 0, 0, 0, 0  #7 _/
 ]
 combinations = [bool(val) for val in combinations]
@@ -156,11 +180,9 @@ for k, val in ACTI.items():
  
 # TESTING ----   
 # Define formulated transformer
-transformer = TNN.Transformer( config_list, model, activation_dict)
+transformer = TNN( config_list, model, activation_dict)
 layer_names, parameters, _, layer_outputs_dict = extract_from_pretrained.get_torchViT_learned_parameters(tnn_model, input, heads)
-# if TESTING:
-#     plt.imshow(input.squeeze(0).squeeze(0), cmap='gray')
-#     plt.show()
+
   
 # list to help create new variable names for each layer  
 count_list = []
@@ -209,6 +231,7 @@ for c, c_dim in enumerate(model.cls_dim):
         else:
             model.cls_constraints.add(expr= model.cls[c_dim, e_dim] == model.embed_input[model.num_patch_dim.at(c), model.embed_dim.at(e+1)] )
             
+
 # Add Positional Embedding
 b_pe= parameters['pos_embedding']
 transformer.add_pos_encoding("cls", "pe", b_pe )
@@ -221,7 +244,9 @@ res = "pe"
 
 ffn_parameter_dict = {}
 
+# For each encoder layer
 for l in range(depth):
+    
     # Layer Norm
     layer_name = "layer_normalization"
     count = count_layer_name(layer_name, count_list)
@@ -296,20 +321,9 @@ W_emb = parameters[f"{layer_name}_{count}",'W']
 b_emb = parameters[f"{layer_name}_{count}",'b']
 out = transformer.embed_input( out, "output", model.out_labels_dim, W_emb, b_emb)
 
-# #Set objective
-# model.obj = pyo.Objective(
-#     expr= (out[0, model.labels.last()] - out[0, model.labels.first()]) , sense=pyo.maximize
-# )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
-
-##
-# model.obj = pyo.Objective(
-#     expr= -(out[0, model.labels.last()] - out[0, model.labels.first()]) , sense=pyo.minimize
-# )  # -1: maximize, +1: minimize (default); last-->incorrect label, first-->correct label
-
-
-# # TESTING
+# TESTING: the difference between the input image and perturbed image should be zero
 model.obj = pyo.Objective(
-    expr= sum(model.purturb_image[i] - model.target_image[i] for i in model.purturb_image.index_set()), sense=pyo.minimize
+    expr= sum(model.purturb[i] for i in model.purturb_image.index_set()), sense=pyo.minimize
 )  # -1: maximize, +1: minimize (default)
 # -------
 
@@ -325,13 +339,22 @@ for key, value in ffn_parameter_dict.items():
 
 gurobi_model.update() # update gurobi model with FFN constraints
 
-## Optimizes
+
+# Set output directory for log
+PATH =  f".\\Experiments\\Verification_{image_size*image_size}_TEST"
+if not os.path.exists(PATH): # Create directory if does not exist
+    os.makedirs(PATH)
+    os.makedirs(PATH+"\\Logs")
+PATH += "\\"
+experiment_name = "testing_veri" # TO DO: Change experiment name
+
+# Set Solve Parameters
 # gurobi_model.setParam('DualReductions',0)
 # gurobi_model.setParam('MIPFocus',1)
-PATH = r".\Experiments\Verification"
-experiment_name = "testing_veri"
-gurobi_model.setParam('LogFile', PATH+f'\\Logs\\{experiment_name}_{file_name}.log')
-gurobi_model.setParam('TimeLimit', 43200) #12h
+gurobi_model.setParam('LogFile', PATH+f'\\Logs\\{experiment_name}_{file_name}.log') # store log file
+gurobi_model.setParam('TimeLimit', 600) # set time limit on run time
+
+## Optimize
 gurobi_model.optimize()
     
 # Results
@@ -349,6 +372,7 @@ if gurobi_model.status == GRB.OPTIMAL:
             optimal_parameters[v.varName] = v.x
             
 if gurobi_model.status == GRB.INFEASIBLE:
+        # if infeasible save set of bounds anc constraint that lead to infeasibility
         gurobi_model.computeIIS()
         gurobi_model.write("vit_model.ilp")
         
@@ -368,16 +392,13 @@ if TESTING:
     # check layer norm:
     val = np.array(optimal_parameters["LN_1"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.norm'])[0].tolist()).flatten()
-    #assert np.isclose(val, val_exp , atol=1e-5).all()
-    print("ln1: mean, min, max ",np.mean(val), np.max(val ), np.min(val))
-    print("ln1: mean, min, max, diff images: ",np.mean(val - val_exp), np.max(val - val_exp), np.min(val - val_exp))
+    print("diff images ln1: mean, min, max, ",np.mean(val - val_exp), np.max(val - val_exp), np.min(val - val_exp))
     
     # check self attention:
     val = np.array(optimal_parameters["attention_output_1"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_out'])[0].tolist()).flatten()
-    print("attn_out: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    print("diff images attn_out: mean, min, max, ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
     
-    ########################## dubugging code
     output_name = "attention_output_1"
     Q_form = torch.tensor(optimal_parameters[f"Block_{output_name}.Q"])
     K_form = torch.tensor(optimal_parameters[f"Block_{output_name}.K"])
@@ -390,47 +411,46 @@ if TESTING:
     K_form = rearrange(K_form, '(h d k) -> d (k h)', d=num_patch_dim+1, h=heads)
     V_form = rearrange(V_form, '(h d k) -> d (k h)', d=num_patch_dim+1, h=heads)
             
-    print(Q_form.shape)
     val = np.array(torch.stack((Q_form, K_form, V_form), dim = -1).permute(0,2,1).tolist()).flatten()
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.to_qkv'])[0].tolist()).flatten()
-    print("qkv: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    print("diff images qkv: mean, min, max, ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
 
     val = np.array(attn_weight.tolist()).flatten()
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.0.fn.attend'])[0].tolist()).flatten()
-    print("attn: mean, min, max ",np.mean(val), max(val ), min(val))
-    print("attn weight: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    print("diff images attn weight: mean, min, max,  ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
     
     # check layer norm:
     val = np.array(optimal_parameters["LN_2"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.1.norm'])[0].tolist()).flatten()
-    print("ln2: mean, min, max ",np.mean(val), np.max(val ), np.min(val))
-    print("ln2: mean, min, max, diff images: ",np.mean(val - val_exp), np.max(val - val_exp), np.min(val - val_exp))
+    print("diff images ln2: mean, min, max, ",np.mean(val - val_exp), np.max(val - val_exp), np.min(val - val_exp))
     
     # check ffn:
     val = np.array(optimal_parameters["ffn_1"])
     val_exp = np.array(list(layer_outputs_dict['transformer.layers.0.1.fn.net'])[0].tolist()).flatten()
-    print("ffn: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    print("diff images ffn: mean, min, max,",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
     
     # check pool:
     val = np.array(optimal_parameters["pool"])
     val_exp = np.array(list(layer_outputs_dict['to_latent'])[0].tolist()).flatten()
-    print("pool: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    print("diff images pool: mean, min, max,  ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
 
     # # check layer norm3:
     layer_name = "layer_normalization"
     count = count_layer_name(layer_name, count_list)-1
     val = np.array(optimal_parameters[f"LN_{count}"])
     val_exp = np.array(list(layer_outputs_dict['mlp_head.0'])[0].tolist()).flatten()
-    print("ln3: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    print("diff images ln3: mean, min, max,",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
 
 
     # check output:
     val = np.array(optimal_parameters["output"])
     val_exp = np.array(list(layer_outputs_dict['mlp_head'])[0].tolist()).flatten()
+    print("diff images out: mean, min, max, ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
+    assert np.isclose(val, val_exp , atol=1e-4).all()
+    
+    print()
     print("form out: ",val)
     print("trained tnn out: ",val_exp)
-    print("out: mean, min, max, diff images: ",np.mean(val - val_exp), max(val - val_exp), min(val - val_exp))
-    #assert np.isclose(val, val_exp , atol=1e-5).all()
 
 # print("---------------------------------------------------")
 # # print("purturbed image: ",purturb_image)
