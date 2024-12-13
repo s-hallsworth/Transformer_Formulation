@@ -3,16 +3,10 @@
     # # '' Transformers in Computer Vision
     # Transformer architectures owe their origins in natural language processing (NLP), and indeed form the core of the current state of the art models for most NLP applications.
     # ''
-from email.mime import image
 import torch
-from torch import nn
-from torch import nn, einsum
 import torch.nn.functional as F
 from torch import optim
 
-from einops import rearrange, repeat
-from einops.layers.torch import Rearrange
-import numpy as np
 import torchvision
 import time
 from torchinfo import summary

@@ -1,14 +1,10 @@
 # External imports
 import pyomo.environ as pyo
 import numpy as np
-from pyomo import dae
-from pyomo.opt import SolverFactory
-import matplotlib.pyplot as plt
 import unittest
 import os
-from omlt import OmltBlock
 from helpers import convert_pyomo
-from gurobipy import Model, GRB
+from gurobipy import GRB
 from gurobi_ml import add_predictor_constr
 from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 

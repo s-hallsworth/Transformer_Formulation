@@ -1,13 +1,11 @@
 import pyomo.environ as pyo
 import numpy as np
-import math
-from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy
-from gurobipy import Model, GRB, GurobiError
+from MINLP_tnn.helpers.print_stats import solve_gurobipy
+from gurobipy import GRB
 import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
 import matplotlib.pyplot as plt
 import torch
 import transformer_b as TNN
-from MINLP_tnn.helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_pytorch_intermediate_values
 
 from training_scripts.Tmodel import TransformerModel
 # from amplpy import AMPL
@@ -211,18 +209,18 @@ v2= np.array(optimal_parameters['v2'])
 
 
 plt.figure(1, figsize=(6, 4))
-plt.plot(time, loc2, '-o', label = f'target x2')
-plt.plot(time, x2, '--x', label = f'x2')
-plt.plot(time, loc1, '-o', label = f'target x1')
-plt.plot(time, x1, '--x', label = f'x1')
-plt.title(f'Trajectory of cannon ball')
+plt.plot(time, loc2, '-o', label = 'target x2')
+plt.plot(time, x2, '--x', label = 'x2')
+plt.plot(time, loc1, '-o', label = 'target x1')
+plt.plot(time, x1, '--x', label = 'x1')
+plt.title('Trajectory of cannon ball')
 plt.legend()
 plt.show()
 
 plt.figure(2, figsize=(6, 4))
-plt.plot(loc1, loc2, '-o', label = f'target trajectory')
-plt.plot(x1, x2, '--x', label = f'cannon ball trajectory')
-plt.title(f'Trajectory of cannon ball')
+plt.plot(loc1, loc2, '-o', label = 'target trajectory')
+plt.plot(x1, x2, '--x', label = 'cannon ball trajectory')
+plt.title('Trajectory of cannon ball')
 plt.legend()
 plt.show()
 

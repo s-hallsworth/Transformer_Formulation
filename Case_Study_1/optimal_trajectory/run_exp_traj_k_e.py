@@ -1,18 +1,14 @@
 import pyomo.environ as pyo
 import numpy as np
-from pyomo.opt import SolverFactory
 import matplotlib.pyplot as plt
 import os
-from omlt import OmltBlock
-import torch
-import itertools
-from gurobipy import Model, GRB
+from gurobipy import GRB
 from gurobi_ml import add_predictor_constr
 
 # Import from repo files
 from MINLP_tnn.transformer import Transformer as TNN
 from MINLP_tnn.helpers import extract_from_pretrained
-from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy, save_gurobi_results
+from MINLP_tnn.helpers.print_stats import save_gurobi_results
 import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
 from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 from combine_csv import combine
@@ -332,16 +328,16 @@ for r in range(REP):
             plt.plot(time[2], FFN_out[1][1],'s', color='tab:cyan',label= "y TNN pred.")
             plt.plot(time[2], FFN_out[0][1],'s', color='tab:gray',label= "x TNN pred.")
             
-            plt.plot(time, loc2, 'o', color='tab:blue', label = f'y targets')
-            plt.plot(time, loc1, 'o', color='m', label = f'x targets')
+            plt.plot(time, loc2, 'o', color='tab:blue', label = 'y targets')
+            plt.plot(time, loc1, 'o', color='m', label = 'x targets')
             
             opt_x1 = [0.0, 0.00555569, 0.01111138]
             opt_x2 = [0.0, 0.05100613, 0.09444281]
             plt.plot(time, opt_x1, color='tab:green', label= "y expected opt. trajectory")
             plt.plot(time, opt_x2, color='tab:orange', label= "x expected opt. trajectory")
             
-            plt.plot(time, x2, '--x', color='r', label = f'y opt. trajectory')
-            plt.plot(time, x1, '--x', color='b', label = f'x opt. trajectory')
+            plt.plot(time, x2, '--x', color='r', label = 'y opt. trajectory')
+            plt.plot(time, x1, '--x', color='b', label = 'x opt. trajectory')
             
             
             plt.xlabel("time")
@@ -355,10 +351,10 @@ for r in range(REP):
                 plt.show()
             
             plt.figure(figsize=(6, 4))
-            plt.plot(loc1, loc2, 'o', label = f'target trajectory')
+            plt.plot(loc1, loc2, 'o', label = 'target trajectory')
             plt.plot(opt_x1, opt_x2, label= "expected opt. trajectory")
-            plt.plot(x1, x2, '--x', label = f'opt. trajectory')
-            plt.title(f'Trajectory')
+            plt.plot(x1, x2, '--x', label = 'opt. trajectory')
+            plt.title('Trajectory')
             plt.xlabel("x")
             plt.ylabel("y")
             plt.legend()

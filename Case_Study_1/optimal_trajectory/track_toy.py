@@ -1,9 +1,7 @@
 import pyomo.environ as pyo
 import numpy as np
-import math
 from MINLP_tnn.helpers.print_stats import solve_pyomo
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
 # from amplpy import AMPL
 
 """
@@ -139,18 +137,18 @@ v2= np.array(optimal_parameters['v2'])
 print("opt x1: ", x1)
 print("opt x2: ", x2)
 plt.figure(1, figsize=(6, 4))
-plt.plot(time, loc2, 'o', label = f'x2 data')
-plt.plot(time, x2, '--x', label = f'x2 predicted')
-plt.plot(time, loc1, 'o', label = f'x1 data')
-plt.plot(time, x1, '--x', label = f'x1 predicted')
-plt.title(f'Example')
+plt.plot(time, loc2, 'o', label = 'x2 data')
+plt.plot(time, x2, '--x', label = 'x2 predicted')
+plt.plot(time, loc1, 'o', label = 'x1 data')
+plt.plot(time, x1, '--x', label = 'x1 predicted')
+plt.title('Example')
 plt.legend()
 plt.show()
 
 plt.figure(2, figsize=(6, 4))
-plt.plot(loc1, loc2, 'o', label = f'target trajectory')
-plt.plot(x1, x2, '--x', label = f'cannon ball trajectory')
-plt.title(f'Trajectory of cannon ball')
+plt.plot(loc1, loc2, 'o', label = 'target trajectory')
+plt.plot(x1, x2, '--x', label = 'cannon ball trajectory')
+plt.title('Trajectory of cannon ball')
 plt.legend()
 plt.show()
 

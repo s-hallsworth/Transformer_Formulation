@@ -1,14 +1,11 @@
 import pyomo.environ as pyo
 import numpy as np
-import torch
 import math
 import json
 import os
 from MINLP_tnn.helpers.extract_from_pretrained import get_pytorch_learned_parameters, get_hugging_learned_parameters
 from omlt import OmltBlock
 from omlt.neuralnet import *
-from omlt.io.keras import keras_reader
-import omlt
 import MINLP_tnn.helpers.OMLT_helper 
 import MINLP_tnn.helpers.GUROBI_ML_helper as GUROBI_ML_helper
 from typing import Union
@@ -251,7 +248,7 @@ class Transformer:
             b_linear = None
 
         # Add linear layer                
-        if not b_linear is None:    
+        if b_linear is not None:    
             output_var = self.embed_input( input_name, layer, embed_dim, W_linear, b_linear) 
         else:
             output_var = self.embed_input( input_name, layer, embed_dim, W_linear)
@@ -363,7 +360,7 @@ class Transformer:
         except: # no bias values found
                 b_q = None
         
-        if not b_q is None:    
+        if b_q is not None:    
             # add attention layer with biases 
             output_var = self.add_attention( input_name, layer, W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o, mask)
         else:
@@ -387,7 +384,7 @@ class Transformer:
             tuple: A tuple containing the output variable and the updated FFN parameter dictionary.
         """
         
-        input_name_1 = self.__add_self_attn(parameters, f"enc__self_attention_1", input_name)
+        input_name_1 = self.__add_self_attn(parameters, "enc__self_attention_1", input_name)
         self.add_residual_connection(input_name, input_name_1, f"{layer}__{enc_layer}_residual_1")
         input_name_2 = self.__add_layer_norm(parameters, "enc__layer_normalization_1", f"{layer}__{enc_layer}_residual_1", enc_layer)
         
@@ -416,7 +413,7 @@ class Transformer:
         
         embed_dim = self.M.model_dims 
         
-        input_name_1 = self.__add_self_attn(parameters, f"dec__self_attention_1", input_name, mask=True)
+        input_name_1 = self.__add_self_attn(parameters, "dec__self_attention_1", input_name, mask=True)
         self.add_residual_connection(input_name, input_name_1, f"{layer}__{dec_layer}_residual_1")
         input_name_2 = self.__add_layer_norm(parameters, "dec__layer_normalization_1", f"{layer}__{dec_layer}_residual_1", dec_layer)
         
@@ -671,7 +668,7 @@ class Transformer:
                 
         if "layer_norm" in layer:
             # add residual connection if supplied
-            if not residual is None:
+            if residual is not None:
                 self.add_residual_connection(input_name, residual, f"{layer}__{layer_num}_residual")
                 input_name = f"{layer}__{layer_num}_residual"
                 
@@ -774,7 +771,7 @@ class Transformer:
                 self.M.pe_constraints.add(embed_var[index] == input_var[index] +  b_emb[index])
                 if self.bound_cut_activation["embed_var"]:
                     if isinstance(input_var, pyo.Var):
-                        if not input_var[index].ub is None and not input_var[index].lb is None:
+                        if input_var[index].ub is not None and input_var[index].lb is not None:
                             embed_var[index].ub = input_var[index].ub  +  b_emb[index]
                             embed_var[index].lb = input_var[index].lb  +  b_emb[index]
                             
@@ -846,7 +843,7 @@ class Transformer:
                                                     )
                             if self.bound_cut_activation["embed_var"]:
                                 if isinstance(input_var, pyo.Var):
-                                    if not input_var[t,indices[1].first()].ub is None and not input_var[t,indices[1].first()].lb is None:
+                                    if input_var[t,indices[1].first()].ub is not None and input_var[t,indices[1].first()].lb is not None:
                                         embed_var[t, d].ub = input_var[t,s].ub  +  b_emb[d]
                                         embed_var[t, d].lb = input_var[t,s].lb  +  b_emb[d]
                                         
@@ -867,7 +864,7 @@ class Transformer:
                 setattr(self.M, embed_var_name+"_W_emb", pyo.Param(indices[1], embed_dim_2 , initialize=W_emb_dict))
                 W_emb= getattr(self.M, embed_var_name+"_W_emb")   
                 
-                if not b_emb is None: # with bias
+                if b_emb is not None: # with bias
                     # Create bias parameter
                     b_emb_dict = {
                         (embed_dim_2.at(d+1)): b_emb[d]
@@ -884,7 +881,7 @@ class Transformer:
                                                     )
                             if self.bound_cut_activation["embed_var"]:
                                 if isinstance(input_var, pyo.Var):
-                                    if not input_var[t,indices[1].first()].ub is None and not input_var[t,indices[1].first()].lb is None:
+                                    if input_var[t,indices[1].first()].ub is not None and input_var[t,indices[1].first()].lb is not None:
                                         embed_var[t, d].ub = sum(max(input_var[t,s].ub * W_emb[s,d], input_var[t,s].lb * W_emb[s,d]) for s in indices[1]) +  b_emb[d]
                                         embed_var[t, d].lb = sum(min(input_var[t,s].ub * W_emb[s,d], input_var[t,s].lb * W_emb[s,d]) for s in indices[1]) +  b_emb[d]
                                         
@@ -900,7 +897,7 @@ class Transformer:
                                                     )
                             if self.bound_cut_activation["embed_var"]:
                                 if isinstance(input_var, pyo.Var):
-                                    if not input_var[t,indices[1].first()].ub is None and not input_var[t,indices[1].first()].lb is None:
+                                    if input_var[t,indices[1].first()].ub is not None and input_var[t,indices[1].first()].lb is not None:
                                         embed_var[t, d].ub = sum(max(input_var[t,s].ub * W_emb[s,d], input_var[t,s].lb * W_emb[s,d]) for s in indices[1])
                                         embed_var[t, d].lb = sum(min(input_var[t,s].ub * W_emb[s,d], input_var[t,s].lb * W_emb[s,d]) for s in indices[1])
                                         
@@ -934,7 +931,7 @@ class Transformer:
             self.M.layer_norm_constraints = pyo.ConstraintList()
             
         # Update epsilon value if needed
-        if not eps is None:
+        if eps is not None:
             self.epsilon = eps
         
         # Get input
@@ -963,7 +960,7 @@ class Transformer:
             layer_norm_var = getattr( self.M, LN_var_name)
             
             # define gamma, beta params
-            if not gamma is None and not beta is None:
+            if gamma is not None and beta is not None:
             
                 dict_gamma = {(v): val for v,val in zip( self.M.model_dims, gamma)}
                 dict_beta  = {(v): val for v,val in zip( self.M.model_dims, beta)}
@@ -1116,7 +1113,7 @@ class Transformer:
             raise ValueError('Input value must be indexed (time, model_dim)')
         
         # Check for cross attention between encoder and decoder
-        if cross_attn and not encoder_output is None:
+        if cross_attn and encoder_output is not None:
     
             # get var if string
             if not isinstance(encoder_output, pyo.Var):
@@ -1136,7 +1133,6 @@ class Transformer:
             
             d_heads = len(model_dims)/self.d_H        # decoder head size
             d_heads_kv = len(model_dims_enc)/self.d_H # encoder head size
-            
             assert( d_heads == d_heads_kv and d_heads==self.d_k) #check head size is as expected and head size of enc == head size dec
             
             
@@ -1188,7 +1184,7 @@ class Transformer:
             for k,K in enumerate(MHA_Block.head_dims)
         }
         
-        if not W_o is None:
+        if W_o is not None:
             W_o_dict = {
                 (D, H, K): W_o[h][k][d]
                 for d,D in enumerate(model_dims )
@@ -1209,7 +1205,7 @@ class Transformer:
         MHA_Block.W_v = pyo.Param(model_dims_enc ,MHA_Block.heads,MHA_Block.head_dims, initialize=W_v_dict, mutable=False)
         MHA_Block.W_o = pyo.Param(model_dims ,MHA_Block.heads,MHA_Block.head_dims, initialize=W_o_dict, mutable=False)
         
-        if not b_q is None:
+        if b_q is not None:
             b_q_dict = {
                         (h, k): b_q[h-1][k-1]
                         for h in MHA_Block.heads
@@ -1223,7 +1219,7 @@ class Transformer:
                        }
         MHA_Block.b_q = pyo.Param(MHA_Block.heads, MHA_Block.head_dims, initialize=b_q_dict, mutable=False)
             
-        if not b_k is None:
+        if b_k is not None:
             b_k_dict = {
                         (h, k): b_k[h-1][k-1]
                         for h in MHA_Block.heads
@@ -1237,7 +1233,7 @@ class Transformer:
                        }
         MHA_Block.b_k = pyo.Param(MHA_Block.heads, MHA_Block.head_dims, initialize=b_k_dict, mutable=False)
             
-        if not b_v is None: 
+        if b_v is not None: 
             b_v_dict = {
                         (h, k): b_v[h-1][k-1]
                         for h in MHA_Block.heads
@@ -1251,7 +1247,7 @@ class Transformer:
                        }
         MHA_Block.b_v = pyo.Param(MHA_Block.heads, MHA_Block.head_dims, initialize=b_v_dict, mutable=False)
             
-        if not b_o is None:
+        if b_o is not None:
             b_o_dict = {(d): val for d, val in zip(model_dims , b_o) }
         else:
             b_o_dict = {(d): 0 for d in model_dims }
@@ -1339,7 +1335,7 @@ class Transformer:
         # Add multihead attention constaints
         for h in MHA_Block.heads: # for each head
             # Check if multihead attention or self attention
-            if cross_attn and not encoder_output is None:
+            if cross_attn and encoder_output is not None:
                 input = encoder_output_var # calculate K and V from output of encoder
             else:
                 input = input_var # calculate K and V from input variable
@@ -1536,9 +1532,10 @@ class Transformer:
                                                                                                 MHA_Block.Q[h, n, k].lb * MHA_Block.K[ h, p, k].ub, 
                                                                                                 MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].lb, 
                                                                                                 MHA_Block.Q[h, n, k].ub * MHA_Block.K[ h, p, k].ub) )  
-                            if MHA_Block.Q[h, n, MHA_Block.head_dims.first()].lb is not None:
-                                MHA_Block.compatibility[h,n,p].ub = sum(MHA_Block.QK[h,n,p,k].ub for k in MHA_Block.head_dims)  
-                                MHA_Block.compatibility[h,n,p].lb = sum(MHA_Block.QK[h,n,p,k].lb for k in MHA_Block.head_dims)       
+                            if MHA_Block.Q[h, n, MHA_Block.head_dims.first()].lb is not None and MHA_Block.K[h, p, MHA_Block.head_dims.first()].lb is not None:
+                                MHA_Block.compatibility[h,n,p].lb = sum(MHA_Block.QK[h,n,p,k].lb for k in MHA_Block.head_dims)      
+                            elif MHA_Block.Q[h, n, MHA_Block.head_dims.first()].ub is not None and MHA_Block.K[h, p, MHA_Block.head_dims.first()].ub is not None:
+                                MHA_Block.compatibility[h,n,p].ub = sum(MHA_Block.QK[h,n,p,k].ub for k in MHA_Block.head_dims)   
                             else:
                                 max_compat = 100 * self.d_k
                                 min_compat = -100 * self.d_k

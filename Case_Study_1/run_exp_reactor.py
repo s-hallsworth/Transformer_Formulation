@@ -1,8 +1,7 @@
 # External imports
-import pyomo.environ as pyo
 import numpy as np
 import os
-from gurobipy import Model, GRB
+from gurobipy import GRB
 #from gurobi_ml import add_predictor_constr
 from gurobi_machinelearning.src.gurobi_ml.add_predictor import add_predictor_constr
 
@@ -13,12 +12,10 @@ from cs_reactor_tnn_exp import reactor_problem, reactor_tnn
 from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 from MINLP_tnn.helpers.print_stats import save_gurobi_results
 import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
-import transformers, sys
+import transformers
+import sys
 sys.modules['transformers.src.transformers'] = transformers
-from transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
-from transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
 # cloned transformers from: https://github.com/s-hallsworth/transformers.git
-from gurobi_machinelearning.src.gurobi_ml.add_predictor import add_predictor_constr
 
 """
 Run reactor experiments
@@ -81,7 +78,7 @@ tnn_config["Num Attn"] = 6
 
 ## RUN EXPERIMENTS:
 # Set output directory
-PATH =  f".\\Experiments\\Reactor__"
+PATH =  ".\\Experiments\\Reactor__"
 if not os.path.exists(PATH):
     os.makedirs(PATH)
     os.makedirs(PATH+"\\Logs")

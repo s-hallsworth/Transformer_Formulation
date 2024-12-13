@@ -274,7 +274,7 @@ def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
                 gurobi_var[index].ub = pyomo_var.ub if pyomo_var.ub is not None else GRB.INFINITY
 
                 var_map[pyomo_var.name] = gurobi_var[index] 
-                if not (block_map is None):
+                if block_map is not None:
                     block_map = create_nested_dict(block_map, pyomo_var.name, gurobi_var[index])
         else:
             lb = var.lb if var.lb is not None else -GRB.INFINITY
@@ -283,7 +283,7 @@ def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
             gurobi_var = gurobi_model.addVar(lb=lb, ub=ub, name=str(var), vtype=vtype)
             var_map[var.name] = gurobi_var
                 
-            if not (block_map is None):
+            if block_map is not None:
                 block_map = create_nested_dict(block_map, var.name, gurobi_var)
         
     # Parameters   
@@ -297,7 +297,7 @@ def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
             gurobi_var = gurobi_model.addVars(index_set, name=str(var), vtype=vtype)
             var_map[var.name] = gurobi_var
             
-            if not (block_map is None):
+            if block_map is not None:
                 block_map = create_nested_dict(block_map, var.name, gurobi_var)
             
             # add bounds
@@ -313,7 +313,7 @@ def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
                     var_map[var.name+str([index])] = gurobi_var[index]
                     
                     
-                    if not (block_map is None):
+                    if block_map is not None:
                         block_map = create_nested_dict(block_map, var.name+str([index]), gurobi_var[index])
                     
                 elif isinstance(pyomo_var, pyo_base.param._ParamData):
@@ -321,14 +321,14 @@ def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
                     gurobi_var[index].ub = pyomo_var.value
                     var_map[pyomo_var] = gurobi_var[index] 
                     
-                    if not (block_map is None):
+                    if block_map is not None:
                         block_map = create_nested_dict(block_map, pyomo_var.name, gurobi_var[index])
                         
                 else:
                     gurobi_var[index].lb = pyomo_var
                     gurobi_var[index].ub = pyomo_var
                     var_map[str(var)+str(pyomo_var)] = gurobi_var[index] 
-                    if not (block_map is None):
+                    if block_map is not None:
                         block_map = create_nested_dict(block_map, pyomo_var.name, gurobi_var[index])
         else:
             vtype = get_gurobi_vtype(var)
@@ -336,7 +336,7 @@ def create_gurobi_var(var, var_map, gurobi_model, block_map = None):
             gurobi_var.lb = var.value
             gurobi_var.ub = var.value
             var_map[var.name] = gurobi_var
-            if not (block_map is None):
+            if block_map is not None:
                         block_map = create_nested_dict(block_map, var.name, gurobi_var[index])
             
     return var_map, block_map

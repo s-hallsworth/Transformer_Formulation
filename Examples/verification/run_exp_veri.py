@@ -1,21 +1,13 @@
-import pyomo.environ as pyo
 import numpy as np
-from pyomo.opt import SolverFactory
-import matplotlib.pyplot as plt
 import os
-from omlt import OmltBlock
 import torch
-import itertools
-from gurobipy import Model, GRB
+from gurobipy import GRB
 from gurobi_ml import add_predictor_constr
 import torchvision
 
 ## Import from repo files
-from training import vit_TNN
 from veri_tnn_exp import *   #import problem definition and TNN architecture
-from MINLP_tnn.transformer import Transformer as TNN # import MINLP transformer
-import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
-from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy, save_gurobi_results
+from MINLP_tnn.helpers.print_stats import save_gurobi_results
 import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
 from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 

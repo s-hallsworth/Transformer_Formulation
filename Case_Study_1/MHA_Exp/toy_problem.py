@@ -1,6 +1,4 @@
 import pyomo.environ as pyo
-from pyomo import dae
-import numpy as np
 import transformer as transformer
 import extract_from_pretrained as extract_from_pretrained
 from toy_problem_setup import *

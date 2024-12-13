@@ -1,22 +1,11 @@
 import pyomo.environ as pyo
 import numpy as np
-from pyomo.opt import SolverFactory
-import matplotlib.pyplot as plt
-import unittest
 import os
-from omlt import OmltBlock
 import torch
-from gurobipy import Model, GRB
-from gurobi_ml import add_predictor_constr
-import torchvision
-import sys
 
 # Import from repo file
-from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy
-import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
 from MINLP_tnn.transformer import Transformer as TNN
 import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
-from training import vit_TNN
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 

@@ -4,7 +4,6 @@ import os
 import torch
 from gurobipy import  GRB
 # from gurobi_ml import add_predictor_constr
-import importlib
 from gurobi_machinelearning.src.gurobi_ml.add_predictor import add_predictor_constr
 
 # Import from repo files
@@ -14,7 +13,8 @@ from MINLP_tnn.helpers.print_stats import save_gurobi_results
 import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
 from MINLP_tnn.helpers.combine_csv import combine
 from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
-import transformers, sys
+import transformers
+import sys
 sys.modules['transformers.src'] = transformers
 sys.modules['transformers.src.transformers'] = transformers
 from transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig

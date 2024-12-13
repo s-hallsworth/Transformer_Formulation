@@ -1,15 +1,8 @@
 import numpy as np
-import gurobipy as gb
 import pyomo.environ as pyo
-import numpy as np
-from pyomo import dae
-from pyomo.opt import SolverFactory
-import matplotlib.pyplot as plt
-import unittest
 import os
-from omlt import OmltBlock
 import torch
-from gurobipy import Model, GRB
+from gurobipy import GRB
 from gurobi_ml import add_predictor_constr
 import torchvision
 
@@ -17,7 +10,6 @@ import torchvision
 import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
 from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 from MINLP_tnn.transformer import Transformer as TNN # import MINLP transformer
-from training import vit_TNN
 import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
 
 TESTING = True # TESTING

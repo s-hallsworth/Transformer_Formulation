@@ -7,12 +7,12 @@ import torch
 # Import from repo file
 import transformer_b_flag as TNN
 import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
-import transformers, sys
+import transformers
+import sys
 sys.modules['transformers.src.transformers'] = transformers
 from transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
 from transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
 # cloned transformers from: https://github.com/s-hallsworth/transformers.git
-from gurobi_machinelearning.src.gurobi_ml.add_predictor import add_predictor_constr
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 """
@@ -107,12 +107,12 @@ def reactor_problem(train_tnn_path):
     for s in opt_model.dec_space:
         for d, dim in enumerate(opt_model.dims):
 
-            if not opt_model.x[s,dim].lb is None:
+            if opt_model.x[s,dim].lb is not None:
                 opt_model.x[s,dim].lb = max(opt_model.x[s,dim].lb, opt_model.states_min[dim]) #lower bound is min from training data
             else:
                  opt_model.x[s,dim].lb = opt_model.states_min[dim]
                  
-            if not opt_model.x[s,dim].ub is None:
+            if opt_model.x[s,dim].ub is not None:
                 opt_model.x[s,dim].ub = min(opt_model.x[s,dim].ub, opt_model.states_max[dim]) #lower bound is min from training data
             else:
                  opt_model.x[s,dim].ub =  opt_model.states_max[dim] #upper bound is max from training data

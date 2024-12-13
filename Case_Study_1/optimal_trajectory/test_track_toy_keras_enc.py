@@ -1,16 +1,11 @@
 # External imports
 import pyomo.environ as pyo
 import numpy as np
-from pyomo import dae
-from pyomo.opt import SolverFactory
 import matplotlib.pyplot as plt
 import unittest
 import os
-from omlt import OmltBlock
-import torch
-from MINLP_tnn.helpers.print_stats import solve_pyomo, solve_gurobipy
 import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
-from gurobipy import Model, GRB
+from gurobipy import GRB
 from gurobi_ml import add_predictor_constr
 from MINLP_tnn.helpers.GUROBI_ML_helper import get_inputs_gurobipy_FFN
 
@@ -18,7 +13,6 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 
 # Import from repo file
 import transformer_b_flag_cuts as TNN
-from training_scripts.Tmodel import TransformerModel
 import MINLP_tnn.helpers.extract_from_pretrained as extract_from_pretrained
 
 """
@@ -575,7 +569,7 @@ class TestTransformer(unittest.TestCase):
         # gurobi_model.setParam('DualReductions',0)
         #gurobi_model.setParam('MIPFocus',1)
         PATH = r".\Experiments"
-        gurobi_model.setParam('LogFile', PATH+f'\\toy_no_enhancement.log')
+        gurobi_model.setParam('LogFile', PATH+'\\toy_no_enhancement.log')
         gurobi_model.setParam('TimeLimit', 21600)
         gurobi_model.optimize()
 
@@ -606,26 +600,26 @@ class TestTransformer(unittest.TestCase):
         plt.plot(time[2], FFN_out[1][1],'s', color='tab:cyan',label= "y TNN pred.")
         plt.plot(time[2], FFN_out[0][1],'s', color='tab:gray',label= "x TNN pred.")
         
-        plt.plot(time, loc2, 'o', color='tab:blue', label = f'y targets')
-        plt.plot(time, loc1, 'o', color='m', label = f'x targets')
+        plt.plot(time, loc2, 'o', color='tab:blue', label = 'y targets')
+        plt.plot(time, loc1, 'o', color='m', label = 'x targets')
         
         opt_x1 = [0.0, 0.00555569, 0.01111138]
         opt_x2 = [0.0, 0.05100613, 0.09444281]
         plt.plot(time, opt_x1, color='tab:green', label= "y expected opt. trajectory")
         plt.plot(time, opt_x2, color='tab:orange', label= "x expected opt. trajectory")
         
-        plt.plot(time, x2, '--x', color='r', label = f'y opt. trajectory')
-        plt.plot(time, x1, '--x', color='b', label = f'x opt. trajectory')
+        plt.plot(time, x2, '--x', color='r', label = 'y opt. trajectory')
+        plt.plot(time, x1, '--x', color='b', label = 'x opt. trajectory')
         
-        plt.title(f'Optimal Trajectory Toy with fixed inputs')
+        plt.title('Optimal Trajectory Toy with fixed inputs')
         plt.legend()
         plt.show()
 
         plt.figure(2, figsize=(6, 4))
-        plt.plot(loc1, loc2, 'o', label = f'target trajectory')
+        plt.plot(loc1, loc2, 'o', label = 'target trajectory')
         plt.plot(opt_x1, opt_x2, label= "expected opt. trajectory")
-        plt.plot(x1, x2, '--x', label = f'opt. trajectory')
-        plt.title(f'Trajectory of cannon ball')
+        plt.plot(x1, x2, '--x', label = 'opt. trajectory')
+        plt.title('Trajectory of cannon ball')
         plt.legend()
         plt.show()
         

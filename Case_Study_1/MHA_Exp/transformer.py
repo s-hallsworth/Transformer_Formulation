@@ -1,14 +1,10 @@
 import pyomo.environ as pyo
 import numpy as np
-import math
-from pyomo import dae
 import json
 import os
 from omlt import OmltBlock
-from omlt.neuralnet import NetworkDefinition, ReluBigMFormulation
-from omlt.io.keras import keras_reader
-import omlt
-from OMLT_helper import weights_to_NetworkDefinition, weights_to_NetDef
+from omlt.neuralnet import ReluBigMFormulation
+from OMLT_helper import weights_to_NetDef
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' # turn off floating-point round-off
 

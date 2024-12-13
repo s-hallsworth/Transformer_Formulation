@@ -2,7 +2,6 @@ import json
 import numpy as np
 from tensorflow.keras.models import load_model
 import torch
-import os
 from torch import nn
 import collections
 from torch.nn import ReLU, SiLU
@@ -343,7 +342,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
         
     # Forward pass through model
     model.eval()
-    if not dec_input  is None:
+    if dec_input is not None:
         tgt = torch.as_tensor(dec_input).float()
         with torch.no_grad():
             _ = model(src, tgt, tgt.shape[0])
@@ -462,7 +461,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
             dict_transformer_params[(new_layer_name, 'W_k')] =  arrange_qkv(W_k, num_heads).detach().cpu().numpy().tolist()
             dict_transformer_params[(new_layer_name, 'W_v')] =  arrange_qkv(W_v, num_heads).detach().cpu().numpy().tolist()
             
-            if not b_q is None:
+            if b_q is not None:
                 dict_transformer_params[(new_layer_name, 'b_q')] = torch.reshape(b_q, (num_heads, int(b_q.shape[0]/num_heads))).detach().cpu().numpy().tolist()
                 dict_transformer_params[(new_layer_name, 'b_k')] = torch.reshape(b_k, (num_heads, int(b_k.shape[0]/num_heads))).detach().cpu().numpy().tolist()
                 dict_transformer_params[(new_layer_name, 'b_v')] = torch.reshape(b_v, (num_heads, int(b_v.shape[0]/num_heads))).detach().cpu().numpy().tolist()
@@ -472,7 +471,7 @@ def get_pytorch_learned_parameters(model, enc_input, dec_input, num_heads, seque
             dict_transformer_params[(new_layer_name, 'W_o')] =  arrange_o(W_o, num_heads).detach().cpu().numpy().tolist()
             
             b_o = transformer_bias.get(out_proj_name , None)
-            if not b_o  is None:
+            if b_o is not None:
                 dict_transformer_params[(new_layer_name, 'b_o')] = b_o
                 
             
@@ -633,7 +632,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
                 new_name = "to_out"
         elif "pos_embedding" in name:
             new_name = "pos_embedding"
-        if not new_name is None:
+        if new_name is not None:
             count = count_layer_names.count(new_name) + 1
             map[f"{new_name}_{count}"]= name
             count_layer_names.append(new_name)
@@ -699,7 +698,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
             W_k = rearrange(W_k, '(h k) d -> d h k', h=num_heads)
             W_v = rearrange(W_v, '(h k) d -> d h k', h=num_heads)
             
-            if not b_parameters is None:
+            if b_parameters is not None:
                 b_q, b_k, b_v = torch.split(torch.tensor(b_parameters), emb_shape)
 
             # set name of type of attention   
@@ -714,7 +713,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
             dict_transformer_params[(new_layer_name, 'W_q')] =  W_q.detach().cpu().numpy().tolist()
             dict_transformer_params[(new_layer_name, 'W_k')] =  W_k.detach().cpu().numpy().tolist()
             dict_transformer_params[(new_layer_name, 'W_v')] =  W_v.detach().cpu().numpy().tolist()
-            if not b_parameters is None:
+            if b_parameters is not None:
                 dict_transformer_params[(new_layer_name, 'b_q')] = torch.reshape(b_q, (num_heads, int(b_q.shape[0]/num_heads))).detach().cpu().numpy().tolist()
                 dict_transformer_params[(new_layer_name, 'b_k')] = torch.reshape(b_k, (num_heads, int(b_k.shape[0]/num_heads))).detach().cpu().numpy().tolist()
                 dict_transformer_params[(new_layer_name, 'b_v')] = torch.reshape(b_v, (num_heads, int(b_v.shape[0]/num_heads))).detach().cpu().numpy().tolist()
@@ -730,7 +729,7 @@ def get_torchViT_learned_parameters(model, enc_input, num_heads):
             dict_transformer_params[(new_layer_name, 'W_o')] =   W_o.detach().cpu().numpy().tolist()
             
             b_o = transformer_bias.get(out_proj_name , None)
-            if not b_o  is None:
+            if b_o is not None:
                 dict_transformer_params[(new_layer_name, 'b_o')] = b_o
                 
             
@@ -810,8 +809,6 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
 
     
     from transformers.src.transformers.activations import SiLUActivation
-    from transformers.src.transformers.models.time_series_transformer.configuration_time_series_transformer import TimeSeriesTransformerConfig
-    from transformers.src.transformers.models.time_series_transformer.modeling_time_series_transformer import TimeSeriesTransformerForPrediction
 
 
     src = torch.as_tensor(enc_input).float()
@@ -964,7 +961,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
             dict_transformer_params[(new_layer_name, 'W_k')] =  arrange_qkv(W_k, num_heads).detach().cpu().numpy().tolist()
             dict_transformer_params[(new_layer_name, 'W_v')] =  arrange_qkv(W_v, num_heads).detach().cpu().numpy().tolist()
             
-            if not b_q is None:
+            if b_q is not None:
                 dict_transformer_params[(new_layer_name, 'b_q')] = torch.reshape(b_q, (num_heads, int(b_q.shape[0]/num_heads))).detach().cpu().numpy().tolist()
                 dict_transformer_params[(new_layer_name, 'b_k')] = torch.reshape(b_k, (num_heads, int(b_k.shape[0]/num_heads))).detach().cpu().numpy().tolist()
                 dict_transformer_params[(new_layer_name, 'b_v')] = torch.reshape(b_v, (num_heads, int(b_v.shape[0]/num_heads))).detach().cpu().numpy().tolist()
@@ -974,7 +971,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
             dict_transformer_params[(new_layer_name, 'W_o')] =  arrange_o(W_o, num_heads).detach().cpu().numpy().tolist()
             
             b_o = transformer_bias.get(out_proj_name , None)
-            if not b_o  is None:
+            if b_o is not None:
                 dict_transformer_params[(new_layer_name, 'b_o')] = b_o
                 
                 
@@ -996,7 +993,7 @@ def get_hugging_learned_parameters(model, enc_input, dec_input, num_heads, huggi
                 else:
                     activation = None #second linear layer of enc/dec has no activation
                     
-                if not ("fc" in layers[i-1]) and not ("activation" in layers[i-1] and "fc" in layers[i-2]) : # create new ffn
+                if "fc" not in layers[i-1] and not ("activation" in layers[i-1] and "fc" in layers[i-2]) : # create new ffn
                     name = 'ffn'
                     count = count_layer_names.count(prefix+suffix+name) + 1
                     new_layer_name = f"{prefix+suffix+name}_{count}"

@@ -1,11 +1,7 @@
 
-from omlt.neuralnet.layer import DenseLayer, InputLayer
-from omlt.neuralnet.network_definition import NetworkDefinition
 import numpy as np
-import keras
-from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Input
-import re
 
 
 def weights_to_NetDef(new_name, NN_name, input_shape, model_parameters

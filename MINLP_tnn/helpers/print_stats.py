@@ -1,8 +1,5 @@
-from fileinput import filename
-from gurobipy import Model, GRB, GurobiError
-from pyomo.environ import SolverFactory, value
+from gurobipy import GRB, GurobiError
 from pyomo.opt import TerminationCondition, SolverStatus
-import pyomo.environ as pyo
 import time
 import csv
 import os
@@ -110,7 +107,7 @@ def solve_gurobipy(model, time_limit, callback=None):
     """
 
     # Set a time limit
-    if not time_limit is None:
+    if time_limit is not None:
         model.setParam('TimeLimit',time_limit)
         print("------------------------------------------------------")
         print()

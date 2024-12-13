@@ -3,9 +3,8 @@ from omlt.neuralnet.layer import DenseLayer, InputLayer
 from omlt.neuralnet.network_definition import NetworkDefinition
 import numpy as np
 
-from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Input
-from tensorflow.keras.optimizers import Adam
 from omlt.io.keras import keras_reader
 
 def weights_to_NetworkDefinition(NN_name, model_parameters,

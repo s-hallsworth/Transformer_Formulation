@@ -1,7 +1,6 @@
 from helpers import extract_from_pretrained
 import numpy as np 
 import os
-import toy_problem_setup as tps
 #from data_gen import gen_x_u
 """
 Get outputs from the layers of a transformer model specified by model_path
