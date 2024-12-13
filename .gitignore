@@ -4,4 +4,4 @@
 *.cfg
 *.pth
 *.egg-info
-.\transformers
+*\transformers
