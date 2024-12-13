@@ -1,5 +1,7 @@
-*\pyomo_env
-__pycache__
-.\OneDrive\Thesis\Gurobi
+*\pyomo_env*
+*\pyomo_venv2
+*\__pycache__
 *.cfg
 *.pth
+.\Case_Study_1\data
+*.egg-info
