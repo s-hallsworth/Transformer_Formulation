@@ -23,84 +23,30 @@ from transformers.models.time_series_transformer.modeling_time_series_transforme
 # cloned transformers from: https://github.com/s-hallsworth/transformers.git
 
 """
-Test each module of reactor TNN
-"""
-class TestTransformer(unittest.TestCase):
-    # def test_input_TNN(self):
-    #     m = opt_model.clone()
-        
-    #     transformer = TNN.Transformer( ".\\training\\models\\config_minlp_tnn.json", m) 
-        
-    #     enc_dim_1 = src.size(0)
-    #     dec_dim_1 = tgt.size(0)
-    #     transformer.M.enc_time_dims  = pyo.Set(initialize= list(range(enc_dim_1)))
-    #     transformer.M.dec_time_dims  = pyo.Set(initialize= list(range(dec_dim_1)))
-    #     transformer.M.dec_time_dims_param =  pyo.Set(initialize= list(range(dec_dim_1))) 
-    #     transformer.M.model_dims = pyo.Set(initialize= list(range(transformer.d_model)))
-    #     transformer.M.input_dims = pyo.Set(initialize= list(range(transformer.input_dim)))
-    
-    #     bounds_target = (None, None)
-    #     # Add TNN input vars
-    #     transformer.M.enc_input = pyo.Var(transformer.M.enc_time_dims,  transformer.M.input_dims, bounds=bounds_target)
-    #     transformer.M.dec_input = pyo.Var(transformer.M.dec_time_dims,  transformer.M.input_dims, bounds=bounds_target)
-        
-    #     # Add constraints to TNN encoder input
-    #     m.tnn_input_constraints = pyo.ConstraintList()
-    #     indices = []
-    #     for set in str(transformer.M.enc_input.index_set()).split("*"): # get TNN enc input index sets
-    #         indices.append( getattr(m, set) )
-    #     for tnn_index, index in zip(indices[0], m.enc_space):
-    #         for tnn_dim, dim in zip(indices[1], m.dims):
-    #             print(tnn_index, tnn_dim, index, dim)
-    #             m.tnn_input_constraints.add(expr= transformer.M.enc_input[tnn_index, tnn_dim] == m.x_enc[index, dim])
-                
-    #     # Add constraints to TNN decoder input
-    #     indices = []
-    #     for set in str(transformer.M.dec_input.index_set()).split("*"):# get TNN dec input index sets
-    #         indices.append( getattr(m, set) )
-    #     for tnn_index, index in zip(indices[0], m.dec_space):
-    #         for tnn_dim, dim in zip(indices[1], m.dims):
-    #             m.tnn_input_constraints.add(expr= transformer.M.dec_input[tnn_index, tnn_dim]== m.x[index, dim])
-                
-                
-    #     # Set objective: maximise amount of methanol at reactor outlet
-    #     m.obj = pyo.Objective(
-    #             expr = m.x[m.dec_space.last(), "CH3OH"], sense=-1
-    #         )  # -1: maximize, +1: minimize (default)
-        
-    #     # Convert to gurobi
-    #     gurobi_model, map_var , _ = convert_pyomo.to_gurobi(m)
-            
-    #     # Optimize
-    #     gurobi_model.optimize()
+    Test suite for a transformer-based Time Series Neural Network (TNN) implemented with Pyomo 
+    and Gurobi for Mixed-Integer Nonlinear Programming (MINLP).
 
-    #     if gurobi_model.status == GRB.OPTIMAL:
-    #         optimal_parameters = {}
-    #         for v in gurobi_model.getVars():
-    #             #print(f'var name: {v.varName}, var type {type(v)}')
-    #             if "[" in v.varName:
-    #                 name = v.varname.split("[")[0]
-    #                 if name in optimal_parameters.keys():
-    #                     optimal_parameters[name] += [v.x]
-    #                 else:
-    #                     optimal_parameters[name] = [v.x]
-    #             else:    
-    #                 optimal_parameters[v.varName] = v.x
-                    
-    #     if gurobi_model.status == GRB.INFEASIBLE:
-    #         gurobi_model.computeIIS()
-    #         gurobi_model.write("pytorch_model.ilp")
-            
-    #     # model input
-    #     enc_input_name = "enc_input"
-    #     model_enc_input = np.array(optimal_parameters[enc_input_name])
-    #     expected_enc_input = src.numpy().flatten()#(src.numpy() - np.array(states_min)) / ( np.array(states_max) - np.array(states_min))
-        
-    #     self.assertIsNone(np.testing.assert_array_equal(model_enc_input.shape, expected_enc_input.flatten().shape)) # pyomo input data and transformer input data must be the same shape
-    #     self.assertIsNone(np.testing.assert_array_almost_equal(model_enc_input, expected_enc_input.flatten(), decimal = 7))             # both inputs must be equal
-    #     print("input enc tnn = expected enc input tnn")
-        
-      
+    This script integrates a pre-trained Time Series Transformer created for the reactor optimisation case study. 
+    It uses learned parameters from a Hugging Face `TimeSeriesTransformerForPrediction` model to validate
+    the custom implementation against pre-trained outputs.
+
+    Key Features:
+    - Encoder-decoder architecture validation.
+    - Integration of Pyomo optimization models with neural network components.
+    - Validation of outputs using trained TNN parameters and Hugging Face outputs.
+"""
+
+class TestTransformer(unittest.TestCase): 
+    """
+        Unit tests for the Transformer Neural Network (TNN) architecture and Pyomo integration.
+
+        Tests:
+            - Encoder and decoder layer outputs.
+            - Correctness of attention, normalization, and feed-forward networks.
+            - Cross-attention mechanism between encoder and decoder.
+            - Alignment between Pyomo-integrated TNN and Hugging Face pre-trained TNN outputs.
+    """
+
     def test_decoder_TNN(self):
         m = opt_model.clone()
         
@@ -603,6 +549,36 @@ class TestTransformer(unittest.TestCase):
 
         
 if __name__ == '__main__': 
+    """
+        Main script for testing and validating a Transformer-based Time Series Neural Network (TNN) 
+        using Pyomo and Hugging Face's `TimeSeriesTransformerForPrediction`.
+
+        Key Components:
+            1. **Model Loading**:
+                - Loads a pre-trained Hugging Face TNN model and extracts its parameters.
+
+            2. **Data Preparation**:
+                - Processes input time series data and defines Pyomo variables, parameters, and constraints.
+
+            3. **Pyomo Model Integration**:
+                - Integrates the TNN encoder-decoder architecture into the Pyomo optimization model.
+                - Sets bounds and constraints based on training data and the optimization objective.
+
+            4. **Parameter Extraction**:
+                - Extracts learned parameters from the pre-trained model for use in the Pyomo TNN.
+
+            5. **Unit Testing**:
+                - Validates encoder-decoder functionality and intermediate outputs.
+
+        Usage:
+            Run the script to execute unit tests and validate the custom TNN implementation.
+
+        Notes:
+            - The script is designed for validating TNN outputs against pre-trained results.
+            - Uses Gurobi as the backend solver for the optimization problem.
+    """
+
+    
     # load model
     train_tnn_path = ".\\training\\models\\model_TimeSeriesTransformer_final.pth"
     

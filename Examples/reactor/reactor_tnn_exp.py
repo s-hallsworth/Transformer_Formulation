@@ -20,6 +20,28 @@ Setup for reactor case study experiments
 """
 
 def reactor_problem(train_tnn_path):
+    """
+        Sets up a reactor optimization problem using a pretrained Transformer Neural Network (TNN) 
+        integrated into a Pyomo model.
+
+        Args:
+            train_tnn_path (str): Path to the pretrained TimeSeriesTransformerForPrediction TNN model file (.pt format).
+
+        Returns:
+            tuple:
+                - opt_model (pyo.ConcreteModel): Pyomo model with defined constraints and objective.
+                - parameters (dict): Dictionary containing learned parameters of the Transformer model.
+                - layer_outputs_dict (dict): Outputs from the Transformer model's intermediate layers.
+                - src (torch.Tensor): Input tensor for the encoder (source sequence).
+                - tgt (torch.Tensor): Input tensor for the decoder (target sequence).
+
+        Notes:
+            - Prepares input data, including time features and observed masks, for the Transformer model.
+            - Integrates state variable bounds based on training data.
+            - Defines Pyomo constraints for the encoder input and connections between encoder and decoder.
+            - Sets the objective to maximize the methanol concentration at the reactor outlet.
+    """
+
     # Model Configuration
     device = "cpu"
     NUMBER_OF_POINTS = 8
@@ -47,8 +69,8 @@ def reactor_problem(train_tnn_path):
     z = np.linspace(0, L_t, NUMBER_OF_POINTS).reshape(-1,1,1) / L_t
     z = torch.from_numpy(z).to(device).permute(1, 0, 2)
 
-    past_time_features =  z[:, 0:1].repeat(src.size(0), CONTEXT_LENGTH, 1).to(device).float()#torch.zeros_like(torch.linspace(-1, 0, CONTEXT_LENGTH).reshape(1, -1, 1).repeat(x_batch.size(0), 1, 1)).to(device)
-    future_time_features = z.repeat(src.size(0), 1, 1).to(device).float() #torch.zeros_like(y_batch[..., 0]).unsqueeze(-1).to(device)
+    past_time_features =  z[:, 0:1].repeat(src.size(0), CONTEXT_LENGTH, 1).to(device).float()
+    future_time_features = z.repeat(src.size(0), 1, 1).to(device).float()
     past_values = src.repeat(1, CONTEXT_LENGTH, 1).to(device)
     past_observed_mask = torch.zeros_like(past_values).to(device)
     past_observed_mask[:, -1:, :] = 1
@@ -135,6 +157,33 @@ def reactor_problem(train_tnn_path):
     return opt_model, parameters,layer_outputs_dict, src, tgt
 
 def reactor_tnn(opt_model, parameters,layer_outputs_dict,activation_dict, config, src, tgt):
+    """
+        Incorporates a pretrained Transformer Neural Network (TNN) into a Pyomo model as mathematical 
+        constraints using the MINLP TNN framework.
+
+        Args:
+            opt_model (pyo.ConcreteModel): Pyomo model instance to which the TNN constraints will be added.
+            parameters (dict): Dictionary containing learned parameters of the Transformer model.
+            layer_outputs_dict (dict): Outputs from the Transformer model's intermediate layers.
+            activation_dict (dict): Dictionary specifying active constraints for the TNN layers.
+            config (dict): Configuration dictionary for the TNN.
+            src (torch.Tensor): Input tensor for the encoder (source sequence).
+            tgt (torch.Tensor): Input tensor for the decoder (target sequence).
+
+        Returns:
+            tuple:
+                - m (pyo.ConcreteModel): Updated Pyomo model with TNN architecture constraints.
+                - ffn_parameter_dict (dict): Dictionary containing feed-forward network (FFN) parameters.
+                - layer_outputs_dict (dict): Outputs from the Transformer model's intermediate layers.
+                - transformer (TNN.Transformer): Transformer object encapsulating the formulated constraints.
+
+        Notes:
+            - Adds encoder and decoder components to the Pyomo model.
+            - Includes linear transformations, positional encoding, self-attention, cross-attention, 
+            and feed-forward layers.
+            - Links encoder and decoder outputs and integrates learned parameters as constraints.
+    """
+
     m = opt_model.clone()
         
     transformer = TNN.Transformer(config, m, activation_dict) 
