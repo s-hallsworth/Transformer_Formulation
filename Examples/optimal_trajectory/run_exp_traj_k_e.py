@@ -6,7 +6,7 @@ from gurobipy import GRB
 from gurobi_ml import add_predictor_constr
 
 # Import from repo files
-from MINLP_tnn.transformer import Transformer as TNN
+from MINLP_tnn import transformer as TNN
 from MINLP_tnn.helpers import extract_from_pretrained
 from MINLP_tnn.helpers.print_stats import save_gurobi_results
 import MINLP_tnn.helpers.convert_pyomo as convert_pyomo
@@ -17,9 +17,44 @@ from combine_csv import combine
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0' 
 
 """
-    Solve toy problem with varying setups:
-        - change active constraints (automated)
-        - change framework + solver (manual)
+Module for solving a toy trajectory optimization problem using Transformer Neural Networks (TNNs).
+
+This script defines and executes experiments on a toy trajectory problem, integrating 
+pretrained TNNs into a Mixed-Integer Nonlinear Programming (MINLP) framework using Pyomo 
+and Gurobi. The experiments explore the effects of varying configurations of active 
+constraints and hyperparameters on optimization performance.
+
+Key Functionalities:
+1. **Setup**: Define experimental parameters such as sequence length and prediction length for trajectory optimization.
+2. **TNN Integration**: Incorporate a pretrained Transformer-based model into the 
+   Pyomo optimization framework, including constraints for attention and feed-forward layers.
+3. **Constraint Configuration**: Experiment with different combinations of active bounds 
+   and cuts for TNN formulation.
+4. **Optimization**: Solve the optimization problem using Gurobi and evaluate the results.
+5. **Results Analysis**: Log the results for further analysis and optionally combine results 
+   into a single CSV file.
+
+Main Steps:
+1. **Setup**: Initialize experimental parameters and configure TNN settings, including the 
+   hyperparameters and learned parameters of the Transformer model.
+2. **Define the Problem**: Formulate the trajectory problem with variables and constraints, 
+   and set the objective to minimize the deviation from the target trajectory.
+3. **TNN Constraints**: Define input/output relationships for the TNN layers and add 
+   Transformer components (attention, normalization, feed-forward layers) as constraints.
+4. **Optimization**: Convert the Pyomo model to Gurobi format, solve the optimization problem, 
+   and log results such as trajectory variables and TNN outputs.
+5. **Result Saving**: Save results for each configuration and optionally combine results into a CSV file.
+
+Key Variables:
+- `TESTING`: Enables faster testing by fixing TNN inputs and limiting repetitions.
+- `ACTI`: Groups of constraints for Layer Normalization (LN) and Multi-Head Attention (MHA).
+- `combinations`: Configurations of active constraints.
+- `tnn_config`: Stores experiment metadata, including model parameters and results.
+- `PATH`: Directory for saving logs and results.
+
+Usage:
+Run the script to solve the trajectory problem with different TNN configurations. Adjust 
+the parameters in the "Setup" section and modify the constraint combinations for further experimentation.
 """
 
 # Set Up
@@ -31,24 +66,16 @@ SOLVER = "gurobi"
 FRAMEWORK = "gurobipy"
 exp_name = "traj_k_e"
 script_dir = os.path.dirname(os.path.abspath(__file__))
-rel_PATH =  f"\\experiments\\{exp_name}"+"\\"
+rel_PATH =  f".\\experiments\\{exp_name}"
 PATH = os.path.join(script_dir, rel_PATH)
-
-# Store TNN Architecture info
 tnn_config = {}
-tnn_config["Num Enc"] = 1
-tnn_config["Num Dec"] = 0
-tnn_config["Num Res"] = 2
-tnn_config["Num LN"]  = 2
-tnn_config["Num AVGP"] = 0
-tnn_config["Num Dense"] = 4
-tnn_config["Num ReLu"] = 2
+
+
 
 # Define Toy Problem:
 # optimal trajectory of a projectile launched with x velocity v1 and y velocity v2
-
 model = pyo.ConcreteModel(name="(TRAJ_TOY)")
-rel_dir = '.\\data\\toy_traj_k_enc_config_2.json' 
+rel_dir = 'data\\toy_traj_k_enc_config_2.json' 
 hyper_params = os.path.join(script_dir, rel_dir)
 tnn_config["Config File"] = hyper_params
 
@@ -69,7 +96,6 @@ v_l1 = 0.2
 v_l2 = 1.5
 dt = time[-1] - time[0]
 overlap = 1 # overlap of input data to TNN and output data
-bounds_target = (-3,3)
 
 # define sets
 model.time = pyo.Set(initialize=time)
@@ -107,7 +133,7 @@ model.obj = pyo.Objective(
 )  # -1: maximize, +1: minimize (default)
 
 # load trained transformer
-model_path = "training\\models\\TNN_traj_enc_3.keras" # dmodel 4, num heads 1, n ence 1, n dec 1, head dim 4, pred_len 2+1 
+model_path = "training\\models\\TNN_traj_enc_2.keras" # dmodel 4, num heads 1, n ence 1, n dec 1, head dim 4, pred_len 2+1 
 model_PATH = os.path.join(script_dir, model_path)
 layer_names, parameters , tnn_model = extract_from_pretrained.get_learned_parameters(model_PATH)
 
@@ -132,7 +158,7 @@ if TESTING:
 
 # Fix ffn params: add layer not in architecture which is between the two ffns
 ffn_1_params = parameters['ffn_1']
-parameters['ffn_2']  = {'input_shape':ffn_1_params['input_shape']}#, "input": ffn_1_params['input']}
+parameters['ffn_2']  = {'input_shape':ffn_1_params['input_shape']}
 parameters['ffn_2'] |= {'dense_3':  ffn_1_params['dense_3']}
 parameters['ffn_2'] |= {'dense_4':ffn_1_params['dense_4']}
 
@@ -188,39 +214,27 @@ for key in ACTI_LIST_FULL:
 ACTI = {}  
 ACTI["LN_I"] = {"list": ["LN_var"]}
 ACTI["LN_D"] = {"list": ["LN_num", "LN_num_squ", "LN_denom"]}
-
 ACTI["MHA_I"] = {"list": ["MHA_attn_weight_sum", "MHA_attn_weight"]}
 ACTI["MHA_D"] = {"list": ["MHA_Q", "MHA_K", "MHA_V", "MHA_compat", "MHA_compat_exp", "MHA_compat_exp_sum", "MHA_attn_score", "MHA_output" , "RES_var"]}
 ACTI["MHA_MC"] = {"list":[ "MHA_QK_MC", "MHA_WK_MC"]}
 
-#ACTI["RES_ALL"] = {"list":[ "RES_var"]}
-
-ACTI_Groups = 6
-LN_ALL = ACTI["LN_I"]["list"] + ACTI["LN_D"]["list"]
-MHA_ALL = ACTI["MHA_I"]["list"]  + ACTI["MHA_D"]["list"] + ACTI["MHA_MC"]["list"]
-#check all bounds and constraints in the lists
-#assert(len(ACTI["RES_ALL"]["list"])+ len(MHA_ALL)+ len(LN_ALL) == len(ACTI_LIST)) 
-
-
 combinations = [
-    # [1 , 0, 1, 1, 1], #1
-    # [1 , 0, 1, 1, 0], #2
-    # [1 , 0, 1, 0, 0], #3
-    # [1 , 0, 0, 0, 0], #4
-    # [1 , 0, 0, 1, 1], #10
-    [1 , 0, 0, 1, 0], #11
-    [0 , 0, 0, 0, 0],  #13
     [1 , 0, 1, 1, 1],
-    [0 , 0, 0, 0, 0],
+    [1 , 0, 1, 1, 0],
+    [1 , 0, 1, 0, 0],
+    [1 , 0, 0, 0, 0],
+    [1 , 0, 0, 1, 1],
+    [1 , 0, 0, 1, 0], 
     [0 , 0, 0, 0, 0],
 ]
 combinations = [[bool(val) for val in sublist] for sublist in combinations]
+
 
 # for each experiment repetition
 for r in range(REP):
         
     for c, combi in enumerate(combinations):# for each combination of constraints/bounds
-        experiment_name = f"{exp_name}_r{r+1+1}_c{c+1}"
+        experiment_name = f"{exp_name}_r{r+1}_c{c+1}"
         # activate constraints
         ACTI["LN_I"]["act_val"], ACTI["LN_D"]["act_val"], ACTI["MHA_I"]["act_val"] , ACTI["MHA_D"]["act_val"], ACTI["MHA_MC"]["act_val"] = combi
 
@@ -232,21 +246,12 @@ for r in range(REP):
         # clone optimization model
         m = model.clone()
         
-        # ____ FIX INNPUTS ____ #
-        if c==1 or c==2:
-            m.fixed_loc_constraints = pyo.ConstraintList()
-            for i,t in enumerate(model.time):
-                if t <= model.time_history.last():
-                    m.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
-                    m.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
-
-        #----------------------#
     
         #init and activate constraints
         transformer = TNN.Transformer(hyper_params, m, activation_dict)  
         
         # Define tranformer
-        transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(-3,3))
+        transformer.add_input_var("input_embed", dims=(seq_len, transformer.input_dim), bounds=(None,None))
         transformer.add_layer_norm( "input_embed", "layer_norm", gamma1, beta1)
         transformer.add_attention( "layer_norm","attention_output", W_q, W_k, W_v, W_o, b_q, b_k, b_v, b_o)
         transformer.add_residual_connection("input_embed", "attention_output", "residual_1")
@@ -272,18 +277,11 @@ for r in range(REP):
         for t_index, t in enumerate(m.time):
             index = t_index + 1 # 1 indexing
             
-            if t >= m.time_history.last(): # since overlap is 1
-                if c==3:
-                    out_index += 1
-                    m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.x1[t])
-                    m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.x2[t])
-                elif out_index == 0:
-                    continue
-                else:
-                    out_index += 2
-                    m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.x1[t])
-                    m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.x2[t])
-
+            if t > m.time_history.last(): 
+                out_index += 2
+                m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].first()] == m.x1[t])
+                m.tnn_constraints.add(expr= output_nn2[indices[0].at(out_index), indices[1].last()]  == m.x2[t])
+               
         # # Convert to gurobipy
         gurobi_model, map_var, _ = convert_pyomo.to_gurobi(m)
         
@@ -294,12 +292,16 @@ for r in range(REP):
         inputs_2, outputs_2 = get_inputs_gurobipy_FFN(input_nn2, output_nn2, map_var)
         pred_constr2 = add_predictor_constr(gurobi_model, nn2, inputs_2, outputs_2)
         gurobi_model.update()
-        #pred_constr.print_stats()
+
+        # Set output directory
+        print(PATH)
+        if not os.path.exists(PATH): # Create directory if does not exist
+            os.makedirs(PATH)
+            os.makedirs(PATH+"\\logs")
+        PATH += "\\"
         
-        ## Optimizes
-        # gurobi_model.setParam('DualReductions',0)
-        # gurobi_model.setParam('MIPFocus',1)
-        gurobi_model.setParam('LogFile', PATH+f'Logs\\{experiment_name}.log')
+        ## Optimize
+        gurobi_model.setParam('LogFile', PATH+f'logs\\{experiment_name}.log')
         gurobi_model.setParam('TimeLimit', 21600) # 6h
         gurobi_model.optimize()
 
@@ -322,46 +324,7 @@ for r in range(REP):
             x1 = np.array(optimal_parameters['x1'])
             x2 = np.array(optimal_parameters['x2'])
             loc1 = np.array([v for k,v in model.loc1.items()])
-            loc2 = np.array([v for k,v in model.loc2.items()])
-
-            plt.figure( figsize=(8, 4))
-            plt.plot(time[2], FFN_out[1][1],'s', color='tab:cyan',label= "y TNN pred.")
-            plt.plot(time[2], FFN_out[0][1],'s', color='tab:gray',label= "x TNN pred.")
-            
-            plt.plot(time, loc2, 'o', color='tab:blue', label = 'y targets')
-            plt.plot(time, loc1, 'o', color='m', label = 'x targets')
-            
-            opt_x1 = [0.0, 0.00555569, 0.01111138]
-            opt_x2 = [0.0, 0.05100613, 0.09444281]
-            plt.plot(time, opt_x1, color='tab:green', label= "y expected opt. trajectory")
-            plt.plot(time, opt_x2, color='tab:orange', label= "x expected opt. trajectory")
-            
-            plt.plot(time, x2, '--x', color='r', label = 'y opt. trajectory')
-            plt.plot(time, x1, '--x', color='b', label = 'x opt. trajectory')
-            
-            
-            plt.xlabel("time")
-            plt.ylabel("distance")
-            plt.title(f"Optimal Trajectory Toy ({experiment_name})")
-            plt.legend()
-
-            if not TESTING:
-                plt.savefig(PATH+f'\images\{experiment_name}_time.png')
-            else:
-                plt.show()
-            
-            plt.figure(figsize=(6, 4))
-            plt.plot(loc1, loc2, 'o', label = 'target trajectory')
-            plt.plot(opt_x1, opt_x2, label= "expected opt. trajectory")
-            plt.plot(x1, x2, '--x', label = 'opt. trajectory')
-            plt.title('Trajectory')
-            plt.xlabel("x")
-            plt.ylabel("y")
-            plt.legend()
-            if not TESTING:
-                plt.savefig(PATH+f'\images\{experiment_name}_traj.png')    
-            else:
-                plt.show()         
+            loc2 = np.array([v for k,v in model.loc2.items()])       
         else:
             tnn_config["TNN Out"] = None
         # save results

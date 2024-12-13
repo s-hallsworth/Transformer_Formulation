@@ -1,6 +1,10 @@
 import pandas as pd
 import os
-
+"""
+This is a helper script to combine the custom log files that are stored as csvs during experiments.
+Each experiment generates a separaete csv file and the combine() function is used to combine
+these csv files into one file where each row stores information about a separate experimental run.
+"""
 
 
 def combine(PATH, output_filename):

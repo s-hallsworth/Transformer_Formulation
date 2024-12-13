@@ -5,25 +5,22 @@ import matplotlib.pyplot as plt
 # from amplpy import AMPL
 
 """
+A version of the optimal trajectory problem without the TNN.
+
+
+The projectile motion is modelled with equations of motion but the 
+set up of this problem remains the same. The results of this optimisation 
+problem are used to test the problem with optimisation-based TNN to model
+th eprojectile motion. These results give the expected optimal trajectory.
 """
 
 # instantiate pyomo model component
 model = pyo.ConcreteModel(name="(TOY_TRANFORMER)")
 
-# # define constants
-# T_end = 0.5
-# steps = 19 #100
-# time = np.linspace(0, T_end, num=steps)
-# dt = time[1] - time[0]
-# print(time)
-
-# g = 9.81
-# v_l1 = 0.2
-# v_l2 = 1.5
 
 # define constants
-T_end = 0.5#0.0105
-steps = 19 ##CHANGE THIS ##
+T_end = 0.5
+steps = 19 
 time = np.linspace(0, T_end, num=steps)
 
 tt = 2 # sequence size
@@ -45,11 +42,6 @@ dt = time[-1] - time[0]
 # define sets
 model.time = pyo.Set(initialize=time)
 
-
-#
-
-
-
 # define parameters
 def target_location_rule(M, t):
     return v_l1 * t
@@ -68,7 +60,6 @@ model.v1 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
 model.x2 = pyo.Var(model.time) # height path
 model.v2 = pyo.Var(bounds=(0,None)) # initial velocity of cannon ball
 
-#model.T = pyo.Var(within=model.time)# time when cannon ball hits target
 
 # define initial conditions
 model.x1_constr = pyo.Constraint(expr= model.x1[0] == 0) 
@@ -96,13 +87,6 @@ model.obj = pyo.Objective(
 input_x1 =   v_l1 * time  
 input_x2 =  (v_l2*time) - (0.5 * g * (time*time))
 
-# model.fixed_loc_constraints = pyo.ConstraintList()
-# for i,t in enumerate(model.time):
-#     model.fixed_loc_constraints.add(expr= input_x1[i] == model.x1[t])
-#     model.fixed_loc_constraints.add(expr= input_x2[i]  == model.x2[t])
-
-# view model
-#model.pprint()  # pyomo solve test.py --solver=gurobi --stream-solver --summary
 
 solver = pyo.SolverFactory("gurobi")
 time_limit = None

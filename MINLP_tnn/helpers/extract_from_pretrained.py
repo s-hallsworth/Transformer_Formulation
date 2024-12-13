@@ -1,7 +1,6 @@
 import json
 import numpy as np
-from tensorflow.keras.models import load_model
-import torch
+from tensorflow import keras
 from torch import nn
 import collections
 from torch.nn import ReLU, SiLU
@@ -20,7 +19,7 @@ Parsing functions are included for:
     - Custom Pytorch-based Vision Transformer (ViT)
 """
 
-def get_weights(model_path, save_json=True, file_name="model_weights.json"):
+def get_weights(model_path, save_json=True, file_name="model_weights.json", print_summary=False):
     """
     Extracts and saves the weights of a pre-trained Keras model to a JSON file.
 
@@ -28,6 +27,7 @@ def get_weights(model_path, save_json=True, file_name="model_weights.json"):
         model_path (str): Path to the pre-trained Keras model file.
         save_json (bool, optional): Whether to save the weights to a JSON file. Defaults to True.
         file_name (str, optional): Name of the JSON file to save weights. Defaults to "model_weights.json".
+        print_summary (bool, optional): Whether to print a summary of the model architecture. Defaults to False.
 
     Returns:
         tuple: 
@@ -35,16 +35,17 @@ def get_weights(model_path, save_json=True, file_name="model_weights.json"):
             - model (keras.Model): The loaded Keras model.
 
     Notes:
-        - Prints a model summary
+        - Prints a model summary if print_summary is True
         - If `save_json` is True, the weights are saved in JSON format instead of being returned.
     """
 
     # Load pre-trained model
-    model = load_model(model_path)
+    model = keras.models.load_model(model_path)
 
     # Print model summary
-    print("--- Model Summary ---")
-    model.summary()
+    if print_summary:
+        print("--- Model Summary ---")
+        model.summary()
 
     # Extract weights
     model_weights = {}
