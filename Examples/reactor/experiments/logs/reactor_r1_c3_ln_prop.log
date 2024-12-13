@@ -1,0 +1,142 @@
+
+Gurobi 11.0.2 (win64) logging started Fri Nov 22 08:04:02 2024
+
+Set parameter LogFile to value ".\Experiments\Reactor_\Logs\reactor_r1_c3.log"
+Set parameter TimeLimit to value 43200
+Gurobi Optimizer version 11.0.2 build v11.0.2rc0 (win64 - Windows 10.0 (19045.2))
+
+CPU model: Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 6 physical cores, 12 logical processors, using up to 12 threads
+
+Optimize a model with 39033 rows, 179643 columns and 752135 nonzeros
+Model fingerprint: 0xcd432277
+Model has 32011 quadratic constraints
+Model has 996 general constraints
+Variable types: 179255 continuous, 388 integer (388 binary)
+Coefficient statistics:
+  Matrix range     [1e-13, 3e+03]
+  QMatrix range    [1e+00, 1e+00]
+  QLMatrix range   [1e+00, 1e+00]
+  Objective range  [1e+00, 1e+00]
+  Bounds range     [1e-13, 3e+03]
+  RHS range        [4e-11, 3e+03]
+  QRHS range       [1e-05, 1e+00]
+Warning: Model contains large matrix coefficient range
+         Consider reformulating model or setting NumericFocus parameter
+         to avoid numerical issues.
+Presolve removed 24379 rows and 135364 columns
+Presolve time: 1.87s
+Presolved: 127719 rows, 44280 columns, 944476 nonzeros
+Presolved model has 28315 bilinear constraint(s)
+Presolved model has 884 nonlinear constraint(s)
+Warning: Model contains variables with very large bounds participating
+         in nonlinear terms.
+         Presolve was not able to compute smaller bounds for these variables.
+         Consider bounding these variables or reformulating the model.
+
+
+Solving non-convex MINLP
+
+Variable types: 44116 continuous, 164 integer (164 binary)
+
+Deterministic concurrent LP optimizer: primal simplex, dual simplex, and barrier
+Showing barrier log only...
+
+Root barrier log...
+
+Ordering time: 2.16s
+
+Barrier statistics:
+ Dense cols : 16
+ AA' NZ     : 4.758e+06
+ Factor NZ  : 2.256e+07 (roughly 230 MB of memory)
+ Factor Ops : 1.330e+10 (less than 1 second per iteration)
+ Threads    : 4
+
+                  Objective                Residual
+Iter       Primal          Dual         Primal    Dual     Compl     Time
+   0   1.77047257e-01  6.23341917e+03  2.43e+02 0.00e+00  4.17e-01    96s
+   1   6.11218422e-02  1.15491548e+03  5.60e+01 4.21e-05  8.85e-02    96s
+   2   2.85651398e-02  1.12037012e+02  9.07e-02 1.09e-15  8.49e-04    97s
+   3   4.24589837e-02  2.03462896e+00  2.53e-03 1.32e-16  1.55e-05    97s
+   4   4.35871763e-02  1.04020331e-01  4.43e-05 1.30e-16  4.17e-07    97s
+   5   4.36173221e-02  4.45104873e-02  3.85e-07 1.09e-16  5.80e-09    98s
+   6   4.36176156e-02  4.36616929e-02  1.79e-09 6.77e-13  2.84e-10    98s
+   7   4.36176173e-02  4.36176614e-02  8.38e-13 5.94e-16  2.84e-13    98s
+   8   4.36176173e-02  4.36176173e-02  6.82e-13 5.80e-19  2.84e-16    99s
+
+Barrier solved model in 8 iterations and 98.69 seconds (94.57 work units)
+Optimal objective 4.36176173e-02
+
+
+Root crossover log...
+
+       0 DPushes remaining with DInf 0.0000000e+00                99s
+
+   23479 PPushes remaining with PInf 0.0000000e+00                99s
+    2168 PPushes remaining with PInf 4.9305636e-03               100s
+       0 PPushes remaining with PInf 7.2455231e+02               104s
+
+  Push phase complete: Pinf 7.2455231e+02, Dinf 0.0000000e+00    104s
+
+
+Root simplex log...
+
+Iteration    Objective       Primal Inf.    Dual Inf.      Time
+   23482    4.3617617e-02   7.245523e+02   0.000000e+00    104s
+   23657    4.3617617e-02   1.236811e+08   0.000000e+00    105s
+   24532    4.3600821e-02   3.649441e+05   0.000000e+00    111s
+   25407    4.3596161e-02   8.454786e+06   0.000000e+00    116s
+   26513    4.3589971e-02   5.073952e+05   0.000000e+00    121s
+   27643    4.3589679e-02   1.369105e+07   0.000000e+00    126s
+   28703    4.3587964e-02   1.595802e+05   0.000000e+00    130s
+   29727    4.3587410e-02   1.250810e+08   0.000000e+00    135s
+Concurrent spin time: 0.00s
+
+Solved with dual simplex
+
+Root relaxation: objective 4.361762e-02, 34881 iterations, 42.95 seconds (54.58 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+     0     0    0.04362    0 18482          -    0.04362      -     -  135s
+     0     0    0.04362    0 18522          -    0.04362      -     -  351s
+     0     0    0.04362    0 18505          -    0.04362      -     -  467s
+     0     0    0.04362    0 18229          -    0.04362      -     - 1345s
+     0     0    0.04362    0 18330          -    0.04362      -     - 1390s
+     0     0    0.04362    0 18237          -    0.04362      -     - 1415s
+     0     0    0.04362    0 18263          -    0.04362      -     - 1435s
+     0     0    0.04362    0 18305          -    0.04362      -     - 1451s
+     0     0    0.04362    0 18264          -    0.04362      -     - 1468s
+     0     0    0.04362    0 18106          -    0.04362      -     - 1515s
+     0     2    0.04362    0 18106          -    0.04362      -     - 14271s
+     1     4    0.04362    1 18301          -    0.04362      -  6638 14696s
+     3     8    0.04362    2 18102          -    0.04362      -  9042 15269s
+     7    14    0.04362    3 17924          -    0.04362      - 13833 15555s
+    13    20    0.04362    4 18281          -    0.04362      - 13356 15720s
+    19    26    0.04362    4 18122          -    0.04362      - 11904 16839s
+    25    32    0.04362    5 17953          -    0.04362      - 12305 16898s
+    31    40    0.04362    5 18007          -    0.04362      - 11019 17217s
+    39    49    0.04362    6 17868          -    0.04362      - 10632 17311s
+    48    78    0.04362    6 17919          -    0.04362      -  9750 17582s
+    77   166    0.04362    9 17651          -    0.04362      -  8084 18488s
+   165   385    0.04362   18 17213          -    0.04362      -  6404 21347s
+   386   989    0.04362   39 16632          -    0.04362      -  5648 24783s
+  1000  1300    0.04362  116 18157          -    0.04362      -  5668 27571s
+  1329  1587    0.04362  156 17611          -    0.04362      -  6186 30208s
+  1618  1957    0.04362  160 18346          -    0.04362      -  6297 33087s
+  1990  2185    0.04362  170 17154          -    0.04362      -  6250 35863s
+  2346  2616    0.04362  182 16452          -    0.04362      -  6534 38250s
+  2969  2875    0.04362  273 15885          -    0.04362      -  5880 49502s
+
+Cutting planes:
+  RLT: 248
+
+Explored 3410 nodes (18495206 simplex iterations) in 49502.69 seconds (61464.49 work units)
+Thread count was 12 (of 12 available processors)
+
+Solution count 0
+
+Time limit reached
+Best objective -, best bound 4.361761729599e-02, gap -

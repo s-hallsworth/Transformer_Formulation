@@ -1,0 +1,11 @@
+{
+    
+    "hyper_params": {
+        "N": 8,
+        "d_model": 64,
+        "d_k": 32,
+        "d_H": 2,
+        "input_dim": 28,
+        "epsilon": 1e-5
+    }
+}
