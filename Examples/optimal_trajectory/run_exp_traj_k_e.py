@@ -1,6 +1,5 @@
 import pyomo.environ as pyo
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 from gurobipy import GRB
 from gurobi_ml import add_predictor_constr
